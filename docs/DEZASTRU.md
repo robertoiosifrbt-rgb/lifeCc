@@ -1,43 +1,54 @@
 # Când aplicația nu mai merge
 
-Scris pe 5 septembrie 2026, în ziua în care s-a întâmplat de două ori.
+Procedură scurtă pentru incidente. Nu ține istoria incidentelor; aceea poate fi
+căutată în git/jurnal numai dacă este necesară.
 
-## Întâi: ce s-a schimbat ultima dată?
+## 1. Identifică ultimul efect extern
 
-Aproape întotdeauna una din trei. Le verifici în ordinea asta, fiindcă asta e
-ordinea în care costă.
+În ordinea asta:
 
-**1. Ai rulat un SQL.** Cel mai probabil vinovat, și cel mai rapid de dovedit:
-eroarea numește lucrul care lipsește. „Fetching the reserves" înseamnă că un
-tabel pe care codul îl cere nu mai e acolo.
-→ **Repararea nu e să dai baza înapoi.** E să pui la loc exact lucrul șters,
-sau să livrezi codul care nu-l mai cere. Vezi [MIGRATII.md](MIGRATII.md).
+1. **S-a schimbat baza live?** Verifică ce SQL/migrație a fost aplicată și
+   compară cu `docs/MIGRATII.md`.
+2. **S-a schimbat codul livrat?** Verifică ultimul push/deploy și ce cere codul
+   față de schema live.
+3. **Nu s-a schimbat nimic extern?** Verifică autentificarea, sincronizarea,
+   cache-ul și eroarea exactă afișată.
 
-**2. S-a livrat cod nou.** Vercel construiește din `main`. Dacă ecranele au
-început să dea eroare fără să fi atins baza, codul cere ceva ce baza n-are.
-→ Rulează migrația care lipsește.
+Nu investiga zece ipoteze în paralel. Dovedește sau elimină cauza cea mai
+recentă întâi.
 
-**3. Nici una, nici alta.** Atunci e sincronizarea sau contul. Apasă butonul de
-sincronizare din capul ecranului — el spune de ce a picat, nu doar că a picat.
+## 2. Protejează datele
 
-## Ce NU se face
+Dacă aplicația încă permite exportul, folosește `Download everything` înaintea
+unei reparații riscante.
 
-⛔ **Nu se șterge nimic din bază ca să „iasă din eroare".** Datele tale sunt
-acolo; codul nu le găsește. Un `drop` pe panică pierde definitiv ce eroarea
-doar ascundea.
+Ștergerea normală din UI este soft-delete (`deleted_at`), nu DELETE fizic.
 
-⛔ **Nu se dă înapoi o migrație aplicată printr-o migrație nouă.** Evidența din
-bază o are deja pe prima ca aplicată. Se rulează SQL de reparație, o dată, și
-se scrie în [MIGRATII.md](MIGRATII.md) ce s-a rulat și de ce.
+## 3. Ce nu se face
 
-⛔ **Nu se atinge producția dintr-o sesiune.** Nu poate, și n-are voie. Tot ce
-schimbă baza trece prin mâna proprietarului, din SQL Editor.
+- Nu da `DROP` pe panică.
+- Nu inventa o migrație inversă doar ca să anulezi rapid una deja aplicată.
+- Nu presupune că baza și codul au fost livrate în aceeași ordine.
+- Nu presupune că o migrație este atomică; inspectează SQL-ul real.
+- Nu schimba producția fără autorizarea explicită a proprietarului.
 
-## Datele nu se pierd ușor
+## 4. Repară diferența, nu simptomul
 
-Ștergerea din interfață e o coloană `deleted_at`, nu un `delete`: rândul rămâne
-în bază. Un item șters greșit se întoarce punând coloana aia pe `null`.
+Dacă schema live lipsește ceva de care codul livrat depinde, aplică numai
+schimbarea necesară și autorizată.
 
-Exportul — „Download everything", în capul ecranului — scoate tot într-un
-fișier pe telefonul tău. E singurul lucru din tot planul care nu depinde de
-nimeni. Dacă ceva pare grav, apasă-l înainte să repari.
+Dacă live are o schimbare pe care codul livrat încă nu o suportă, livrează
+codul compatibil sau restaurează temporar numai structura necesară, fără să
+pierzi date.
+
+Orice stare live confirmată care diferă de migrațiile din repo se notează în
+`docs/MIGRATII.md` ca drift.
+
+## 5. Verifică după reparație
+
+Verifică exact traseul care era stricat. Nu declara incidentul rezolvat doar
+pentru că o verificare vecină este verde.
+
+Dacă problema este de UI pe telefon, testul final este pe telefon. Dacă este de
+RLS/schema, testul final este pe baza relevantă. Dacă este de deployment,
+verifică deployment-ul livrat.
