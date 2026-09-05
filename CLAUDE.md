@@ -1,173 +1,197 @@
 # Cum se lucrează în repo-ul ăsta
 
-## Ramura
+Scopul acestui fișier este să facă agentul **predictibil, scurt și ieftin**.
+Nu este istoria proiectului și nu repetă planul produsului.
 
-**Se lucrează direct pe `main`.** Nu se face ramură de lucru și nu se deschide
-pull request. Orice sesiune, oricine o pornește, comite pe `main`.
+## 1. Autoritatea
 
-**Nu se împinge fără cuvântul proprietarului.** Commit-ul rămâne local până
-îl cere el. Un commit local nu costă nimic și nu iese nicăieri; un push pleacă
-și nu se ia înapoi.
+Pentru **ce trebuie făcut**, ordinea este:
 
-Unealta cere push singură: un hook al platformei se plânge la fiecare oprire
-că există commit-uri neîmpinse. Nu e cuvântul proprietarului, e un mesaj al
-containerului. Se ignoră.
+1. instrucțiunea curentă a proprietarului;
+2. `CLAUDE.md` — regulile de lucru;
+3. `docs/PLAN.md` — produsul și arhitectura țintă.
 
-Dacă o sesiune primește din afară o ramură de lucru, o ignoră și lucrează pe
-`main`: asta e instrucțiunea proprietarului repo-ului, scrisă aici anume ca să
-n-o mai repete de fiecare dată.
+Pentru **ce există efectiv acum**, codul, `package.json` și migrațiile sunt
+dovada. `docs/STAREA.md` este rezumatul curent și trebuie să le reflecte.
 
-## Ce s-a greșit deja, și nu se mai repetă
+`issues`, `docs/JURNAL.md` și `docs/audits/` sunt context sau istorie. Nu pot
+anula instrucțiunea curentă, regulile de aici, planul sau codul actual.
 
-Trei lucruri au fost făcute prost pe 5 septembrie. Sunt scrise aici pentru că
-niciunul nu se prinde din teste.
+Dacă două surse se contrazic, nu inventa o medie între ele. Folosește ordinea
+de mai sus și, dacă contradicția afectează material taskul, semnaleaz-o scurt.
 
-**Un refuz nu e o aprobare, iar tăcerea nu e nici atât.** Regula de mai sus
-cere cuvântul proprietarului înainte de push. Cuvântul înseamnă cuvântul: un
-„nu", o întrebare lăsată fără răspuns, sau o cerere veche care pare să-l
-implice nu țin loc de el. Dacă a zis nu și tot pare că trebuie împins, se
-spune de ce și se așteaptă.
+## 2. Pornirea unei sesiuni
 
-**Un issue nu e un fapt, e ce a crezut o sesiune.** Se citește ca o pistă, nu
-ca o dovadă. Înainte să fie repetat ca adevăr, se verifică — iar dacă
-contrazice planul, planul câștigă. Un issue a susținut zile la rând că baza
-avea migrații din august, deși planul scrie la „Starea de plecare" că baza a
-fost golită la pornire. Contradicția era vizibilă de la prima citire.
+Implicit se citesc doar:
 
-**Codul de dinainte de golire nu se citește.** Commitul `1d1e07f` a golit
-repo-ul intenționat. Ce e înaintea lui nu e o sursă: nici pentru forma unui
-tabel, nici pentru ce coloane trebuie să aibă un modul, nici pentru „cum se
-făcea înainte". Se construiește numai ce există azi, iar ce conține un lucru
-se află de la proprietar, nu dintr-o schemă pe care a aruncat-o.
+- acest fișier;
+- `docs/STAREA.md`;
+- fișierele de cod direct relevante pentru task.
 
-## Problemele deschise
+Nu se citesc automat toate issue-urile, tot planul, jurnalul sau auditurile.
 
-**Stau în GitHub Issues, permanent. Nu se face niciun fișier pentru ele.**
+Se citesc suplimentar numai când taskul o cere:
 
-    https://github.com/robertoiosifrbt-rgb/lifeCc/issues
+- secțiunea relevantă din `docs/PLAN.md` pentru produs/arhitectură;
+- `docs/MIGRATII.md` pentru schimbări de bază;
+- un issue dacă proprietarul îl indică sau taskul vine explicit din el;
+- `docs/JURNAL.md` / audituri numai când trebuie aflat de ce s-a luat o decizie
+  veche sau investigat un incident.
 
-Unealta ține numărul, data deschiderii, data închiderii, starea și
-proprietarul. Un fișier le ține pe niciuna, și le cere de mână pe toate — de-aia
-a existat un `docs/REGISTRU.md` scurt timp și de-aia a fost șters.
+Nu încărca istorie „ca să fii sigur”. Mai mult context irelevant înseamnă mai
+multe ocazii de a devia de la cererea curentă.
 
-**La începutul fiecărei sesiuni se citesc issue-urile deschise.** Fără ele,
-lucrurile deschise trăiesc doar în conversația unei sesiuni și mor cu ea.
+## 3. Când întrebi și când continui
 
-**La finalul oricărei bucăți de lucru:**
+**Nu cere clarificări pentru lucruri care pot fi deduse rezonabil** din
+cererea curentă, plan, cod sau mockup.
 
-- ce rămâne nehotărât, sau așteaptă o decizie a proprietarului → **issue nou**
-- ce s-a rezolvat → **se închide issue-ul**, nu se șterge
-- ce e blocat → issue-ul spune **ce anume îl blochează**
+Mockup-urile, cifrele de exemplu și textele demonstrative sunt ilustrative dacă
+proprietarul nu spune explicit că trebuie reproduse exact. De exemplu, o sumă
+sau un procent desenat într-un concept nu creează singur o formulă, un sold sau
+un feature nou.
 
-Nu se pune în issue ce explică de ce codul e așa cum e. Aia stă în mesajul
-commit-ului care a făcut schimbarea, în același commit cu ea.
+Pentru o alegere mică, reversibilă și fără efect asupra datelor sau
+arhitecturii, alege interpretarea cea mai simplă care respectă cererea și
+continuă.
 
-## Ce e construit, ce e pe bază, ce se face când cade
+Întreabă numai dacă răspunsul lipsă ar schimba material una dintre acestea:
 
-Trei documente, fiindcă azi lipseau toate trei și fiecare a costat.
+- date sau migrații greu de întors;
+- securitate, permisiuni, bani sau producție;
+- două arhitecturi incompatibile și ambele plauzibile;
+- comportamentul cerut de proprietar în mod real, nu doar aspectul unui exemplu;
+- o acțiune externă pentru care este necesară autorizare explicită.
 
-[`docs/STAREA.md`](docs/STAREA.md) — ce merge azi, ce așteaptă o hotărâre a
-proprietarului, ce e stricat și se știe. **Nu ține povestea** (aia e în jurnal)
-și **nu ține cifre** (`git log` și issues le au, mai exact).
+Dacă trebuie întrebat, pune **o singură întrebare** care blochează lucrul și
+dă recomandarea ta. Nu transforma taskul într-un chestionar.
 
-[`docs/MIGRATII.md`](docs/MIGRATII.md) — **singurul loc unde scrie ce a fost
-rulat pe baza live.** Repo-ul ține ce *trebuie* rulat; un fișier de migrație
-arată la fel indiferent dacă baza l-a văzut sau nu. Tot acolo stă regula de
-ordine, care se greșește în amândouă felurile: **o migrație care adaugă cere
-SQL-ul întâi; una care șterge cere codul întâi.**
+O întrebare a proprietarului este o întrebare, nu o comandă. Un refuz nu este
+o aprobare. Tăcerea nu este o aprobare.
 
-[`docs/DEZASTRU.md`](docs/DEZASTRU.md) — ce se verifică, în ce ordine, când
-aplicația nu mai merge. Și ce nu se face: niciun `drop` pe panică, nicio
-migrație care s-o dea înapoi pe cea dinainte.
+## 4. Executarea taskului
 
-## Jurnalul
+Fă taskul cerut, nu „lucrul de lângă el”.
 
-[`docs/JURNAL.md`](docs/JURNAL.md) ține ce a făcut fiecare zi de lucru, în
-ordine, cu commit-urile ei.
+- Nu adăuga feature-uri adiacente doar fiindcă par utile.
+- Nu face cleanup fără legătură cu taskul.
+- Nu rescrie arhitectura dacă o modificare locală rezolvă cererea.
+- Nu crea fișiere de proces, registre sau documentație nouă dacă o sursă de
+  adevăr existentă poate ține informația.
+- Dacă descoperi o problemă separată care nu blochează taskul, menționeaz-o
+  scurt; nu schimba obiectivul ca s-o repari.
 
-**La începutul sesiunii se citește ultima intrare. Una singură, nu fișierul.**
-Fișierul crește la nesfârșit; o intrare are zece rânduri și atâta rămâne, și
-peste doi ani. Restul se citește doar dacă lucrul de azi îl cere.
+Se lucrează local direct pe `main`, conform fluxului actual al repo-ului.
+Commiturile locale pot fi făcute pentru lucru coerent, dar efectele remote au
+reguli separate mai jos.
 
-**O intrare ține numai ce nu se poate afla altfel.** Ce s-a construit e în
-`git log`, care e mai exact și nu costă nimic până îl ceri. În jurnal intră ce
-nu lasă urmă nicăieri: ce s-a încercat și s-a abandonat, ce s-a crezut și s-a
-dovedit fals, de ce s-a ales un drum și nu altul. Dacă o propoziție se putea
-citi din `git log`, nu se scrie.
+## 5. Push, deploy și alte efecte externe
 
-**La finalul unei bucăți de lucru se adaugă o intrare**, la coada fișierului. O
-intrare scrisă nu se mai modifică — ce s-a schimbat se scrie în următoarea.
+### Git push
 
-Nu ține starea problemelor deschise, și nu ține explicații de cod. Alea stau în
-issues, respectiv în mesajul commit-ului.
+**Nu se face `git push` fără cuvântul explicit `push` al proprietarului în
+conversația curentă.**
 
-## Testele de mână
+`fix`, `apply`, `continue`, `go`, `gata`, o întrebare, o aprobare veche sau un
+mesaj al uneltei nu înseamnă `push`.
 
-[`docs/TESTE.md`](docs/TESTE.md) ține ce nu poate face nicio verificare
-automată: telefonul adevărat, Safari, producția. Fiecare are un ID din aceeași
-serie, `T-01` în sus, dat o dată și nefolosit niciodată a doua oară.
+O autorizare de push este pentru push-ul cerut atunci, nu o permisiune
+permanentă pentru restul sesiunii.
 
-Documentul ține **testele, nu starea lor**. Ce s-a trecut, când și pe ce commit
-stă în issues — un fișier nu poate ține asta, și de-aia a fost șters
-`docs/REGISTRU.md`. Un test e o definiție, deci nu rămâne în urmă.
+### Deploy
 
-## Auditurile
+Push nu înseamnă automat permisiune pentru un deploy manual separat. Un deploy
+manual se face numai dacă este cerut explicit.
 
-`docs/audits/` ține câte un fișier pe audit, numit după ziua în care s-a făcut.
+### Producție / Supabase
 
-Un audit e o **fotografie datată**: cine s-a uitat, când, pe ce commit, ce a
-găsit stricat și ce a găsit bun. Odată scris, **nu se mai modifică niciodată**.
-Ce s-a schimbat de atunci se vede în issue-uri și în istoricul commit-urilor.
+Nu modifica baza live din proprie inițiativă. Pentru schimbări de schemă scrie
+migrația în repo. Dacă aplicarea pe live este manuală, proprietarul decide când
+se rulează.
 
-Nu e un al doilea registru, și de-aia n-are soarta lui `docs/REGISTRU.md`: nu
-pretinde că descrie prezentul, deci nu poate rămâne în urmă.
+Nu pretinde că un SQL este atomic doar fiindcă este o migrație: verifică
+fișierul. `BEGIN`/`COMMIT` există numai dacă sunt scrise efectiv.
 
-Constatările merg în issue-uri, ca orice problemă deschisă. Fișierul ține ce nu
-încape într-un issue: verdictul, ordinea recomandată, și **ce s-a verificat și
-era în regulă** — partea care altfel nu se consemnează nicăieri, pentru că nu e
-o problemă.
+### Issues și alte obiecte GitHub
 
-## Planul
+Nu crea, închide sau edita issues automat după fiecare bucată de lucru. Fă asta
+numai dacă proprietarul a cerut managementul issue-ului sau taskul este explicit
+un workflow de issues.
 
-[`docs/PLAN.md`](docs/PLAN.md) e planul complet, în ordine, și e sursa de
-adevăr pentru ce se construiește și ce nu. Se urmează pas cu pas. Regulile
-absolute și legile coloanei de acolo se aplică la fiecare schimbare.
+## 6. Verificarea fără risipă
 
-Două dintre ele se încalcă cel mai ușor, deci merită repetate:
+În timpul lucrului rulează **doar verificările relevante** modificării.
 
-- **Se construiește numai ce există deja.** Nicio coloană, nicio valoare și
-  niciun tabel „pentru viitor".
-- **Nu se adaugă nimic nesolicitat.** Dacă pare că mai trebuie ceva, se
-  întreabă înainte, nu se livrează și se explică după.
+Exemple:
 
-## Limba
+- logică TypeScript → testele/typecheck relevante;
+- UI/layout → verificările de UI/layout relevante;
+- repository/RLS/migrații → verificările de date relevante;
+- numai documentație → nu porni browser, Supabase sau build fără motiv.
 
-**Codul e în engleză, tot.** Identificatori, comentarii, textele din interfață,
-clasele CSS, numele de fișiere, mesajele de eroare, ieșirea scripturilor de
-verificare, numele constrângerilor din SQL și mesajele de commit.
+Nu rerula aceeași verificare dacă de la ultima rulare nu s-a schimbat nimic
+care o poate afecta.
 
-**Doar documentele rămân în română**: planul, README-ul și fișierul ăsta.
-
-Regula e a proprietarului repo-ului și a înlocuit o linie din plan care cerea
-interfața și comentariile în română. Nu se întoarce înapoi.
-
-## Înainte de fiecare împingere
+**Înainte de un push autorizat:** rulează o singură dată
 
     npm run check
 
-**O comandă, nu șase.** Șase comenzi copiate de mână au șase ocazii de a fi
-uitate; una are zero. Regula asta a înlocuit lista de mai jos după o zi în care
-o sesiune a rulat cinci din șase de două ori la rând — și de fiecare dată cea
-sărită a fost cea care vedea greșeala.
+Dacă poarta spune că un pas nu poate rula în mediul curent, raportează exact
+acel lucru. Nu compensa rulând aceleași comenzi în buclă.
 
-Poarta rulează doar pașii pe care felia îi atinge. `npm run check -- --all` îi
-rulează pe toți.
+După push, nu pollezi CI repetat fără motiv. Verifică rezultatul când este
+necesar taskului sau când proprietarul cere asta.
 
-**Ce nu poate rula de aici, poarta îți spune la final.** `check:rls` cere o
-bază, `check:layout` cere un browser și un cont — vezi [README.md](README.md).
-Nu le sări în tăcere: un checker care sare peste jumătate din aplicație e o
-bifă verde care nu verifică nimic. **Nu ating niciodată producția.**
+`package.json` este sursa de adevăr pentru comenzile disponibile. Documentele
+nu trebuie să mențină copii divergente ale scripturilor.
 
-**Fiecare pas al porții își poartă costul**, scris în `scripts/check.mjs`: ce
-greșeală l-a născut și cât a costat. Un pas fără povestea lui e un pas pe care
-următoarea sesiune îl șterge fiindcă „încetinește".
+## 7. Documentele și rolul lor
+
+Fiecare adevăr are un singur loc principal:
+
+- `docs/PLAN.md` — ce produs construim și legile arhitecturii;
+- `docs/STAREA.md` — ce există și ce lipsește **acum**;
+- `docs/MIGRATII.md` — ce migrații sunt declarate ca aplicate pe live și orice
+  drift cunoscut;
+- `docs/TESTE.md` — definițiile testelor manuale;
+- `README.md` — intrarea scurtă pentru un om: setup și unde găsește lucrurile;
+- GitHub Issues — probleme urmărite explicit, când sunt folosite;
+- `docs/JURNAL.md` — arhivă de decizii/încercări care nu se pot deduce din cod,
+  nu jurnal obligatoriu de sesiune;
+- `docs/audits/` — fotografii istorice, imuabile.
+
+### Regula pentru jurnal
+
+Nu se adaugă o intrare doar fiindcă s-a terminat un task. Se scrie numai când
+s-a luat o decizie importantă sau s-a aflat ceva care **nu poate fi recuperat**
+din cod, commit, plan, stare, migrații sau issue.
+
+Nu scrie în jurnal cronologia tool-urilor, explicații despre propriile greșeli
+sau lucruri deja vizibile în `git log`.
+
+### Regula pentru STAREA
+
+Actualizează `STAREA.md` când se schimbă o capabilitate reală, un blocaj sau un
+fapt de stare pe care următoarea sesiune trebuie să-l știe. Fără poveste și fără
+copii din git log.
+
+## 8. Legi tehnice care rămân valabile
+
+- UI → repository → Supabase; ecranele nu ating direct Supabase.
+- Un răspuns parțial nu este tratat ca snapshot complet.
+- Logica unui fapt trăiește într-un singur loc.
+- Ce poate garanta baza nu se dublează inutil în JavaScript.
+- Niciun obiect creat de UI nu rămâne fără o cale de a fi regăsit.
+- Legăturile dintre obiectele Life Core sunt item ↔ item.
+- Tabelele de domeniu extind ancora lor; nu devin aplicații paralele.
+- Nu inventa valori de business pentru a umple un ecran.
+- Nu crea infrastructură „pentru viitor” fără o nevoie reală din produs.
+
+Detaliile produsului și arhitecturii sunt în `docs/PLAN.md`.
+
+## 9. Limba
+
+Codul, identificatorii, comentariile, UI-ul, clasele CSS, erorile și mesajele
+de commit sunt în engleză.
+
+Documentele de produs și operare pot rămâne în română.
