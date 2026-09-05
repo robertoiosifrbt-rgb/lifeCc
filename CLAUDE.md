@@ -38,6 +38,13 @@ Se citesc suplimentar numai când taskul o cere:
 - `docs/JURNAL.md` / audituri numai când trebuie aflat de ce s-a luat o decizie
   veche sau investigat un incident.
 
+**`docs/JURNAL.md` nu se citește niciodată integral din reflex.** Caută mai
+întâi după subiectul, data sau termenul relevant (`search`/`grep`), apoi citește
+doar intrarea sau fragmentul necesar. Dacă nu știi unde este informația, caută
+înainte de `read`. Citirea integrală a jurnalului se face numai dacă
+proprietarul o cere explicit sau dacă taskul cere în mod real analiza întregii
+istorii.
+
 Nu încărca istorie „ca să fii sigur”. Mai mult context irelevant înseamnă mai
 multe ocazii de a devia de la cererea curentă.
 
