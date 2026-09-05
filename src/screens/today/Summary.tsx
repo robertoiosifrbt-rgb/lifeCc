@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-
 import { pounds } from '../../shifts/money'
 import type { Period } from '../../repository/items'
 import { SOON_DAYS, summarise } from './summary'
@@ -59,7 +57,10 @@ function Line({
  */
 export function Summary({ items, things, year, today }: Props) {
   const counts: Counts = summarise({ items, things, today })
-  const soonest = counts.coming.slice(0, 3)
+  // Two, not three. On the narrowest phone a third row pushes the first task
+  // off the screen, and the whole point of this block is to sit above the list
+  // rather than instead of it.
+  const soonest = counts.coming.slice(0, 2)
 
   return (
     <section className="brief" aria-label="What is going on now">
@@ -115,11 +116,14 @@ export function Summary({ items, things, year, today }: Props) {
         </div>
       </dl>
 
+      {/* One line, not a paragraph, and no link in it.
+          📜 Three lines of prose at the top of the day — every day until the
+          figures are set — pushed the first task off a 320px screen, and the
+          link inside them was a 38×15px tap target where 44 is the minimum.
+          The dashes above already say the honest thing: unknown, not nothing.
+          The header's HMRC button is the door, and it is two inches up. */}
       {year.missingRates && (
-        <p className="brief-missing">
-          This year&rsquo;s figures are not set, so what you owe is unknown —
-          not nothing. Put them in on <Link to="/hmrc">HMRC</Link>.
-        </p>
+        <p className="brief-missing">Year&rsquo;s figures not set.</p>
       )}
     </section>
   )

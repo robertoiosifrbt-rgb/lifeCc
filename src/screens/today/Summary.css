@@ -2,7 +2,7 @@
 
 .brief {
   padding: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
   background: var(--bg-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -19,7 +19,7 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  min-height: var(--space-5);
+  min-height: var(--space-4);
 }
 
 .brief-mark {
@@ -45,8 +45,8 @@
 
 .brief-coming {
   list-style: none;
-  margin: var(--space-3) 0 0;
-  padding: var(--space-3) 0 0;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) 0 0;
   border-top: 1px solid var(--line);
 }
 
@@ -55,7 +55,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-3);
-  min-height: var(--space-5);
+  min-height: var(--space-4);
 }
 
 .brief-what {
@@ -77,8 +77,8 @@
 .brief-money {
   display: flex;
   gap: var(--space-2);
-  margin: var(--space-3) 0 0;
-  padding-top: var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-2);
   border-top: 1px solid var(--line);
 }
 
