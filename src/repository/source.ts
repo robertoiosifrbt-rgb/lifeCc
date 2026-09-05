@@ -163,6 +163,16 @@ export function supabaseShiftWriter(owner: string) {
       if (response.error !== null) fail('Closing the session', response.error)
       return response.data as unknown
     },
+    async setBreak(id: string, break_minutes: number) {
+      const response = await on('shift_sessions')
+        .update({ break_minutes })
+        .eq('id', id)
+        .eq('owner', owner)
+        .select(ALL)
+        .single()
+      if (response.error !== null) fail('Writing the break', response.error)
+      return response.data as unknown
+    },
     async removeSession(id: string) {
       const response = await on('shift_sessions').delete().eq('id', id).eq('owner', owner)
       if (response.error !== null) fail('Removing the session', response.error)

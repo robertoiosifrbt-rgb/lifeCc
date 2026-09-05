@@ -57,6 +57,7 @@ export type { Figure, TaxYearPatch, TaxYearRow } from './hmrc-year'
 export { dueDates, taxYearOf } from './taxyear'
 export type { DueDates, TaxYear } from './taxyear'
 export type { TakeHome } from './takehome'
+export { setSessionBreak } from './shifts'
 export {
   earnedPence,
   isOut,

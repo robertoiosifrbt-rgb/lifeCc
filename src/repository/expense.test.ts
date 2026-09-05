@@ -20,6 +20,9 @@ describe('expenseFromRow', () => {
       category: 'fuel',
       odo: 120000,
       full_tank: true,
+      litres: null,
+      covers_from: null,
+      covers_to: null,
       business_pct: 100,
     })
   })
@@ -55,6 +58,6 @@ describe('fillsOf', () => {
       expenseFromRow({ ...FUEL, item_id: 'i2', odo: null, full_tank: false }),
       expenseFromRow({ item_id: 'i3', owner: 'me', amount: '400', category: 'repair' }),
     ])
-    expect(fills).toEqual([{ pence: 7000, odo: 120000, full: true }])
+    expect(fills).toEqual([{ pence: 7000, odo: 120000, full: true, litres: null }])
   })
 })

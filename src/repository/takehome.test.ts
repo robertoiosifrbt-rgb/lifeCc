@@ -22,6 +22,10 @@ function day(over: Partial<Shift> = {}): Shift {
     odo_end: 120512.4,
     tips: 12.5,
     personal_km: null,
+    bonuses: null,
+    parking: null,
+    tolls: null,
+    other_cost: null,
     rate_fuel_per_km: 0.116,
     rate_vehicle_per_km: 0.116,
     sessions: [],
@@ -103,11 +107,35 @@ describe('takeHomeOfAll', () => {
     expect(takeHomeOfAll([])).toEqual({
       grossPence: 0,
       costsPence: 0,
+      directPence: 0,
       profitPence: 0,
       taxPence: 0,
       niPence: 0,
       netPence: 0,
       missing: [],
     })
+  })
+})
+
+describe('what the day cost on the road', () => {
+  it('takes parking, tolls and the rest off the profit', () => {
+    // £126.45 made, £19.42 of fuel and wear over 167.4 km, then £4.50 of
+    // parking and £2 of tolls that actually left a pocket.
+    const bare = takeHome(day())
+    const withCosts = takeHome(day({ parking: 4.5, tolls: 2, other_cost: 1.25 }))
+    expect(withCosts.directPence).toBe(775)
+    expect(withCosts.profitPence).toBe(bare.profitPence - 775)
+  })
+
+  it('counts a bonus as money made, like a tip', () => {
+    const bare = takeHome(day())
+    const withBonus = takeHome(day({ bonuses: 15 }))
+    expect(withBonus.grossPence).toBe(bare.grossPence + 1500)
+  })
+
+  it('treats a blank as nothing, not as a broken sum', () => {
+    // Every one of these columns arrived after the rows did, so most shifts
+    // carry null. Null must read as zero here or every old day goes to NaN.
+    expect(takeHome(day()).directPence).toBe(0)
   })
 })

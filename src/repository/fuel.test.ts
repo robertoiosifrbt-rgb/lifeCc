@@ -70,3 +70,41 @@ describe('fuelRate', () => {
     })
   })
 })
+
+describe('what the car drinks', () => {
+  it('works out l/100km and UK MPG between two full tanks', () => {
+    // 500 km on 40 litres: 8 l/100km, which is 35.3 mpg imperial.
+    const rate = fuelRate([
+      { pence: 6000, odo: 120000, full: true, litres: 45 },
+      { pence: 5600, odo: 120500, full: true, litres: 40 },
+    ])
+    expect(rate.litresPer100Km).toBe(8)
+    expect(rate.mpg).toBe(35.3)
+  })
+
+  it('says nothing about thirst when the litres were not written down', () => {
+    // The money still prices a kilometre. An unrecorded fill is not a car that
+    // runs on air, so the thirst is unknown rather than flattering.
+    const rate = fuelRate([
+      { pence: 6000, odo: 120000, full: true },
+      { pence: 5600, odo: 120500, full: true },
+    ])
+    expect(rate.perKm).toBe(0.112)
+    expect(rate.litresPer100Km).toBeNull()
+    expect(rate.mpg).toBeNull()
+  })
+
+  it('drops a leg from the thirst but keeps it in the price', () => {
+    // The middle receipt lost its litres. That leg can still say what a
+    // kilometre cost; counting its distance against the litres it does have
+    // would make the car look a third more economical than it is.
+    const rate = fuelRate([
+      { pence: 6000, odo: 120000, full: true, litres: 45 },
+      { pence: 5600, odo: 120500, full: true },
+      { pence: 5600, odo: 121000, full: true, litres: 40 },
+    ])
+    expect(rate.legs).toBe(2)
+    expect(rate.km).toBe(1000)
+    expect(rate.litresPer100Km).toBe(8)
+  })
+})

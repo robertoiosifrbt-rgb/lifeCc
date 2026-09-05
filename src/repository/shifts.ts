@@ -95,6 +95,24 @@ export async function endSession(
   return syncShifts(owner)
 }
 
+/**
+ * The break inside one session.
+ *
+ * On the session rather than the shift: a day with a lunch stint and an
+ * evening stint has two breaks in different places. The database refuses a
+ * break longer than the session it sits in, so an hour typed into a
+ * twenty-minute stint comes back as a refusal rather than as negative hours.
+ */
+export async function setSessionBreak(
+  owner: string,
+  id: string,
+  break_minutes: number,
+): Promise<Shift[]> {
+  await requireAccount(owner)
+  await supabaseShiftWriter(owner).setBreak(id, break_minutes)
+  return syncShifts(owner)
+}
+
 /** A session written down by mistake. Gone outright, not hidden. */
 export async function removeSession(owner: string, id: string): Promise<Shift[]> {
   await requireAccount(owner)

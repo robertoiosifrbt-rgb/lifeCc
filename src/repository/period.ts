@@ -9,7 +9,7 @@ import type { Expense } from './expense'
 import type { Item } from './item'
 import type { Income, TaxFigures } from './hmrc'
 import { reserveFor } from './reserve'
-import { earnedPence } from './shift'
+import { directCostsPence, earnedPence } from './shift'
 import type { Shift } from './shift'
 
 export type Period = {
@@ -17,7 +17,8 @@ export type Period = {
   grossPence: number
   /**
    * What went out for work: fuel, repairs, insurance, the rest, each counted
-   * only for the share of it that was earning.
+   * only for the share of it that was earning — plus the parking and tolls
+   * paid inside the shifts themselves.
    */
   spentPence: number
   /** What the tax is worked out on. Can be negative; a bad month is a fact. */
@@ -84,6 +85,7 @@ export function periodMoney(input: {
   }
 
   let grossPence = 0
+  let directPence = 0
   let minutes = 0
   let km = 0
   let worked = 0
@@ -91,6 +93,10 @@ export function periodMoney(input: {
     if (!inside.has(shift.item_id)) continue
     worked += 1
     grossPence += earnedPence(shift)
+    // Parking and tolls are spent, not estimated, so they belong in the same
+    // column as the receipts below rather than in the fuel estimate this
+    // function deliberately ignores.
+    directPence += directCostsPence(shift)
     minutes += minutesOf(shift)
     if (shift.odo_start !== null && shift.odo_end !== null) {
       km += shift.odo_end - shift.odo_start
@@ -106,7 +112,7 @@ export function periodMoney(input: {
     spentPence += Math.round((expense.amount * expense.business_pct) / 100 * 100)
   }
 
-  const profitPence = grossPence - spentPence
+  const profitPence = grossPence - spentPence - directPence
 
   // What this stretch adds to the year's bill, not a percentage of it. Where
   // the profit lands decides what it costs, and only the year knows that.
@@ -117,7 +123,7 @@ export function periodMoney(input: {
 
   return {
     grossPence,
-    spentPence,
+    spentPence: spentPence + directPence,
     profitPence,
     taxPence: reserve.taxPence,
     niPence: reserve.niPence,

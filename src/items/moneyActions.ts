@@ -16,6 +16,7 @@ import {
   recordExpense,
   removeExpense,
   removeSession as removeShiftSession,
+  setSessionBreak,
   saveRunningCosts,
   saveTaxYear,
   saveShift,
@@ -55,6 +56,7 @@ export type MoneyActions = {
   clockOn: (item_id: string) => Promise<void>
   clockOff: (sessionId: string) => Promise<void>
   dropSession: (sessionId: string) => Promise<void>
+  setBreak: (sessionId: string, minutes: number) => Promise<void>
   setPaid: (item_id: string, platform: Platform, amount: number) => Promise<void>
 }
 
@@ -83,6 +85,7 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
   clockOn: (item_id) => write(() => startSession(owner, item_id, new Date())),
   clockOff: (sessionId) => write(() => endShiftSession(owner, sessionId, new Date())),
   dropSession: (sessionId) => write(() => removeShiftSession(owner, sessionId)),
+  setBreak: (sessionId, minutes) => write(() => setSessionBreak(owner, sessionId, minutes)),
   setPaid: (item_id, platform, amount) =>
     write(() => setEarning(owner, item_id, platform, amount)),
   }

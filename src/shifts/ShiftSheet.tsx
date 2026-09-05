@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  isOut,
   kilometres,
   minutesWorked,
   PLATFORM_NAMES,
@@ -17,18 +16,15 @@ import type {
   Platform,
   RunningCosts,
   Shift,
+  ShiftPatch,
   Slice,
 } from '../repository/items'
 import { Sheet } from '../ui/Sheet'
 import { ShiftCosts } from './ShiftCosts'
+import { ShiftHours } from './ShiftHours'
+import { ShiftRoadCosts } from './ShiftRoadCosts'
 import { ShiftOdometer } from './ShiftOdometer'
-import {
-  EMPTY_SHIFT,
-  clock,
-  hoursAndMinutes,
-  penceOf,
-  pounds,
-} from './money'
+import { EMPTY_SHIFT, hoursAndMinutes, penceOf, pounds } from './money'
 import './ShiftSheet.css'
 
 type Props = {
@@ -41,6 +37,9 @@ type Props = {
   onSetPaid: (platform: Platform, amount: number) => Promise<void>
   onSaveReadings: (odo_start: number | null, odo_end: number | null) => Promise<void>
   onSaveTips: (tips: number | null) => Promise<void>
+  /** Bonuses, parking, tolls and the rest — everything else on the day. */
+  onSaveMoney: (patch: ShiftPatch) => Promise<void>
+  onSetBreak: (sessionId: string, minutes: number) => Promise<void>
   onSavePersonalKm: (personal_km: number | null) => Promise<void>
   onSetArea: (area_id: string | null) => Promise<void>
   /** What a kilometre costs in this shift's area, or null if nobody said. */
@@ -93,6 +92,26 @@ export function ShiftSheet(props: Props) {
     run(() => props.onSetPaid(platform, pence / 100))
   }
 
+  /**
+   * One money field, written on blur and only when it changed.
+   *
+   * Written once because there are now six of them, and six copies of "parse
+   * it, compare it, save it" is six places for the comparison to be forgotten
+   * — which shows up as a write on every tap out of a field nobody touched.
+   */
+  function money(key: keyof ShiftPatch, typed: string, held: number | null) {
+    const already = held === null ? '' : held.toFixed(2)
+    if (typed.trim() === already.trim()) return
+    let value: number | null
+    try {
+      value = penceOf(typed)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+      return
+    }
+    run(() => props.onSaveMoney({ [key]: value === null ? null : value / 100 }))
+  }
+
   const worked = minutesWorked(shift)
   const km = kilometres(shift)
   // What this day adds to the year's bill, worked out where it lands rather
@@ -104,8 +123,6 @@ export function ShiftSheet(props: Props) {
       ? null
       : reserveFor(slice.figures, slice.income, slice.beforePence, profitPence),
   )
-  const out = isOut(shift)
-  const open = shift.sessions.find((session) => session.ended_at === null)
 
   return (
     <Sheet title={`Shift · ${item.due ?? ''}`} onClose={onClose}>
@@ -141,6 +158,13 @@ export function ShiftSheet(props: Props) {
             : `−${pounds(sum.costsPence)}`}</dd>
         </div>
         <div className="shift-line">
+          <dt>Parking, tolls and the rest</dt>
+          {/* Not an estimate like the line above it: this is money that left a
+              pocket on the day, so it is shown even when the rates are not
+              set and nothing else can be worked out. */}
+          <dd>{sum.directPence === 0 ? '—' : `−${pounds(sum.directPence)}`}</dd>
+        </div>
+        <div className="shift-line">
           <dt>Tax and NI to put aside</dt>
           <dd>
             {sum.missing.includes('rates')
@@ -172,51 +196,16 @@ export function ShiftSheet(props: Props) {
 
       {error !== null && <p className="shift-error">{error}</p>}
 
-      <section className="shift-block">
-        <h3 className="shift-heading">Hours</h3>
-        <ul className="shift-sessions">
-          {shift.sessions.map((session) => (
-            <li key={session.id} className="shift-session">
-              <span className="shift-when">
-                {clock(session.started_at)} —{' '}
-                {session.ended_at === null ? 'now' : clock(session.ended_at)}
-              </span>
-              <button
-                type="button"
-                name="drop-session"
-                className="shift-drop"
-                disabled={busy}
-                aria-label={`Remove the session that started at ${clock(session.started_at)}`}
-                onClick={() => run(() => props.onDropSession(session.id))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        {out && open !== undefined ? (
-          <button
-            type="button"
-            name="clock-off"
-            className="shift-clock shift-clock-off"
-            disabled={busy}
-            onClick={() => run(() => props.onClockOff(open.id))}
-          >
-            Stop
-          </button>
-        ) : (
-          <button
-            type="button"
-            name="clock-on"
-            className="shift-clock"
-            disabled={busy}
-            onClick={() => run(props.onClockOn)}
-          >
-            Start
-          </button>
-        )}
-      </section>
+      <ShiftHours
+        shift={shift}
+        busy={busy}
+        onClockOn={props.onClockOn}
+        onClockOff={props.onClockOff}
+        onDropSession={props.onDropSession}
+        onSetBreak={props.onSetBreak}
+        onRun={run}
+        onError={setError}
+      />
 
       <section className="shift-block">
         <h3 className="shift-heading">Paid</h3>
@@ -251,7 +240,20 @@ export function ShiftSheet(props: Props) {
             }}
           />
         </label>
+        <label className="shift-paid shift-tips">
+          <span className="shift-platform">Bonuses</span>
+          <input
+            className="shift-amount"
+            name="bonuses"
+            inputMode="decimal"
+            defaultValue={shift.bonuses === null ? '' : shift.bonuses.toFixed(2)}
+            disabled={busy}
+            onBlur={(event) => money('bonuses', event.target.value, shift.bonuses)}
+          />
+        </label>
       </section>
+
+      <ShiftRoadCosts shift={shift} busy={busy} onSave={money} />
 
       <section className="shift-block">
         <h3 className="shift-heading">Where it belongs</h3>

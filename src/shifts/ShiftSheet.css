@@ -211,3 +211,32 @@
   background: var(--bg-sunken);
   border-radius: var(--radius-s);
 }
+
+/* The break, on the session that holds it. Inline rather than in its own row:
+   a session is one line on a phone, and a second line per stint pushes the
+   Start button under the fold on a day with three of them. */
+.shift-break {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.shift-break-input {
+  width: 3.5em;
+  min-height: var(--tap);
+  padding: var(--space-1);
+  font: inherit;
+  color: var(--text);
+  text-align: right;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+}
+
+.shift-break-label,
+.shift-break-unit {
+  white-space: nowrap;
+}

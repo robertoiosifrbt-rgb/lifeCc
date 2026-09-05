@@ -9,8 +9,14 @@
 
 import { asRecord, optionalNumber, optionalText, requiredText } from './row'
 
-/** The three the owner drives for. The same three the check constraint names. */
-export const PLATFORMS = ['uber_eats', 'deliveroo', 'just_eat'] as const
+/**
+ * The platforms, the same ones the check constraint names.
+ *
+ * `other` is the fourth because his own app carries otherPlatformEarnings as a
+ * column. Here the earnings are one row per platform, so the same thing is one
+ * more allowed value and no new column at all.
+ */
+export const PLATFORMS = ['uber_eats', 'deliveroo', 'just_eat', 'other'] as const
 export type Platform = (typeof PLATFORMS)[number]
 
 /** What the platform is called on screen. */
@@ -18,6 +24,7 @@ export const PLATFORM_NAMES: Record<Platform, string> = {
   uber_eats: 'Uber Eats',
   deliveroo: 'Deliveroo',
   just_eat: 'Just Eat',
+  other: 'Somewhere else',
 }
 
 export type ShiftSession = {
@@ -26,6 +33,14 @@ export type ShiftSession = {
   started_at: string
   /** Empty while you are still out. */
   ended_at: string | null
+  /**
+   * The break inside this session, in minutes.
+   *
+   * On the session and not on the shift: a day with a lunch stint and an
+   * evening stint has two breaks in different places, and one number on the
+   * shift could not say which was which.
+   */
+  break_minutes: number
 }
 
 export type ShiftEarning = { platform: Platform; amount: number }
@@ -44,6 +59,18 @@ export type Shift = {
    * earning. Null means none was set aside, not that none happened.
    */
   personal_km: number | null
+  /**
+   * What the day brought in beyond the platforms and the tips, and what it
+   * cost on the road.
+   *
+   * Parking and tolls are here rather than in `expenses` because they are
+   * spent inside one shift, never have a receipt worth filing, and belong to
+   * that day's own profit rather than to the month's pile of bills.
+   */
+  bonuses: number | null
+  parking: number | null
+  tolls: number | null
+  other_cost: number | null
   rate_fuel_per_km: number | null
   rate_vehicle_per_km: number | null
   sessions: ShiftSession[]
@@ -51,7 +78,17 @@ export type Shift = {
 }
 
 export type ShiftPatch = Partial<
-  Pick<Shift, 'odo_start' | 'odo_end' | 'tips' | 'personal_km'>
+  Pick<
+    Shift,
+    | 'odo_start'
+    | 'odo_end'
+    | 'tips'
+    | 'personal_km'
+    | 'bonuses'
+    | 'parking'
+    | 'tolls'
+    | 'other_cost'
+  >
 >
 
 function requiredMomentText(raw: Record<string, unknown>, key: string): string {
@@ -73,7 +110,13 @@ export function sessionFromRow(row: unknown): ShiftSession {
   if (ended_at !== null && Date.parse(ended_at) <= Date.parse(started_at)) {
     throw new Error('A session that ends before it starts')
   }
-  return { id: requiredText(raw, 'id'), started_at, ended_at }
+  // Absent means none: the column arrived after the rows did, and a session
+  // written before it existed had no break recorded, which is a break of
+  // nothing rather than an unknown.
+  const break_minutes = optionalNumber(raw, 'break_minutes') ?? 0
+  if (break_minutes < 0) throw new Error(`A break of less than nothing: ${break_minutes}`)
+
+  return { id: requiredText(raw, 'id'), started_at, ended_at, break_minutes }
 }
 
 export function earningFromRow(row: unknown): ShiftEarning {
@@ -106,6 +149,10 @@ export function shiftFromRow(
     odo_end,
     tips: optionalNumber(raw, 'tips'),
     personal_km: optionalNumber(raw, 'personal_km'),
+    bonuses: optionalNumber(raw, 'bonuses'),
+    parking: optionalNumber(raw, 'parking'),
+    tolls: optionalNumber(raw, 'tolls'),
+    other_cost: optionalNumber(raw, 'other_cost'),
     rate_fuel_per_km: optionalNumber(raw, 'rate_fuel_per_km'),
     rate_vehicle_per_km: optionalNumber(raw, 'rate_vehicle_per_km'),
     sessions,
@@ -146,7 +193,11 @@ export function minutesWorked(shift: Shift): number {
   let total = 0
   for (const session of shift.sessions) {
     if (session.ended_at === null) continue
-    total += (Date.parse(session.ended_at) - Date.parse(session.started_at)) / 60000
+    const span = (Date.parse(session.ended_at) - Date.parse(session.started_at)) / 60000
+    // The break comes off. An hour sitting in a car park is an hour you were
+    // out and not an hour you worked, and every rate per hour on the app is
+    // this number underneath.
+    total += Math.max(0, span - session.break_minutes)
   }
   return Math.round(total)
 }
@@ -163,7 +214,23 @@ export function isOut(shift: Shift): boolean {
  * and it drifts in the direction nobody notices until a month is out.
  */
 export function earnedPence(shift: Shift): number {
-  let total = shift.tips === null ? 0 : Math.round(shift.tips * 100)
+  let total = pence(shift.tips) + pence(shift.bonuses)
   for (const earning of shift.earnings) total += Math.round(earning.amount * 100)
   return total
+}
+
+/** Pounds to pence, treating "not filled in" as nothing rather than as NaN. */
+function pence(amount: number | null): number {
+  return amount === null ? 0 : Math.round(amount * 100)
+}
+
+/**
+ * What the day cost on the road: parking, tolls, and whatever else.
+ *
+ * Apart from the fuel and the wear, which are worked out per kilometre from a
+ * rate. These are money that actually left a pocket on the day, so they are
+ * counted as they were paid.
+ */
+export function directCostsPence(shift: Shift): number {
+  return pence(shift.parking) + pence(shift.tolls) + pence(shift.other_cost)
 }

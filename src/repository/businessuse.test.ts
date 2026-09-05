@@ -21,6 +21,10 @@ const shift: Shift = {
   odo_end: 10200,
   tips: null,
   personal_km: null,
+  bonuses: null,
+  parking: null,
+  tolls: null,
+  other_cost: null,
   rate_fuel_per_km: null,
   rate_vehicle_per_km: null,
   sessions: [],
@@ -46,6 +50,9 @@ const expense: Expense = {
   category: 'insurance',
   odo: null,
   full_tank: null,
+  litres: null,
+  covers_from: null,
+  covers_to: null,
   business_pct: 100,
 }
 

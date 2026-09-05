@@ -3,7 +3,7 @@
 // One row per anchor item, like a shift's numbers: an expense happened on a
 // day, and the day is the item's.
 
-import { asRecord, optionalNumber, requiredText } from './row'
+import { asRecord, optionalDay, optionalNumber, requiredText } from './row'
 import type { Fill } from './fuel'
 
 export const CATEGORIES = ['fuel', 'repair', 'insurance', 'other'] as const
@@ -25,6 +25,22 @@ export type Expense = {
   odo: number | null
   /** Whether the tank was filled. Only a fuel purchase has one. */
   full_tank: boolean | null
+  /**
+   * How much went in. Only a fuel purchase has litres.
+   *
+   * Without them the app can say what a kilometre costs in money and nothing
+   * about what the car is drinking — no l/100km and no MPG, which are the two
+   * numbers that show a car has a problem before the bill does.
+   */
+  litres: number | null
+  /**
+   * What a bill covers, when it covers a stretch rather than a day.
+   *
+   * A year of insurance paid in September is not September's cost. Null for
+   * the ordinary case: a tank of fuel is spent on the day it is bought.
+   */
+  covers_from: string | null
+  covers_to: string | null
   /**
    * What share of this bill was for work, 0 to 100.
    *
@@ -72,6 +88,25 @@ export function expenseFromRow(row: unknown): Expense {
     throw new Error(`A business share outside 0-100: ${business_pct}`)
   }
 
+  const litres = optionalNumber(raw, 'litres')
+  if (litres !== null && litres <= 0) {
+    throw new Error(`A fill of nothing or less: ${litres}`)
+  }
+  if (category !== 'fuel' && litres !== null) {
+    throw new Error(`A ${category} expense carrying litres`)
+  }
+
+  const covers_from = optionalDay(raw, 'covers_from')
+  const covers_to = optionalDay(raw, 'covers_to')
+  // The database refuses one without the other, so a row carrying half a
+  // stretch did not come from there — and half a stretch cannot be spread.
+  if ((covers_from === null) !== (covers_to === null)) {
+    throw new Error('A bill that covers a stretch with only one end')
+  }
+  if (covers_from !== null && covers_to !== null && covers_to < covers_from) {
+    throw new Error('A bill whose cover ends before it starts')
+  }
+
   return {
     item_id: requiredText(raw, 'item_id'),
     owner: requiredText(raw, 'owner'),
@@ -79,6 +114,9 @@ export function expenseFromRow(row: unknown): Expense {
     category: category as Category,
     odo,
     full_tank,
+    litres,
+    covers_from,
+    covers_to,
     business_pct,
   }
 }
@@ -98,6 +136,7 @@ export function fillsOf(expenses: readonly Expense[]): Fill[] {
       pence: Math.round(expense.amount * 100),
       odo: expense.odo,
       full: expense.full_tank === true,
+      litres: expense.litres,
     })
   }
   return fills

@@ -11,7 +11,7 @@
 // an accountant, not from here.
 
 import type { Reserve } from './reserve'
-import { earnedPence, kilometres } from './shift'
+import { directCostsPence, earnedPence, kilometres } from './shift'
 import type { Shift } from './shift'
 
 export type TakeHome = {
@@ -19,6 +19,14 @@ export type TakeHome = {
   grossPence: number
   /** Fuel and vehicle wear over the kilometres driven. */
   costsPence: number
+  /**
+   * Parking, tolls and whatever else the day cost on the road.
+   *
+   * Apart from `costsPence` because it is a different kind of number: that one
+   * is an estimate from a rate per kilometre, this one is money that actually
+   * left a pocket. Adding them into one line would hide which half is a guess.
+   */
+  directPence: number
   /** What the tax is worked out on: gross less the costs of earning it. */
   profitPence: number
   taxPence: number
@@ -64,7 +72,8 @@ export function takeHome(
   else if (km === null) missing.push('kilometres')
   else costsPence = Math.round(km * (fuel + vehicle) * 100)
 
-  const profitPence = grossPence - costsPence
+  const directPence = directCostsPence(shift)
+  const profitPence = grossPence - costsPence - directPence
 
   // A day that lost money owes nothing on it: `reserveFor` says so, and
   // handing money back is not how any of this works.
@@ -76,6 +85,7 @@ export function takeHome(
   return {
     grossPence,
     costsPence,
+    directPence,
     profitPence,
     taxPence,
     niPence,
@@ -92,6 +102,7 @@ export function takeHomeOfAll(
   const total: TakeHome = {
     grossPence: 0,
     costsPence: 0,
+    directPence: 0,
     profitPence: 0,
     taxPence: 0,
     niPence: 0,
@@ -103,6 +114,7 @@ export function takeHomeOfAll(
     const one = takeHome(shift, reserveOf)
     total.grossPence += one.grossPence
     total.costsPence += one.costsPence
+    total.directPence += one.directPence
     total.profitPence += one.profitPence
     total.taxPence += one.taxPence
     total.niPence += one.niPence

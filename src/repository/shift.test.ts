@@ -19,6 +19,10 @@ function shift(over: Partial<Shift> = {}): Shift {
     odo_end: null,
     tips: null,
     personal_km: null,
+    bonuses: null,
+    parking: null,
+    tolls: null,
+    other_cost: null,
     rate_fuel_per_km: null,
     rate_vehicle_per_km: null,
     sessions: [],
@@ -30,8 +34,8 @@ function shift(over: Partial<Shift> = {}): Shift {
 describe('sessionFromRow', () => {
   it('takes a session that is still open', () => {
     expect(
-      sessionFromRow({ id: 's1', started_at: '2026-09-05T09:00:00+00:00', ended_at: null }),
-    ).toEqual({ id: 's1', started_at: '2026-09-05T09:00:00+00:00', ended_at: null })
+      sessionFromRow({ id: 's1', started_at: '2026-09-05T09:00:00+00:00', ended_at: null, break_minutes: 0 }),
+    ).toEqual({ id: 's1', started_at: '2026-09-05T09:00:00+00:00', ended_at: null, break_minutes: 0 })
   })
 
   it('refuses one that ends before it starts, as the database does', () => {
@@ -88,8 +92,9 @@ describe('minutesWorked', () => {
     id: 's1',
     started_at: '2026-09-05T09:00:00+00:00',
     ended_at: '2026-09-05T12:30:00+00:00',
+    break_minutes: 0,
   }
-  const open = { id: 's2', started_at: '2026-09-05T17:00:00+00:00', ended_at: null }
+  const open = { id: 's2', started_at: '2026-09-05T17:00:00+00:00', ended_at: null, break_minutes: 0 }
 
   it('adds up every session that has finished', () => {
     expect(minutesWorked(shift({ sessions: [finished] }))).toBe(210)
@@ -104,6 +109,7 @@ describe('minutesWorked', () => {
               id: 's3',
               started_at: '2026-09-05T21:00:00+00:00',
               ended_at: '2026-09-06T01:00:00+00:00',
+              break_minutes: 0,
             },
           ],
         }),
@@ -147,5 +153,47 @@ describe('earnedPence', () => {
 
   it('is nothing at all for a shift with nothing written in it', () => {
     expect(earnedPence(shift())).toBe(0)
+  })
+})
+
+describe('the break comes off the hours', () => {
+  const nineToHalfTwelve = {
+    id: 's1',
+    started_at: '2026-09-05T09:00:00+00:00',
+    ended_at: '2026-09-05T12:30:00+00:00',
+    break_minutes: 0,
+  }
+
+  it('takes the break off the session that holds it', () => {
+    expect(minutesWorked(shift({ sessions: [{ ...nineToHalfTwelve, break_minutes: 30 }] }))).toBe(
+      180,
+    )
+  })
+
+  it('takes each session’s own break, not one number for the day', () => {
+    const evening = {
+      id: 's2',
+      started_at: '2026-09-05T17:00:00+00:00',
+      ended_at: '2026-09-05T20:00:00+00:00',
+      break_minutes: 15,
+    }
+    expect(
+      minutesWorked(
+        shift({ sessions: [{ ...nineToHalfTwelve, break_minutes: 30 }, evening] }),
+      ),
+    ).toBe(180 + 165)
+  })
+
+  it('never goes below nothing, whatever the break says', () => {
+    // The database refuses a break longer than its session, but a row written
+    // before that constraint existed would otherwise report negative hours —
+    // and every rate per hour in the app divides by this number.
+    expect(
+      minutesWorked(shift({ sessions: [{ ...nineToHalfTwelve, break_minutes: 900 }] })),
+    ).toBe(0)
+  })
+
+  it('reads a row with no break at all as a break of nothing', () => {
+    expect(sessionFromRow({ ...nineToHalfTwelve, break_minutes: undefined }).break_minutes).toBe(0)
   })
 })

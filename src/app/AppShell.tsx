@@ -107,6 +107,8 @@ export function AppShell({ session }: Props) {
             data.saveShiftParts(openItem.id, { odo_start, odo_end })
           }
           onSaveTips={(tips) => data.saveShiftParts(openItem.id, { tips })}
+          onSaveMoney={(patch) => data.saveShiftParts(openItem.id, patch)}
+          onSetBreak={(sessionId, minutes) => data.setBreak(sessionId, minutes)}
           onSavePersonalKm={(personal_km) =>
             data.saveShiftParts(openItem.id, { personal_km })
           }

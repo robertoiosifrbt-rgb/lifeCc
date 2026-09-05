@@ -15,6 +15,8 @@ export type Fill = {
   odo: number
   /** Whether the tank was filled to the top. */
   full: boolean
+  /** How much went in, when it was written down. */
+  litres?: number | null
 }
 
 export type FuelRate = {
@@ -24,6 +26,17 @@ export type FuelRate = {
   legs: number
   /** The distance those legs covered. */
   km: number
+  /**
+   * What the car actually drinks, over the legs that recorded their litres.
+   *
+   * Null when the litres are missing, never zero: an unrecorded fill is not a
+   * car that runs on nothing. Money per kilometre and litres per kilometre are
+   * different questions — the pump price moves, the car's thirst does not —
+   * so a leg can count for one and not the other.
+   */
+  litresPer100Km: number | null
+  /** The same thirst in the units the MOT and the forums use. */
+  mpg: number | null
   /**
    * Why there is no rate, when there is none.
    *
@@ -42,7 +55,14 @@ export type FuelRate = {
  */
 export function fuelRate(fills: readonly Fill[]): FuelRate {
   if (fills.length === 0) {
-    return { perKm: null, legs: 0, km: 0, reason: 'no-fills' }
+    return {
+      perKm: null,
+      legs: 0,
+      km: 0,
+      litresPer100Km: null,
+      mpg: null,
+      reason: 'no-fills',
+    }
   }
 
   // By odometer, not by date: the odometer is what the distance is measured
@@ -54,9 +74,19 @@ export function fuelRate(fills: readonly Fill[]): FuelRate {
   let pence = 0
   let sinceFull: number | null = null
   let pending = 0
+  // The thirst is measured over its own legs: a leg where one receipt forgot
+  // its litres can still price a kilometre, and counting its distance against
+  // the litres it does have would make the car look economical.
+  let litreKm = 0
+  let litres = 0
+  let pendingLitres: number | null = 0
 
   for (const fill of ordered) {
-    if (sinceFull !== null) pending += fill.pence
+    if (sinceFull !== null) {
+      pending += fill.pence
+      const poured = fill.litres ?? null
+      pendingLitres = poured === null || pendingLitres === null ? null : pendingLitres + poured
+    }
     if (!fill.full) continue
 
     if (sinceFull !== null) {
@@ -68,10 +98,15 @@ export function fuelRate(fills: readonly Fill[]): FuelRate {
         legs += 1
         km += distance
         pence += pending
+        if (pendingLitres !== null) {
+          litreKm += distance
+          litres += pendingLitres
+        }
       }
     }
     sinceFull = fill.odo
     pending = 0
+    pendingLitres = 0
   }
 
   if (legs === 0) {
@@ -80,16 +115,28 @@ export function fuelRate(fills: readonly Fill[]): FuelRate {
       perKm: null,
       legs: 0,
       km: 0,
+      litresPer100Km: null,
+      mpg: null,
       reason: fullTanks >= 2 ? 'no-distance' : 'one-full-tank-only',
     }
   }
 
   // Four decimals, which is what the column holds: at £0.116 a kilometre,
   // rounding to the penny would throw away most of the number.
+  // 4.54609 litres to the imperial gallon, and 1.609344 km to the mile: UK MPG,
+  // which is the number on the forecourt sign and in every forum, not the US
+  // gallon that would flatter the car by a fifth.
+  const perHundred = litres > 0 && litreKm > 0 ? (litres / litreKm) * 100 : null
+
   return {
     perKm: Math.round((pence / 100 / km) * 10000) / 10000,
     legs,
     km,
+    litresPer100Km: perHundred === null ? null : Math.round(perHundred * 100) / 100,
+    mpg:
+      perHundred === null
+        ? null
+        : Math.round((100 / perHundred) * (4.54609 / 1.609344) * 10) / 10,
     reason: 'ok',
   }
 }
