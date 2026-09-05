@@ -1,86 +1,79 @@
 # Life Control Centre
 
-Un Life OS. Planul complet, în ordine, e în [`docs/PLAN.md`](docs/PLAN.md).
+Un Life OS construit în jurul unui nucleu comun, nu al unor module izolate.
 
-Construit până acum:
+Pentru produs și arhitectură: [`docs/PLAN.md`](docs/PLAN.md).
+Pentru ce există acum: [`docs/STAREA.md`](docs/STAREA.md).
+Pentru regulile agentului: [`CLAUDE.md`](CLAUDE.md).
 
-- **pasul 1** — scheletul
-- **pasul 2** — regulile impuse
-- **pasul 3** — autentificare (email și parolă) și coloana, în bază
-- **pasul 4** — stratul de date: snapshot, delta, scriere, export
-- **pasul 5** — Captura, Azi, Calendarul, foaia de item și „Descarcă tot"
+## Setup
 
-Ciclul complet e închis: scrii un rând, îl procesezi, îl bifezi, îl descarci,
-și îl găsești pe alt dispozitiv și după refresh. Tot ce ține de date stă în
-`src/repository/`, iar ESLint nu lasă niciun alt fișier să atingă Supabase.
+Copiază `.env.example` în `.env.local` și completează:
+
+    VITE_SUPABASE_URL
+    VITE_SUPABASE_PUBLISHABLE_KEY
+
+Production și Preview trebuie să aibă configurații separate. Preview nu
+primește baza de producție.
 
 ## Comenzi
 
-    npm run dev          pornește aplicația local
-    npm run lint         eslint .
-    npm run typecheck    tsc -b --force
-    npm test             vitest run
-    npm run build        tsc -b && vite build
-    npm run check:structure   300 de linii, convenția CSS
-    npm run check:rls         RLS, negative și pozitive
-    npm run check:cycle       ciclul complet, prin browser
-    npm run check:layout      așezarea la lățime de telefon
+`package.json` este sursa de adevăr pentru scripturi.
 
-## Limba
+Cele folosite frecvent sunt:
 
-Codul e în engleză, tot. Doar documentele — planul, fișierul ăsta și
-`CLAUDE.md` — rămân în română.
-
-## Configurație
-
-Se copiază `.env.example` în `.env.local` și se completează. Aceleași două
-variabile se pun în Vercel, **separat pentru Production și pentru Preview** —
-un Preview nu primește niciodată URL-ul bazei de producție.
-
-Configurația se citește la prima folosire, nu la încărcare: dacă lipsește, se
-vede ca mesaj în aplicație, nu ca ecran alb.
-
-## Baza, local
-
-Migrațiile stau în `supabase/migrations/`. Verificările care au nevoie de o
-bază rulează pe Supabase local, efemer — niciodată pe producție.
-
-    supabase start
-
-    # RLS
-    DATABASE_URL="$(supabase status -o env | grep '^DB_URL' | cut -d= -f2- | tr -d '\"')" \
-      npm run check:rls
-
-`check:cycle` și `check:layout` au nevoie de un cont, pentru că ecranele stau
-după autentificare. Se face unul pe baza locală (vezi jobul `local-database`
-din `.github/workflows/ci.yml` pentru comanda exactă), apoi:
-
+    npm run dev
+    npm run lint
+    npm run typecheck
+    npm test
     npm run build
-    CHECK_EMAIL=... CHECK_PASSWORD=... npm run check:cycle
-    CHECK_EMAIL=... CHECK_PASSWORD=... npm run check:layout
+    npm run check
 
-`check:cycle` e testul de acceptanță al pasului 5, exact cum e scris în plan:
-scrii „call X", apare în Inbox, îl procesezi ca task pe mâine, apare în
-Calendar pe mâine, îl bifezi, apare ca făcut în ziua în care l-ai bifat, îl
-descarci și îl vezi în fișier, îl găsești pe alt dispozitiv și după refresh.
+Verificări specializate disponibile în prezent:
 
-Amândouă rulează pe Chromium, implicit. Telefonul pentru care e scrisă
-aplicația rulează WebKit, iar acolo diferă exact ce folosim — IndexedDB,
-descărcarea de Blob, `input type=date`, marginile de siguranță. Deci în CI
-rulează pe amândouă, și local se schimbă cu:
+    npm run check:structure
+    npm run check:rls
+    npm run check:cycle
+    npm run check:layout
+    npm run check:reachable
+    npm run check:drops
 
-    CHECK_BROWSER=webkit npm run check:cycle
-    CHECK_BROWSER=webkit npm run check:layout
+În timpul dezvoltării se rulează verificarea relevantă schimbării. Înaintea
+unui push autorizat, poarta normală este o singură comandă:
 
-WebKit pe Linux nu e Safari de pe iPhone, e motorul lui. Prinde diferențele de
-motor, nu tot ce ține de iOS. Testele manuale de mai jos rămân.
+    npm run check
 
-Dacă ai deja un Chromium, i-l dai direct în loc să-l descarci:
+Nu este nevoie să rulezi manual toate verificările una câte una dacă poarta le
+poate selecta.
 
-    CHROMIUM_EXECUTABLE=/cale/către/chromium npm run check:layout
+## Baza locală
 
-## Testele manuale
+Migrațiile stau în `supabase/migrations/`.
 
-Ce nu poate face nicio verificare automată stă în
-[`docs/TESTE.md`](docs/TESTE.md), cu un ID pe fiecare. Documentul ține testele;
-dacă au fost trecute, când și pe ce commit — aia stă în issues.
+Verificările care au nevoie de PostgreSQL/Supabase trebuie să folosească o bază
+locală/efemeră, nu production.
+
+Pentru starea declarată a bazei live și drift cunoscut vezi
+[`docs/MIGRATII.md`](docs/MIGRATII.md).
+
+## Teste manuale
+
+Ce nu poate demonstra automatizarea este definit în
+[`docs/TESTE.md`](docs/TESTE.md).
+
+În special, Safari pe iPhone și comportamentul pe două dispozitive reale rămân
+teste manuale. `check:cycle` validează ciclul automat pe mediul lui; nu
+înlocuiește testul real pe două dispozitive.
+
+## Documentație
+
+- `docs/PLAN.md` — produs și arhitectură țintă;
+- `docs/STAREA.md` — starea curentă;
+- `docs/MIGRATII.md` — ledger pentru baza live;
+- `docs/TESTE.md` — definiții de teste manuale;
+- `docs/DEZASTRU.md` — procedura când aplicația nu mai merge;
+- `docs/JURNAL.md` — arhivă de decizii/încercări rare, nu jurnal obligatoriu;
+- `docs/audits/` — audituri istorice imuabile.
+
+Problemele urmărite explicit pot sta în GitHub Issues, dar nu sunt încărcate
+automat la începutul fiecărei sesiuni.
