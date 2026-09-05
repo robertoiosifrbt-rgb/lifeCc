@@ -60,6 +60,8 @@ jumătate.
 | `20260905150000_when` | pragul ratelor în avans, și ce s-a plătit deja | 5 sep |
 | `20260905160000_one_answer` | șterge `reserves` și procentele înghețate | 5 sep |
 | `20260905170000_upsert_keys` | coloanele-cheie devin scriibile și fixate de trigger | 5 sep, seara |
+| `20260905180000_entities_and_links` | `entities` și `links` — nucleul | 5 sep, seara |
+| `20260905190000_from_the_reference` | coloanele din aplicația de referință | 5 sep, seara |
 
 ## Rulat de mână, în afara migrațiilor
 

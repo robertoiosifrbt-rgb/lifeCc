@@ -149,3 +149,31 @@ reparație o vrea. Întrebasem deja de două ori lucruri pe care le puteam decid
 singur, și a treia oară răspunsul a fost „ce întrebări pui, mă?". Avea dreptate:
 tiparul exista deja în `items` — dai coloana și o fixezi cu un trigger — deci nu
 era o decizie, era o citire a codului.
+
+## 5 septembrie 2026, sesiunea a cincea
+
+Ziua în care proprietarul a trimis aplicația pe care o vrea, și a primit teme.
+
+**Ce nu se vede din `git log`:** a dat un export al aplicației lui — opt tabele,
+douăzeci de ecrane — și un desen al ecranului de start. Am răspuns cu schemă:
+migrații, blocuri de SQL de lipit în SQL Editor, commit-uri care stăteau
+neîmpinse. Patru mesaje la rând s-au terminat cu „rulează asta" și „zi push".
+De la el arăta ca și cum nu se întâmplă nimic — și avea dreptate, fiindcă pe
+telefon chiar nu se întâmpla nimic.
+
+**Ce s-a învățat, cu întârziere:** când cineva trimite o aplicație și un desen,
+ce cere e ce se vede. Nucleul, coloanele și drepturile erau necesare, dar
+niciunul nu e vizibil, iar livrarea lor una câte una arată identic cu a nu
+livra nimic. Ecranul de sus — cel din desen — a fost singurul lucru din ziua
+asta care n-a cerut nicio migrație și s-a văzut imediat. Trebuia construit
+primul.
+
+**Ce s-a hotărât să nu se construiască:** linia „Available £1,840" din desen.
+Cere un sold bancar, iar aplicația n-a știut niciodată unul. Un sold ghicit ar
+fi cifra cea mai scumpă de pe ecran. În locul ei stă anul fiscal — făcut, pus
+deoparte, rămas.
+
+**Rămâne deschis:** de ce trebuie lipit SQL de mână la fiecare schimbare.
+`ci.yml` spune explicit că niciun job nu primește cheile bazei live, deci
+singura mână care poate schimba producția e a proprietarului. Se poate muta în
+CI, în spatele porții verzi — nu s-a cerut încă.
