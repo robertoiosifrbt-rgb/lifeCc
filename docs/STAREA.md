@@ -1,60 +1,128 @@
-# Starea — ce e construit, ce e livrat, ce așteaptă un om
+# Starea curentă
 
-**Actualizat:** 5 septembrie 2026.
+**Actualizat:** 6 septembrie 2026.
 
-⚠️ **Cifrele nu sunt aici.** `git log` spune ce s-a construit, issues spun ce e
-deschis, `docs/MIGRATII.md` spune ce e pe bază. Aici stau **trei** lucruri: ce
-merge azi, ce așteaptă o hotărâre a proprietarului, și ce e stricat și se știe.
+Documentul ăsta spune numai ce există și ce lipsește **acum**. Nu ține istorie,
+procente de progres sau explicații despre cum s-a ajuns aici.
 
-📜 **Povestea nu e aici.** Ce s-a încercat și s-a abandonat stă în
-[JURNAL.md](JURNAL.md). Scris în amândouă, s-ar plăti de două ori la scris și
-încă o dată la citit, în fiecare sesiune.
+## Ce există
 
----
+### Nucleu și navigare
 
-## Ce merge azi
+- autentificare cu email/parolă;
+- snapshot/cache și sincronizare prin repository;
+- export complet al datelor;
+- ecrane principale: Today, Calendar, Areas;
+- ecran de arie;
+- HMRC;
+- Things.
 
-**Trei ecrane în bară:** Azi, Calendar, Arii. Plus ecranul unei arii, în care
-intri apăsând pe numele ei, și `/hmrc`, din butonul de sus.
+Landing-ul actual este `Today`. La începutul lui există deja un rezumat de tip
+Command Centre; Home complet nu este încă separat ca un al patrulea tab.
 
-**Un modul construit: livrările.** Tura are kilometraj, ore cu ceas, banii de
-la Uber Eats / Deliveroo / Just Eat, bacșiș, aria, și kilometrii personali
-separați. Cheltuiala are sumă, categorie, procentul de folosire în business, și
-— la motorină — kilometrajul și dacă s-a făcut plinul.
+### Items
 
-**Consumul se calculează singur** din plinuri: de la un plin plin la
-următorul, banii împărțiți la distanță. Până n-ai două plinuri complete, spune
-că n-are rată, nu inventează una.
+Ciclul principal există: capture/inbox → procesare → active → done → reopen →
+soft-delete.
 
-**HMRC, pe an fiscal.** Impozit, dividende, Class 4, Class 2 ca ofertă și nu ca
-datorie, ratele în avans cu datele lor. Cifrele anului le pui tu, o dată pe an.
+Calendarul și Today folosesc aceleași obiecte, nu copii separate.
 
-**Rezerva unei zile** e cât adaugă ea la factura anului — nimic sub scutire, o
-cincime peste, mai mult mai sus. Feliile se adună la an: un test o dovedește.
+### Life Core
 
-## Ce așteaptă o hotărâre a proprietarului
+Există `Entity` și `links`.
 
-- **Unde stă HMRC în structură.** Azi e un buton în capul ecranului. Dacă
-  ariile sunt domenii de viață cu module înăuntru, un buton în ramă nu e locul
-  lui — dar bara de jos are trei locuri și al patrulea taie „Calendar" la
-  320px, măsurat.
-- **Ștergerea istoricului vechi de pe GitHub.** 283 de commit-uri de dinainte
-  de golirea repo-ului. Ștearsă local pe 5 septembrie, adusă înapoi ca strămoș
-  la un merge, fiindcă trimiterea ei cere un `push --force` pe care mediul
-  sesiunii îl refuză fără o permisiune scrisă de proprietar.
-- **`reserves` de pe baza live**, care nu mai e folosit de nimic. Vezi
-  [MIGRATII.md](MIGRATII.md).
+Tipurile de Entity implementate acum sunt:
 
-## Ce e stricat și se știe
+- person;
+- company;
+- property;
+- vehicle.
 
-- **Nu există modul pentru mașină.** Kilometrajul, MOT, asigurarea, taxa de
-  drum, service-ul, schimbul de ulei — niciunul nu are unde sta. Consumul e
-  cheiat pe arie, nu pe mașină, ceea ce merge cât timp o linie de muncă
-  înseamnă o mașină.
-- **Plinul nu ține litrii.** Fără ei nu se poate ști consumul real, l/100km sau
-  MPG — doar £/km.
-- **Turele și ratele se pot pune pe un container** (`Business`,
-  `Self-employed`), unde n-au sens. Nimic nu te oprește și nimic nu te
-  avertizează.
-- **Nu există niciun alt modul** din câte cere planul: scrisori, datorii,
-  obiective, documente, contacte. `kind='letter'` există în bază și n-are ecran.
+Legăturile sunt item ↔ item și tipurile implementate acum sunt `about` și
+`pays`.
+
+### Vehicle
+
+Vehicle are deja suport pentru:
+
+- registration;
+- make/model;
+- fuel;
+- odometer;
+- MOT due;
+- road tax due;
+- insurance due;
+- service due;
+- oil change / oil due mileage.
+
+Deci afirmațiile vechi „nu există modul pentru mașină” nu mai sunt adevărate.
+
+### Delivery / Work
+
+Există domeniul de livrări cu:
+
+- shifts;
+- shift sessions;
+- earnings pe platforme;
+- tips;
+- kilometri de lucru și personali;
+- expenses;
+- fuel/full-tank tracking;
+- business-use percentage;
+- HMRC/tax-year calculations.
+
+Din aplicația de referință au fost adoptate și câmpuri pentru:
+
+- other platform earnings;
+- bonuses;
+- parking;
+- tolls;
+- other shift cost;
+- break minutes;
+- litres;
+- expense coverage dates.
+
+Plinurile pot ține litri; documentația veche care spunea contrariul era stale.
+
+### Command Centre — partea existentă
+
+Rezumatul din Today poate arăta date reale pentru:
+
+- overdue;
+- lucruri apropiate;
+- inbox neprocesat;
+- tax-year `Made / Put aside / Left`.
+
+Nu se consideră implementate doar pentru că au apărut într-un mockup:
+
+- sold bancar / `Available`;
+- `Committed` / `Safe to spend`;
+- procente de progres ale ariilor.
+
+Acestea cer date și definiții reale înainte să apară ca metrici.
+
+## Ce lipsește încă din Life CC complet
+
+- Home / Command Centre complet cu toate secțiunile țintă;
+- Waiting ca flux clar;
+- Event ca obiect de produs complet, separat de simpla dată a unui item;
+- Resource ca strat comun pentru bani/assets/informație;
+- Files/Documents;
+- People/Contacts ca experiență completă, dincolo de Entity;
+- debts/bills ca flux complet;
+- goals;
+- health/habits/tracking;
+- offline complet cu outbox și drafturi persistate.
+
+Modulele viitoare trebuie să se lege de Life Core; nu se construiesc ca
+aplicații paralele.
+
+## Drift / blocaje cunoscute
+
+- baza live este urmărită separat în `docs/MIGRATII.md`;
+- `reserves` este declarat acolo ca drift live rămas după o reparație manuală;
+- turele și ratele pot fi încă asociate unor containere de arie unde semantic
+  nu au sens; validarea de domeniu nu este completă.
+
+Pentru istorie: `docs/JURNAL.md` și `docs/audits/`.
+Pentru produsul țintă: `docs/PLAN.md`.
