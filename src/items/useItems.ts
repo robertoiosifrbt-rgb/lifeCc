@@ -14,13 +14,17 @@ import {
   discardArea,
   updateArea,
 } from '../repository/items'
+import { coreActions } from './coreActions'
+import type { CoreActions } from './coreActions'
 import { moneyActions } from './moneyActions'
 import type { MoneyActions } from './moneyActions'
 import { readSnapshot } from './snapshot'
 import type { Snapshot } from './snapshot'
 import type {
   Area,
+  Entity,
   Item,
+  Link,
   Patch,
   Expense,
   RunningCosts,
@@ -47,13 +51,16 @@ export type Unsaved = { item: Item; patch: Patch; reason: string }
 
 // The money writes are declared once, where they are written. Repeating them
 // here is how a handle ends up promising something the hook does not return.
-export type ItemsHandle = MoneyActions & {
+export type ItemsHandle = MoneyActions &
+  CoreActions & {
   items: Item[]
   areas: Area[]
   shifts: Shift[]
   expenses: Expense[]
   costs: RunningCosts[]
   taxYears: TaxYearRow[]
+  things: Entity[]
+  links: Link[]
   loading: boolean
   sync: SyncState
   unsaved: Unsaved[]
@@ -86,6 +93,8 @@ export function useItems(owner: string): ItemsHandle {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [costs, setCosts] = useState<RunningCosts[]>([])
   const [taxYears, setTaxYears] = useState<TaxYearRow[]>([])
+  const [things, setThings] = useState<Entity[]>([])
+  const [links, setLinks] = useState<Link[]>([])
   const [loading, setLoading] = useState(true)
   const [sync, setSync] = useState<SyncState>({ kind: 'never' })
   const [unsaved, setUnsaved] = useState<Unsaved[]>([])
@@ -98,6 +107,8 @@ export function useItems(owner: string): ItemsHandle {
     setExpenses(snapshot.expenses)
     setCosts(snapshot.costs)
     setTaxYears(snapshot.taxYears)
+    setThings(snapshot.things)
+    setLinks(snapshot.links)
   }, [])
 
   const reload = useCallback(async () => {
@@ -197,6 +208,8 @@ export function useItems(owner: string): ItemsHandle {
     expenses,
     costs,
     taxYears,
+    things,
+    links,
     loading,
     sync,
     unsaved,
@@ -238,6 +251,10 @@ export function useItems(owner: string): ItemsHandle {
     // The area writes go through the same `write`: a conflict on an area is
     // still a write that did not happen, and the caller still has to hear it.
     ...moneyActions(owner, write),
+
+    // The core writes go through the same `write` as everything else: an arrow
+    // that did not get drawn is still a write the caller has to hear about.
+    ...coreActions(owner, write),
 
     addArea: (name, parent_id) => write(() => createArea(owner, name, parent_id)),
 

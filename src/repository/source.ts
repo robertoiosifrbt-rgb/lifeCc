@@ -7,9 +7,10 @@ import { supabase } from './supabase'
 import type { Source } from './sync'
 import type { Writer } from './write'
 
-const ALL = '*'
+/** Every column. Shared with core-source.ts, which was split off at the limit. */
+export const ALL = '*'
 
-function fail(operation: string, error: { message: string }): never {
+export function fail(operation: string, error: { message: string }): never {
   throw new Error(`${operation}: ${error.message}`)
 }
 

@@ -144,3 +144,12 @@ describe('forCalendar', () => {
     expect(days.map((d) => d.day)).toEqual(['2026-09-05', '2026-09-07', '2026-09-11'])
   })
 })
+
+describe('things stay out of Today', () => {
+  it('leaves an entity out of the undated list, where it would sit for ever', () => {
+    const car = item('car', { kind: 'entity', state: 'active', due: null })
+    const chore = item('chore', { kind: 'task', state: 'active', due: null })
+    const groups = forToday([car, chore], TODAY)
+    expect(groups.undated.map((one) => one.id)).toEqual(['chore'])
+  })
+})

@@ -41,8 +41,14 @@ export type TodayGroups = {
 export function forToday(items: readonly Item[], today: string): TodayGroups {
   const relevant = alive(items).filter(
     (item) =>
-      item.state === 'inbox' ||
-      (item.state === 'active' && (item.due === null || item.due <= today)),
+      // A thing is not a next action. Your car is permanently 'active' and
+      // permanently undated, so without this line every car, landlord and
+      // insurer sits in Today's undated list for good — under a heading that
+      // means "things to do". Law 6 is still satisfied: a thing is found on
+      // the Things screen, which is where it lives.
+      item.kind !== 'entity' &&
+      (item.state === 'inbox' ||
+        (item.state === 'active' && (item.due === null || item.due <= today))),
   )
 
   return {

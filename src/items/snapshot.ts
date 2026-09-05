@@ -9,14 +9,18 @@ import {
   all,
   areasOf,
   expensesOf,
+  linksOf,
   runningCostsOf,
   taxYearsOf,
   shiftsOf,
+  thingsOf,
 } from '../repository/items'
 import type {
   Area,
+  Entity,
   Expense,
   Item,
+  Link,
   RunningCosts,
   Shift,
   TaxYearRow,
@@ -29,6 +33,8 @@ export type Snapshot = {
   expenses: Expense[]
   costs: RunningCosts[]
   taxYears: TaxYearRow[]
+  things: Entity[]
+  links: Link[]
 }
 
 /**
@@ -39,13 +45,16 @@ export type Snapshot = {
  * pointing at nothing, or a cost of nothing where there is a cost.
  */
 export async function readSnapshot(owner: string): Promise<Snapshot> {
-  const [items, areas, shifts, expenses, costs, taxYears] = await Promise.all([
-    all(owner),
-    areasOf(owner),
-    shiftsOf(owner),
-    expensesOf(owner),
-    runningCostsOf(owner),
-    taxYearsOf(owner),
-  ])
-  return { items, areas, shifts, expenses, costs, taxYears }
+  const [items, areas, shifts, expenses, costs, taxYears, things, links] =
+    await Promise.all([
+      all(owner),
+      areasOf(owner),
+      shiftsOf(owner),
+      expensesOf(owner),
+      runningCostsOf(owner),
+      taxYearsOf(owner),
+      thingsOf(owner),
+      linksOf(owner),
+    ])
+  return { items, areas, shifts, expenses, costs, taxYears, things, links }
 }

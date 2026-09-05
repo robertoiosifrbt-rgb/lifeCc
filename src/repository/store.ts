@@ -32,9 +32,14 @@ const DB_NAME = 'life-control-centre'
 // says which table it belongs to. The old cursors are dropped rather than
 // converted — a missing cursor costs one full snapshot, and a converted one
 // that is wrong costs rows that never arrive.
-const DB_VERSION = 7
+const DB_VERSION = 8
 const ITEMS = 'items'
 const AREAS = 'areas'
+// The core's two: the things an item can point at, and the arrows themselves.
+// Neither has a cursor — both ride the anchors they hang off, which is the
+// strategy their migration declares.
+const ENTITIES = 'entities'
+const LINKS = 'links'
 // The parts of a shift, one record per anchor. Not a synced table of its own:
 // it has no cursor, because the anchor carries the news that it changed.
 const SHIFTS = 'shifts'
@@ -62,7 +67,7 @@ export function completed(tx: IDBTransaction): Promise<void> {
   })
 }
 
-export const STORES = { COSTS, EXPENSES, TAX_YEARS }
+export const STORES = { COSTS, ENTITIES, EXPENSES, LINKS, TAX_YEARS }
 
 let db: Promise<IDBDatabase> | null = null
 
@@ -100,6 +105,16 @@ export function open(): Promise<IDBDatabase> {
       if (!opened.objectStoreNames.contains(COSTS)) {
         const costs = opened.createObjectStore(COSTS, { keyPath: 'area_id' })
         costs.createIndex('owner', 'owner', { unique: false })
+      }
+      if (!opened.objectStoreNames.contains(ENTITIES)) {
+        const things = opened.createObjectStore(ENTITIES, { keyPath: 'item_id' })
+        things.createIndex('owner', 'owner', { unique: false })
+      }
+      // Keyed by the link's own id, not by either end: an item has many
+      // arrows, and both ends are wanted as an index, not as a key.
+      if (!opened.objectStoreNames.contains(LINKS)) {
+        const arrows = opened.createObjectStore(LINKS, { keyPath: 'id' })
+        arrows.createIndex('owner', 'owner', { unique: false })
       }
       if (opened.objectStoreNames.contains(CURSORS)) {
         opened.deleteObjectStore(CURSORS)

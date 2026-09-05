@@ -58,6 +58,12 @@ export function ShellHeader({
         <Link className="head-button" to="/hmrc">
           HMRC
         </Link>
+        {/* The door to the things — the car, the landlord, the insurer. Beside
+            HMRC because the bar is full at three, and behind a door is still a
+            door: check:reachable is what makes sure of that. */}
+        <Link className="head-button" to="/things">
+          Things
+        </Link>
       </div>
 
       {error !== null && (

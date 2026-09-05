@@ -144,8 +144,12 @@ export function AppShell({ session }: Props) {
         <ItemSheet
           item={openItem}
           today={today}
+          items={data.items}
+          links={data.links}
           unsaved={data.unsaved.find((u) => u.item.id === openItem.id)?.reason}
           onUpdate={data.update}
+          onLink={(to_id, kind) => data.link(openItem.id, to_id, kind)}
+          onUnlink={(id) => data.unlink(id)}
           onDiscard={data.discard}
           onRetry={(item) => data.retry(item.id)}
           onClose={closeItem}

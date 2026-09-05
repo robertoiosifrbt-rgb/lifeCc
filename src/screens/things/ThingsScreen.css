@@ -1,0 +1,133 @@
+/* Imported by exactly one .tsx in this directory: ThingsScreen.tsx */
+
+.things {
+  padding: var(--space-4);
+}
+
+.things-empty {
+  margin: 0 0 var(--space-4);
+  color: var(--text-dim);
+}
+
+.things-group {
+  margin-bottom: var(--space-5);
+}
+
+.things-kind {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-s);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.things-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The whole row is the button. A name you have to hit exactly is a name you
+   miss on a moving bus. */
+.things-row {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+}
+
+.things-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.things-reg {
+  display: block;
+  font-size: var(--text-s);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.things-due {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-s);
+  color: var(--accent-text);
+}
+
+.things-due-past {
+  color: var(--danger);
+}
+
+.things-form {
+  padding: var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.things-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.things-input {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+}
+
+.things-form-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.things-save,
+.things-cancel,
+.things-add {
+  flex: 1;
+  min-height: var(--tap);
+  font: inherit;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+
+.things-save,
+.things-add {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.things-add {
+  width: 100%;
+}
+
+.things-save[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.things-cancel {
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+}

@@ -11,7 +11,10 @@ import type { Row } from './row'
 export { isDay } from './row'
 
 export type State = 'inbox' | 'active' | 'done'
-export type Kind = 'task' | 'letter' | 'shift' | 'expense'
+// A thing — a car, a company, a person — is a kind too, and the only one that
+// is not something that happened or something to do. It exists whether or not
+// you touch it, which is why it has no date and why Today leaves it out.
+export type Kind = 'task' | 'letter' | 'shift' | 'expense' | 'entity'
 
 export type Item = Row & {
   kind: Kind | null

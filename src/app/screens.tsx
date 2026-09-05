@@ -4,6 +4,7 @@ import { AreaScreen } from '../screens/area/AreaScreen'
 import { AreasScreen } from '../screens/areas/AreasScreen'
 import { HmrcScreen } from '../screens/hmrc/HmrcScreen'
 import { CalendarScreen } from '../screens/calendar/CalendarScreen'
+import { ThingsScreen } from '../screens/things/ThingsScreen'
 import { TodayScreen } from '../screens/today/TodayScreen'
 
 export type Screen = {
@@ -34,6 +35,9 @@ export const SCREENS: readonly Screen[] = [
 export const INSIDE: readonly Screen[] = [
   { path: '/areas/:id', label: '', element: <AreaScreen /> },
   { path: '/hmrc', label: '', element: <HmrcScreen /> },
+  // Things go beside HMRC rather than into the bar, for the measured reason
+  // above: a fourth tab clips "Calendar" on a 320px phone.
+  { path: '/things', label: '', element: <ThingsScreen /> },
 ]
 
 /** Where you land from `/` and from any URL that does not exist. */

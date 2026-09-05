@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-import type { Item, Patch } from '../repository/items'
+import type { Item, Link, LinkKind, Patch } from '../repository/items'
+import { JoinedTo } from '../things/JoinedTo'
 import { Sheet } from '../ui/Sheet'
 import { headingFor } from './heading'
 import './ItemSheet.css'
@@ -8,8 +9,13 @@ import './ItemSheet.css'
 type Props = {
   item: Item
   today: string
+  /** Every item and every arrow, so this one can be joined to another. */
+  items: readonly Item[]
+  links: readonly Link[]
   unsaved?: string | undefined
   onUpdate: (item: Item, patch: Patch) => Promise<void>
+  onLink: (to_id: string, kind: LinkKind) => Promise<void>
+  onUnlink: (id: string) => Promise<void>
   onDiscard: (item: Item) => Promise<void>
   /** Writes the stuck patch again, over whatever version the row is on now. */
   onRetry: (item: Item) => Promise<void>
@@ -26,8 +32,12 @@ type Props = {
 export function ItemSheet({
   item,
   today,
+  items,
+  links,
   unsaved,
   onUpdate,
+  onLink,
+  onUnlink,
   onDiscard,
   onRetry,
   onClose,
@@ -175,6 +185,19 @@ export function ItemSheet({
       {item.done_at !== null && (
         <p className="item-hint">Ticked off on {item.done_at}. Today is {today}.</p>
       )}
+
+      {/* The arrows, above the destructive button and below everything that
+          changes this item alone: joining a renewal to the car is the reason
+          the app is not seven lists. */}
+      <JoinedTo
+        itemId={item.id}
+        items={items}
+        links={links}
+        busy={busy}
+        onLink={onLink}
+        onUnlink={onUnlink}
+        onError={setError}
+      />
 
       <button
         className="item-button item-danger"

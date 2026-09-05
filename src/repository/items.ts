@@ -11,6 +11,7 @@ import { fromRow as fromItemRow, localToday } from './item'
 import type { Item, Patch } from './item'
 import { supabaseSource, supabaseWriter } from './source'
 import { syncSettings } from './settings-api'
+import { syncCore } from './core'
 import { syncExpenses } from './expenses'
 import { syncShifts } from './shifts'
 import { areaStore, store } from './store'
@@ -126,6 +127,9 @@ export async function syncAccount(owner: string): Promise<SyncResult> {
   await syncSettings(owner)
   const shifts = await syncShifts(owner)
   const spent = await syncExpenses(owner)
+  // The core last, and whole. Entities and links carry no cursor either: both
+  // ride the anchors that have just arrived above.
+  await syncCore(owner)
   return {
     // A full snapshot of either table is a full sync: something was rebuilt
     // from nothing, and that is what the word has to keep meaning.
@@ -239,3 +243,24 @@ async function cache(owner: string, item: Item): Promise<Item> {
   }
   return item
 }
+export type { Entity, EntityKind, EntityPatch, Fuel, VehicleDate } from './entity'
+export {
+  ENTITY_KINDS,
+  ENTITY_KIND_NAMES,
+  FUELS,
+  FUEL_NAMES,
+  VEHICLE_DATES,
+  dueOn,
+} from './entity'
+export type { Link, LinkKind, Neighbour } from './link'
+export { LINK_KINDS, LINK_NAMES, neighboursOf } from './link'
+export {
+  link,
+  linksOf,
+  recordThing,
+  removeThing,
+  saveThing,
+  syncCore,
+  thingsOf,
+  unlink,
+} from './core'

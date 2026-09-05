@@ -135,6 +135,18 @@ async function payloads(t) {
       keys: { area_id: await areaOwnedBy(t, A) },
     },
     {
+      table: 'entities',
+      conflict: 'item_id',
+      payload: {
+        item_id: await anchorOwnedBy(t, A, 'entity'),
+        entity_kind: 'vehicle',
+        registration: 'AB12 CDE',
+        odo: 148230.0,
+        mot_due: '2027-03-14',
+      },
+      keys: { item_id: await anchorOwnedBy(t, A, 'entity') },
+    },
+    {
       table: 'tax_years',
       conflict: 'owner, tax_year',
       payload: { tax_year: '2026/27', ...YEAR_FIGURES },

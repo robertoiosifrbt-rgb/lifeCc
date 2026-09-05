@@ -1,0 +1,139 @@
+/* Imported by exactly one .tsx in this directory: JoinedTo.tsx */
+
+.joined {
+  margin-bottom: var(--space-5);
+}
+
+.joined-heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-s);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.joined-none {
+  margin: 0 0 var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.joined-list {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.joined-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  border-bottom: 1px solid var(--line);
+}
+
+.joined-row:last-child {
+  border-bottom: 0;
+}
+
+/* What the arrow says from this end — "About", "Paid by". A fixed column so
+   the names line up and the list reads as a table, not as prose. */
+.joined-says {
+  flex: 0 0 auto;
+  min-width: 5.5em;
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.joined-other {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.joined-unlink {
+  flex: 0 0 auto;
+  width: var(--tap);
+  height: var(--tap);
+  font-size: var(--text-l);
+  line-height: 1;
+  color: var(--text-dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.joined-form {
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-s);
+}
+
+.joined-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+}
+
+.joined-label {
+  flex: 0 0 auto;
+  min-width: 5.5em;
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.joined-input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+}
+
+.joined-buttons {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.joined-save,
+.joined-cancel,
+.joined-add {
+  flex: 1;
+  min-height: var(--tap);
+  font: inherit;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+
+.joined-save {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.joined-save[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.joined-cancel,
+.joined-add {
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+}
+
+.joined-add {
+  width: 100%;
+}
+
+.joined-add[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
