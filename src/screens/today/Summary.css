@@ -1,0 +1,110 @@
+/* Imported by exactly one .tsx in this directory: Summary.tsx */
+
+.brief {
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.brief-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.brief-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: var(--space-5);
+}
+
+.brief-mark {
+  flex: 0 0 auto;
+}
+
+.brief-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Colour is emphasis, never the message: the count and the words say it too,
+   so the row still reads on a screen that renders none of it. */
+.brief-line-bad .brief-count {
+  color: var(--danger);
+}
+
+.brief-says {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-dim);
+}
+
+.brief-coming {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.brief-next {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: var(--space-5);
+}
+
+.brief-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.brief-when {
+  flex: 0 0 auto;
+  font-size: var(--text-s);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.brief-next-bad .brief-when {
+  color: var(--danger);
+}
+
+.brief-money {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.brief-money > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.brief-money dt {
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.brief-money dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* The one number the whole screen is for. */
+.brief-money-left dd {
+  font-weight: 600;
+}
+
+.brief-missing {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}

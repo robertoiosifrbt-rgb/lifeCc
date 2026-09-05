@@ -2,10 +2,18 @@ import { useState } from 'react'
 
 import { SpendSheet } from '../../spend/SpendSheet'
 
-import { forToday } from '../../repository/items'
+import {
+  figuresOf,
+  forToday,
+  incomeOf,
+  periodMoney,
+  taxYearOf,
+  yearIn,
+} from '../../repository/items'
 import type { Item } from '../../repository/items'
 import { useScreen } from '../../items/context'
 import { ItemRow } from '../../ui/ItemRow'
+import { Summary } from './Summary'
 import { oldOverdueLabel, splitOverdue, undatedLabel } from './collapse'
 import './TodayScreen.css'
 
@@ -90,6 +98,21 @@ export function TodayScreen() {
   const todaysShift = data.items.find(
     (item) => item.kind === 'shift' && item.due === today && item.deleted_at === null,
   )
+  // The tax year as it stands, for the money at the top. Read here rather than
+  // inside the summary: the same sum is already the HMRC screen's, and two
+  // places working it out is two places to get it wrong.
+  const year = taxYearOf(today)
+  const figures = yearIn(data.taxYears, year.label)
+  const soFar = periodMoney({
+    items: data.items,
+    shifts: data.shifts,
+    expenses: data.expenses,
+    from: year.from,
+    to: year.to,
+    figures: figures === null ? null : figuresOf(figures),
+    income: figures === null ? null : incomeOf(figures, 0),
+  })
+
   const nothing =
     groups.inbox.length === 0 &&
     groups.today.length === 0 &&
@@ -99,6 +122,10 @@ export function TodayScreen() {
   return (
     <div className="today">
       {data.loading && <p className="today-note">Loading…</p>}
+
+      {!data.loading && (
+        <Summary items={data.items} things={data.things} year={soFar} today={today} />
+      )}
 
       {!data.loading && nothing && (
         <p className="today-note">
