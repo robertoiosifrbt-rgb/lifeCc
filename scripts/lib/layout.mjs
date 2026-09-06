@@ -67,10 +67,22 @@ export function inspect({ minTap, safe, tappable }) {
     return false
   }
 
-  const all = [...document.body.querySelectorAll('*')].filter(visible)
+  /**
+   * A visible aria-modal dialog owns the screen while it is open. The covered
+   * page can still exist in the DOM — and Playwright may have scrolled it to
+   * reach the row that opened the sheet — but that background is not the UI a
+   * person can act on now. Measuring it would report false safe-area and tap
+   * failures behind the modal instead of checking the sheet itself.
+   */
+  const modal = [...document.querySelectorAll('[aria-modal="true"]')].find(visible)
+  const scope = modal ?? document.body
+  const all = [...scope.querySelectorAll('*')].filter(visible)
 
-  // 1. Nothing sticks out sideways.
-  if (document.documentElement.scrollWidth > width + 1) {
+  // 1. Nothing sticks out sideways. The document-wide check only belongs to
+  // the normal page; with a modal open, the covered page is deliberately out
+  // of scope. Elements inside the modal are still checked against the viewport
+  // one by one below.
+  if (modal === undefined && document.documentElement.scrollWidth > width + 1) {
     problems.push({
       kind: 'overflow',
       element: 'document',
@@ -114,7 +126,7 @@ export function inspect({ minTap, safe, tappable }) {
 
   // 3. No tap target smaller than a finger, and nothing pinned to the bottom
   //    reaching into the home indicator.
-  const taps = [...document.body.querySelectorAll(tappable)].filter(visible)
+  const taps = [...scope.querySelectorAll(tappable)].filter(visible)
   for (const element of taps) {
     const box = element.getBoundingClientRect()
     if (box.width < minTap - 0.5 || box.height < minTap - 0.5) {
