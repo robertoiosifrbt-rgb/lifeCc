@@ -1,0 +1,112 @@
+/* Imported by exactly one .tsx in this directory: QuickActionsScreen.tsx */
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.quick-actions-intro,
+.quick-actions-empty,
+.quick-actions-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quick-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-raised);
+}
+
+.quick-actions-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-m);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.quick-actions-row-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.quick-actions-row-buttons button,
+.quick-actions-add-button {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  font: inherit;
+  font-size: var(--text-s);
+  color: var(--text);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.quick-actions-row-buttons button:disabled,
+.quick-actions-add-button:disabled {
+  opacity: 0.5;
+}
+
+.quick-actions-remove {
+  color: var(--danger);
+}
+
+.quick-actions-area-field,
+.quick-actions-label-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.quick-actions-area-label,
+.quick-actions-label-label {
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.quick-actions-area,
+.quick-actions-label-field input {
+  min-height: var(--tap);
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-s);
+  color: var(--text);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.quick-actions-heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-s);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.quick-actions-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-s);
+}

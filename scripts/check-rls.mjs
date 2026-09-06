@@ -9,9 +9,12 @@ import pg from 'pg'
 import { CASES as AREA_CASES } from './lib/rls-areas.mjs'
 import { CASES as EXPENSE_CASES } from './lib/rls-expenses.mjs'
 import { CASES as JOURNAL_CASES } from './lib/rls-journal.mjs'
+import { CASES as QUICK_ACTION_CASES } from './lib/rls-quick-actions.mjs'
+import { CASES as QUICK_ACTION_COLUMN_CASES } from './lib/rls-quick-actions-columns.mjs'
 import { CASES as SETTINGS_CASES } from './lib/rls-settings.mjs'
 import { CASES as ITEM_CASES } from './lib/rls.mjs'
 import { CASES as SHIFT_CASES } from './lib/rls-shifts.mjs'
+import { CASES as SHIFT_INVARIANT_CASES } from './lib/rls-shift-invariants.mjs'
 import { CASES as LINK_CASES } from './lib/rls-links.mjs'
 import { CASES as UPSERT_CASES } from './lib/rls-upsert.mjs'
 import { A, B, contextFor } from './lib/rls-context.mjs'
@@ -21,11 +24,14 @@ const CASES = [
   ...ITEM_CASES,
   ...AREA_CASES,
   ...SHIFT_CASES,
+  ...SHIFT_INVARIANT_CASES,
   ...SETTINGS_CASES,
   ...EXPENSE_CASES,
   ...UPSERT_CASES,
   ...LINK_CASES,
   ...JOURNAL_CASES,
+  ...QUICK_ACTION_CASES,
+  ...QUICK_ACTION_COLUMN_CASES,
 ]
 
 const DATABASE_URL = process.env.DATABASE_URL

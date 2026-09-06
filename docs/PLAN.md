@@ -286,6 +286,38 @@ Home poate începe cu un mesaj scurt și puternic, orientat spre progres, nu spr
 La început mesajele pot veni dintr-o bibliotecă locală bună. Mai târziu pot fi
 contextuale, dar fără dependență obligatorie de AI.
 
+### Home Quick Actions
+
+Quick Actions-urile de pe Home sunt **configurabile de utilizator**, aplicarea
+directă a Legii 17 (configuration over hardcoding) la ecranul de intrare.
+
+- codul aplicației expune un registru finit și sigur de acțiuni suportate
+  (de exemplu: `journal.new`, `money.expense`, `delivery.work`);
+- datele/configurația deținute de utilizator decid: care Quick Actions apar pe
+  Home, eticheta afișată, ordinea lor, contextul relevant (de exemplu o Arie
+  pentru Delivery) și vizibilitatea/prezența lor;
+- eticheta este opțională și doar de afișaj: null înseamnă numele implicit
+  din cod, un text propriu îl înlocuiește; nu schimbă niciodată `action_key`
+  sau ce face acțiunea la execuție — pentru `delivery.work`, starea
+  (Start/Resume/Open) rămâne exclusiv decizia codului după starea reală a
+  zilei, eticheta proprie oferă cel mult subiectul din text;
+- o acțiune specifică unui domeniu (de exemplu Delivery) nu apare niciodată
+  pentru un utilizator care nu a configurat-o explicit;
+- configurația nu înseamnă niciodată cod, SQL sau expresii arbitrare executate
+  din bază (Legea 20): un rând numește o acțiune din registru, niciodată cum
+  se execută ea;
+- un `action_key` necunoscut sau nesuportat nu se execută niciodată — nici
+  dacă ar ajunge cumva într-un rând;
+- contextul de Arie al lui `delivery.work` este `area_id`-ul configurat, nu o
+  potrivire după numele ariei (Delivery, Multi-App Delivery, Gig Work etc.):
+  numele ariei este dată a utilizatorului, nu un identificator de domeniu;
+- dacă utilizatorul nu are nicio Quick Action configurată, Home nu recreează
+  tăcut un set implicit și nu arată acțiuni de domeniu irelevante — arată o
+  cale clară, mică, spre configurare;
+- trebuie să existe un punct de intrare clar din Home spre gestionarea Quick
+  Actions (adăugare, ascundere/eliminare, schimbarea ordinii, alegerea
+  contextului necesar).
+
 ---
 
 ## 8. PLAN

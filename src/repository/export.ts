@@ -4,6 +4,7 @@
 import { localToday } from './item'
 import type { Item } from './item'
 import type { JournalEntry } from './journal-entry'
+import type { QuickAction } from './quick-action'
 
 export type ExportFile = {
   name: string
@@ -23,11 +24,17 @@ export type ExportFile = {
  * other place a person can read its text back from. Leaving it out here
  * would mean "Download everything" downloaded everything except the one
  * thing Journal is actually for.
+ *
+ * Quick Actions ride beside `items` too, for the same reason: they are the
+ * user's own configuration, not something derivable from anything else in
+ * the file, so leaving them out would be an "everything" that quietly
+ * excludes one table a person owns.
  */
 export function exportFile(
   user: string,
   items: readonly Item[],
   journal: readonly JournalEntry[],
+  quickActions: readonly QuickAction[],
   cursor: string | null,
   now: Date,
 ): ExportFile {
@@ -40,6 +47,7 @@ export function exportFile(
       syncedThrough: cursor,
       items,
       journal,
+      quickActions,
     },
     null,
     2,

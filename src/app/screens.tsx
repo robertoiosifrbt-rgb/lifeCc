@@ -8,6 +8,7 @@ import { CalendarScreen } from '../screens/calendar/CalendarScreen'
 import { JournalScreen } from '../screens/journal/JournalScreen'
 import { MoneyScreen } from '../screens/money/MoneyScreen'
 import { PlanScreen } from '../screens/plan/PlanScreen'
+import { QuickActionsScreen } from '../screens/quickactions/QuickActionsScreen'
 import { ThingsScreen } from '../screens/things/ThingsScreen'
 import { TodayScreen } from '../screens/today/TodayScreen'
 
@@ -59,6 +60,14 @@ export const INSIDE: readonly Screen[] = [
   // Journal is reached from Home, not from a fifth bar slot: the mental map
   // stays Home / Plan / Areas / Money.
   { path: '/journal', label: 'Journal', element: <JournalScreen />, parent: '/today' },
+  // Where Home's Quick Actions are configured — reached from Home, same as
+  // Journal, not a bar slot of its own.
+  {
+    path: '/quick-actions',
+    label: 'Quick Actions',
+    element: <QuickActionsScreen />,
+    parent: '/today',
+  },
 ]
 
 /** Where you land from `/` and from any URL that does not exist. */

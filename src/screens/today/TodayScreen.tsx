@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 import { SpendSheet } from '../../spend/SpendSheet'
 
@@ -7,6 +6,7 @@ import { currentYearMoney, forToday } from '../../repository/items'
 import type { Item } from '../../repository/items'
 import { useScreen } from '../../items/context'
 import { ItemRow } from '../../ui/ItemRow'
+import { QuickActionsRow } from './QuickActionsRow'
 import { Summary } from './Summary'
 import { oldOverdueLabel, splitOverdue, undatedLabel } from './collapse'
 import './TodayScreen.css'
@@ -87,11 +87,6 @@ export function TodayScreen() {
 
   const shared = { today, unsavedFor, onOpen: openItem }
 
-  // The day's shift, if there is one. Not a group of its own in the list —
-  // it is a single thing, and it has its own way in.
-  const todaysShift = data.items.find(
-    (item) => item.kind === 'shift' && item.due === today && item.deleted_at === null,
-  )
   // The tax year as it stands, for the money at the top. The same helper
   // Money reads, so the two cannot drift into two different answers.
   const { money: soFar } = currentYearMoney({
@@ -122,40 +117,23 @@ export function TodayScreen() {
         </p>
       )}
 
-      {/* One button, whichever state the day is in. A driver opening this
-          at six in the morning and at eleven at night wants the same tap. */}
-      <div className="today-buttons">
-        <button
-          type="button"
-          name="shift"
-          className="today-shift"
-          onClick={() => {
-            if (todaysShift === undefined) void data.startShift(today, null)
-            else openItem(todaysShift)
-          }}
-        >
-          {todaysShift === undefined ? 'Start a shift' : "Today's shift"}
-        </button>
-        <button
-          type="button"
-          name="spend"
-          className="today-shift"
-          onClick={() => setSpending(true)}
-        >
-          Money out
-        </button>
-        {/* Straight to the composer, focused, in one tap — not a sheet with
-            fields to skim past first. */}
-        <Link className="today-shift" to="/journal">
-          Journal
-        </Link>
-      </div>
+      {/* Whichever actions the person configured, in the order they chose —
+          never the three the application used to assume everyone wanted. */}
+      <QuickActionsRow
+        data={data}
+        openItem={openItem}
+        today={today}
+        onSpend={() => setSpending(true)}
+      />
 
       {spending && (
+        // No suggested Area: "the day's shift" stopped being one thing the
+        // moment more than one Area's delivery.work could exist for the same
+        // day, and guessing which one would be worse than asking.
         <SpendSheet
           day={today}
           areas={data.areas}
-          suggestedArea={todaysShift?.area_id ?? null}
+          suggestedArea={null}
           onSpend={(what) => data.spend(what)}
           onClose={() => setSpending(false)}
         />

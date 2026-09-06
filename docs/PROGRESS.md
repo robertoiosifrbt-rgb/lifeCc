@@ -181,19 +181,30 @@ construi încă modulele viitoare.
 - `TODO` — Areas aggregation în Home final;
 - `TODO` — Daily Focus.
 
-**Scor fază: 3.5 / 9 = 39%**
+**Scor fază: 4.0 / 10 = 40%**
 
 ### Criterii suplimentare
 
-- _Adaugă aici criterii noi aprobate pentru Faza 8._
+- `PARTIAL` — Home Quick Actions sunt configurabile de utilizator: registru
+  finit și sigur în cod (`journal.new`, `money.expense`, `delivery.work`); ce
+  apare pe Home, ordinea și contextul (Arie, pentru delivery.work) sunt date
+  ale utilizatorului, nu butoane hardcodate; zero configurate → fără acțiuni
+  de domeniu inventate, cu o cale clară de configurare; `delivery.work`
+  rezolvă starea reală (Start/Resume/Open) după zi *și* Aria configurată,
+  fără potrivire după numele ariei, cu invariante de bază (o singură tură
+  vie pe zi/Arie, o singură sesiune deschisă) și recuperare sigură când
+  extensia shift-ului lipsește. Implementarea și migrațiile există complet
+  în repo, cu RLS scrise pentru ele — dar rămâne `PARTIAL`, nu `DONE`, până
+  când migrațiile cerute (`20260906050000_quick_actions`,
+  `20260906060000_shift_invariants`) sunt confirmate aplicate pe baza live.
 
 ---
 
 # Progres total curent
 
-Criterii urmărite: **50**
+Criterii urmărite: **51**
 
-Puncte curente: **13 / 50**
+Puncte curente: **13.5 / 51**
 
 **Progres mecanic: 26%**
 

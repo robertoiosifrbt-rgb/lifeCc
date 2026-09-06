@@ -57,13 +57,22 @@
   font-size: var(--text-m);
 }
 
+.today-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .today-buttons {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
 }
 
 .today-shift {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 40%;
   min-height: var(--tap);
   font: inherit;
   font-size: var(--text-m);
@@ -72,6 +81,14 @@
   background: var(--bg-raised);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-s);
+}
+
+/* The way to Quick Actions' own settings, sitting quietly beside whatever is
+   configured rather than competing with it for attention. */
+.today-manage {
+  color: var(--text-dim);
+  font-size: var(--text-s);
+  text-decoration: underline;
 }
 
 /* A link wearing the same clothes as the buttons beside it: centred text and
@@ -86,4 +103,22 @@ a.today-shift {
 .today-shift:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+.today-shift:disabled {
+  opacity: 0.5;
+}
+
+/* Not a shift needing a tap — a way back to fix a configuration that no
+   longer points at a live Area. Marked, not just labelled, so it does not
+   read as an ordinary action that happens to be one tap away from working. */
+.today-shift-unavailable {
+  border-style: dashed;
+  color: var(--text-dim);
+}
+
+.today-quick-action-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-s);
 }

@@ -13,15 +13,17 @@
 import {
   createShift,
   endSession as endShiftSession,
+  NotCached,
   recordExpense,
   removeExpense,
   removeSession as removeShiftSession,
+  runStartDeliveryWork,
   setSessionBreak,
   saveRunningCosts,
-  saveTaxYear,
   saveShift,
+  saveTaxYear,
   setEarning,
-  startSession,
+  startSessionSafely,
 } from '../repository/items'
 import type {
   Category,
@@ -51,7 +53,15 @@ export type MoneyActions = {
     fuel_per_km: number,
     vehicle_per_km: number,
   ) => Promise<void>
-  startShift: (day: string, area_id: string | null) => Promise<void>
+  /**
+   * The delivery.work Quick Action's "start" state: a shift made and its
+   * first session already running, in one tap — the previous "Start a
+   * shift" only ever made the container, which is a different thing this
+   * action never leaves half done. Resolves to the shift's own item, so the
+   * caller can open it straight away without waiting for the next snapshot
+   * to say where it landed.
+   */
+  startDeliveryWork: (day: string, area_id: string) => Promise<Item>
   saveShiftParts: (item_id: string, patch: ShiftPatch) => Promise<void>
   clockOn: (item_id: string) => Promise<void>
   clockOff: (sessionId: string) => Promise<void>
@@ -73,16 +83,47 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
 
   // A shift is made already processed: it is not something you found in
   // your pocket, it is a day you worked. So it goes in with its kind, its
-  // day and its area, and never passes through the inbox.
-  startShift: (day, area_id) =>
-    write(() =>
-      createShift(owner, day, area_id).then((anchor) =>
-        saveShift(owner, anchor.id, {}),
-      ),
-    ),
+  // day and its area, and never passes through the inbox — then its first
+  // session starts immediately (through the same recovery path clockOn
+  // uses below), so the tap that made the shift also starts it.
+  //
+  // The sequence itself — including what NotCached from `createShift` means
+  // partway through it — is `runStartDeliveryWork`, tested on its own with
+  // injected effects; this is that same function called with the real
+  // writes. Its `recovered` flag means the session genuinely started but
+  // this device could not keep a copy of the shift item: the shared `write`
+  // already has a recovery path for exactly that, for every other write,
+  // so it is reused here rather than invented again — a fresh NotCached,
+  // thrown only after the result is captured, so `write`'s own resync runs
+  // and this call still resolves with the real item. `anchor` is set on
+  // every path that does not throw, which is the only way `write` can
+  // resolve; the check below is a real guard, not a cast, for the path
+  // that cannot happen but must never be assumed.
+  startDeliveryWork: (day, area_id) => {
+    let anchor: Item | null = null
+    return write(async () => {
+      const result = await runStartDeliveryWork(day, area_id, new Date(), {
+        createShift: (d, a) => createShift(owner, d, a),
+        startSessionSafely: (id, at) => startSessionSafely(owner, id, at),
+      })
+      anchor = result.item
+      if (result.recovered) {
+        throw new NotCached(result.item, 'the session started; only this device could not keep the shift')
+      }
+    }).then(() => {
+      if (anchor === null) {
+        throw new Error('Delivery work did not start: no confirmation reached this device.')
+      }
+      return anchor
+    })
+  },
 
   saveShiftParts: (item_id, patch) => write(() => saveShift(owner, item_id, patch)),
-  clockOn: (item_id) => write(() => startSession(owner, item_id, new Date())),
+  // Recoverable: a shift item can exist with no `shifts` row yet, especially
+  // after a previous partial write, and starting a session straight onto
+  // that would leave it invisible in the cache. Same path startDeliveryWork
+  // uses, so the Start button inside the sheet recovers exactly the same way.
+  clockOn: (item_id) => write(() => startSessionSafely(owner, item_id, new Date())),
   clockOff: (sessionId) => write(() => endShiftSession(owner, sessionId, new Date())),
   dropSession: (sessionId) => write(() => removeShiftSession(owner, sessionId)),
   setBreak: (sessionId, minutes) => write(() => setSessionBreak(owner, sessionId, minutes)),

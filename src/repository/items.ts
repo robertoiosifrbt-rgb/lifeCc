@@ -9,6 +9,8 @@ import type { ExportFile } from './export'
 import { fromRow as fromAreaRow } from './area'
 import { fromRow as fromItemRow, localToday } from './item'
 import type { Item, Patch } from './item'
+import { NotCached } from './not-cached'
+import { fromRow as fromQuickActionRow } from './quick-action'
 import { supabaseSource, supabaseWriter } from './source'
 import { syncSettings } from './settings-api'
 import { syncCore } from './core'
@@ -16,7 +18,7 @@ import { syncExpenses } from './expenses'
 import { syncJournalEntries } from './journal-entries'
 import { journalStore } from './journal-store'
 import { syncShifts } from './shifts'
-import { areaStore, store } from './store'
+import { areaStore, quickActionStore, store } from './store'
 import { sync } from './sync'
 import type { SyncResult } from './sync'
 import { applyPatch, create, createDated, softDelete } from './write'
@@ -68,14 +70,12 @@ export {
   PLATFORM_NAMES,
   PLATFORMS,
 } from './shift'
-export {
-  endSession,
-  removeSession,
-  saveShift,
-  setEarning,
-  shiftsOf,
-  startSession,
-} from './shifts'
+export { endSession, removeSession, saveShift, setEarning, shiftsOf, startSession } from './shifts'
+export { runSessionRecovery, startSessionSafely } from './shifts'
+export type { SessionRecoveryEffects } from './shifts'
+export { runStartDeliveryWork } from './delivery'
+export type { StartDeliveryWorkEffects, StartDeliveryWorkResult } from './delivery'
+export { NotCached, SyncPending } from './not-cached'
 export { countUnder, pathOf, settingsPatch, subtreeOf, treeOf } from './area'
 export {
   areasOf,
@@ -83,10 +83,21 @@ export {
   discardArea,
   updateArea,
 } from './areas'
+export {
+  needsArea,
+  nextPositionOf,
+  normalizeLabel,
+  orderedOf,
+  positionForMove,
+} from './quick-action'
+export { QUICK_ACTION_KINDS } from './quick-action'
+export type { QuickAction, QuickActionKind, QuickActionPatch } from './quick-action'
+export { createQuickAction, discardQuickAction, quickActionsOf, updateQuickAction } from './quick-actions'
 
-/** The two synced tables, named once. */
+/** The synced tables, named once. */
 export const ITEMS = 'items'
 export const AREAS = 'areas'
+export const QUICK_ACTIONS = 'quick_actions'
 
 /**
  * Checks that the requested namespace really belongs to the user signed in
@@ -123,6 +134,11 @@ export async function syncAccount(owner: string): Promise<SyncResult> {
   await requireAccount(owner)
   const areas = await sync(owner, supabaseSource(AREAS), areaStore, fromAreaRow)
   const items = await sync(owner, supabaseSource(ITEMS), store, fromItemRow)
+  // Quick Actions carry their own cursor too, after areas: a delivery.work
+  // row can name one.
+  const quickActions = await sync(
+    owner, supabaseSource(QUICK_ACTIONS), quickActionStore, fromQuickActionRow,
+  )
   // The shift parts last, and whole: they carry no cursor, so there is
   // nothing to ask them "since when". Their anchors have already arrived.
   // The settings before the shifts: a shift is read with the rates pinned on
@@ -138,8 +154,17 @@ export async function syncAccount(owner: string): Promise<SyncResult> {
   return {
     // A full snapshot of either table is a full sync: something was rebuilt
     // from nothing, and that is what the word has to keep meaning.
-    kind: areas.kind === 'full' || items.kind === 'full' ? 'full' : 'delta',
-    fetched: areas.fetched + items.fetched + shifts.length + spent.length + journal.length,
+    kind:
+      areas.kind === 'full' || items.kind === 'full' || quickActions.kind === 'full'
+        ? 'full'
+        : 'delta',
+    fetched:
+      areas.fetched +
+      items.fetched +
+      quickActions.fetched +
+      shifts.length +
+      spent.length +
+      journal.length,
     cursor: items.cursor,
   }
 }
@@ -200,38 +225,13 @@ export async function discard(owner: string, item: Item, now: Date): Promise<Ite
 /** "Download everything": the entire snapshot, as a file. */
 export async function exportAll(owner: string, now: Date): Promise<ExportFile> {
   await requireAccount(owner)
-  const [items, cursor, journal] = await Promise.all([
+  const [items, cursor, journal, quickActions] = await Promise.all([
     store.readAll(owner),
     store.cursor(owner),
     journalStore.readAll(owner),
+    quickActionStore.readAll(owner),
   ])
-  return exportFile(owner, items, journal, cursor, now)
-}
-
-/**
- * The write reached the server, and the cache would not take the row.
- *
- * It is not a failed write, and must never be shown as one. The row is on the
- * server; only the local copy is behind. Told "it did not work", you press
- * Save again — and Capture inserts a second row for a first one that was
- * already there.
- *
- * It carries the item so the screen can stop calling it unsaved, and ask for a
- * sync instead: the next delta brings the same row back, and the upsert is
- * idempotent.
- */
-export class NotCached extends Error {
-  readonly item: Item
-
-  constructor(item: Item, reason: unknown) {
-    super(
-      `Saved, but this device could not keep a copy: ${
-        reason instanceof Error ? reason.message : String(reason)
-      }`,
-    )
-    this.name = 'NotCached'
-    this.item = item
-  }
+  return exportFile(owner, items, journal, quickActions, cursor, now)
 }
 
 /**

@@ -77,6 +77,7 @@ export default tseslint.config(
       'scripts/check-layout.mjs',
       'scripts/check-cycle.mjs',
       'scripts/lib/layout.mjs',
+      'scripts/lib/quick-actions-row.test.mjs',
     ],
     extends: [js.configs.recommended],
     languageOptions: {

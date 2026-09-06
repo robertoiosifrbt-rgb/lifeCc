@@ -7,6 +7,7 @@ import {
   exportAll,
   NotCached,
   syncAccount,
+  SyncPending,
   update as updateItem,
 } from '../repository/items'
 import {
@@ -20,6 +21,8 @@ import { journalActions } from './journalActions'
 import type { JournalActions } from './journalActions'
 import { moneyActions } from './moneyActions'
 import type { MoneyActions } from './moneyActions'
+import { quickActionActions } from './quickActionActions'
+import type { QuickActionActions } from './quickActionActions'
 import { readSnapshot } from './snapshot'
 import type { Snapshot } from './snapshot'
 import type {
@@ -31,6 +34,7 @@ import type {
   Link,
   Patch,
   Expense,
+  QuickAction,
   RunningCosts,
   TaxYearRow,
   Shift,
@@ -57,7 +61,8 @@ export type Unsaved = { item: Item; patch: Patch; reason: string }
 // here is how a handle ends up promising something the hook does not return.
 export type ItemsHandle = MoneyActions &
   CoreActions &
-  JournalActions & {
+  JournalActions &
+  QuickActionActions & {
   items: Item[]
   areas: Area[]
   shifts: Shift[]
@@ -67,6 +72,7 @@ export type ItemsHandle = MoneyActions &
   things: Entity[]
   links: Link[]
   journal: JournalEntry[]
+  quickActions: QuickAction[]
   loading: boolean
   sync: SyncState
   unsaved: Unsaved[]
@@ -103,6 +109,7 @@ export function useItems(owner: string): ItemsHandle {
   const [things, setThings] = useState<Entity[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [journal, setJournal] = useState<JournalEntry[]>([])
+  const [quickActions, setQuickActions] = useState<QuickAction[]>([])
   const [loading, setLoading] = useState(true)
   const [sync, setSync] = useState<SyncState>({ kind: 'never' })
   const [unsaved, setUnsaved] = useState<Unsaved[]>([])
@@ -118,6 +125,7 @@ export function useItems(owner: string): ItemsHandle {
     setThings(snapshot.things)
     setLinks(snapshot.links)
     setJournal(snapshot.journal)
+    setQuickActions(snapshot.quickActions)
   }, [])
 
   const reload = useCallback(async () => {
@@ -189,6 +197,17 @@ export function useItems(owner: string): ItemsHandle {
           setRound((n) => n + 1)
           return
         }
+        // The same soft-success shape as NotCached, for a write with no Item
+        // of its own to file into `unsaved` in the first place — a shift
+        // session commits on the server before this can ever be thrown, so
+        // saying "it failed" here is how a second session ends up started on
+        // top of the one that already began. A bumped round is the later
+        // resync this asks for, through the same sync path everything else
+        // already goes through.
+        if (error instanceof SyncPending) {
+          setRound((n) => n + 1)
+          return
+        }
         if (isItemConflict(error)) {
           setUnsaved((left) => [
             ...left.filter((u) => u.item.id !== error.item.id),
@@ -220,6 +239,7 @@ export function useItems(owner: string): ItemsHandle {
     things,
     links,
     journal,
+    quickActions,
     loading,
     sync,
     unsaved,
@@ -274,5 +294,7 @@ export function useItems(owner: string): ItemsHandle {
     saveArea: (area, patch) => write(() => updateArea(owner, area, patch)),
 
     dropArea: (area) => write(() => discardArea(owner, area, new Date())),
+
+    ...quickActionActions(owner, quickActions, write),
   }
 }

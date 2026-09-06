@@ -9,6 +9,8 @@ import { fromRow as fromAreaRow } from './area'
 import type { Area } from './area'
 import { fromRow as fromItemRow } from './item'
 import type { Item } from './item'
+import { fromRow as fromQuickActionRow } from './quick-action'
+import type { QuickAction } from './quick-action'
 import type { Row } from './row'
 import type { Shift } from './shift'
 
@@ -32,9 +34,13 @@ const DB_NAME = 'life-control-centre'
 // says which table it belongs to. The old cursors are dropped rather than
 // converted — a missing cursor costs one full snapshot, and a converted one
 // that is wrong costs rows that never arrive.
-const DB_VERSION = 9
+const DB_VERSION = 10
 const ITEMS = 'items'
 const AREAS = 'areas'
+// Home's Quick Actions: its own table, own cursor, the same reason areas
+// gets one — a handful of rows a person edits directly, not something that
+// rides an anchor.
+const QUICK_ACTIONS = 'quick_actions'
 // The core's two: the things an item can point at, and the arrows themselves.
 // Neither has a cursor — both ride the anchors they hang off, which is the
 // strategy their migration declares.
@@ -79,7 +85,7 @@ export function open(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       const opened = req.result
-      for (const name of [ITEMS, AREAS]) {
+      for (const name of [ITEMS, AREAS, QUICK_ACTIONS]) {
         if (!opened.objectStoreNames.contains(name)) {
           const rows = opened.createObjectStore(name, { keyPath: 'id' })
           rows.createIndex('owner', 'owner', { unique: false })
@@ -243,6 +249,7 @@ function storeFor<T extends Row>(
 
 export const store: Store<Item> = storeFor(ITEMS, fromItemRow)
 export const areaStore: Store<Area> = storeFor(AREAS, fromAreaRow)
+export const quickActionStore: Store<QuickAction> = storeFor(QUICK_ACTIONS, fromQuickActionRow)
 
 /**
  * The parts of every shift this account has, kept whole.
