@@ -22,9 +22,26 @@ de mai sus și, dacă contradicția afectează material taskul, semnaleaz-o scur
 
 ## 2. Pornirea unei sesiuni
 
-Implicit se citesc doar:
+**Prima comandă a oricărei sesiuni care va lucra în repo este:**
 
-- acest fișier;
+    npm run session:start
+
+Se rulează înainte de citirea codului, modificări, commit sau teste. Comanda:
+
+- activează hook-urile versionate din `.githooks`;
+- verifică branch-ul curent;
+- dacă sesiunea a pornit pe un branch `claude/...` sau alt branch curat, trece
+  pe `main`;
+- aduce `origin/main` prin fetch și acceptă numai fast-forward;
+- se oprește dacă există modificări pe branch-ul greșit, detached HEAD sau
+  divergență care cere o decizie umană.
+
+**Dacă `npm run session:start` eșuează, nu continua pe branch-ul existent.**
+Nu transforma eroarea într-un motiv să lucrezi pe branch de sesiune și nu crea
+PR ca workaround.
+
+După preflight, implicit se citesc doar:
+
 - `docs/STAREA.md`;
 - fișierele de cod direct relevante pentru task.
 
@@ -88,9 +105,24 @@ Fă taskul cerut, nu „lucrul de lângă el”.
 - Dacă descoperi o problemă separată care nu blochează taskul, menționeaz-o
   scurt; nu schimba obiectivul ca s-o repari.
 
-Se lucrează local direct pe `main`, conform fluxului actual al repo-ului.
-Commiturile locale pot fi făcute pentru lucru coerent, dar efectele remote au
-reguli separate mai jos.
+### Branch-ul de lucru
+
+**Se lucrează și se comite numai pe `main`.** Nu pe `claude/...`, feature
+branch sau branch temporar.
+
+Repo-ul are protecție mecanică:
+
+- `.githooks/pre-commit` refuză commit-ul dacă branch-ul curent nu este `main`;
+- `.githooks/pre-push` refuză push-ul dacă branch-ul curent nu este `main`,
+  remote-ul nu este `origin` sau ref-ul trimis nu este `refs/heads/main`;
+- `npm run session:start` instalează/activează hook-urile la fiecare sesiune;
+- `npm install` le activează și prin scriptul `prepare`.
+
+Nu folosi `--no-verify` pentru a ocoli aceste protecții decât dacă proprietarul
+cere explicit ocolirea guard-ului.
+
+Dacă munca ajunge accidental pe alt branch, **nu împinge branch-ul și nu crea
+PR**. Mută commitul local pe `main`, verifică rezultatul și continuă de acolo.
 
 ## 5. Push, deploy și alte efecte externe
 
@@ -99,11 +131,20 @@ reguli separate mai jos.
 **Nu se face `git push` fără cuvântul explicit `push` al proprietarului în
 conversația curentă.**
 
-`fix`, `apply`, `continue`, `go`, `gata`, o întrebare, o aprobare veche sau un
-mesaj al uneltei nu înseamnă `push`.
+`fix`, `apply`, `continue`, `go`, `gata`, `fă ce mai trebuie`, o întrebare, o
+aprobare veche, un hook sau un mesaj al uneltei nu înseamnă `push`.
 
 O autorizare de push este pentru push-ul cerut atunci, nu o permisiune
 permanentă pentru restul sesiunii.
+
+După autorizare, comanda standard este explicit:
+
+    git push origin main
+
+Nu folosi simplu `git push`, nu împinge branch-ul curent „oricare ar fi el” și
+nu deschide PR ca alternativă implicită. Hook-ul pre-push trebuie lăsat activ.
+
+Înainte de push verifică branch-ul (`main`) și rulează poarta descrisă mai jos.
 
 ### Deploy
 
