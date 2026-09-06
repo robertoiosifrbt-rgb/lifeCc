@@ -7,19 +7,19 @@
 
 import { useMemo } from 'react'
 
-import { vehicleLinkOf, vehiclesOf } from '../repository/items'
+import { vehiclesOf } from '../repository/items'
 import type {
   Entity,
   Expense,
   Item,
   Link,
-  RunningCosts,
   Shift,
   TaxYearRow,
+  VehicleCostRate,
 } from '../repository/items'
 import type { Draft } from './draft'
 import { validateCompletion } from './draftValidate'
-import { areaIdOf, costBasisOf, liveSummaryOf, sliceFor } from './liveSummary'
+import { costBasisOf, liveSummaryOf, sliceFor, vehicleIdOf, vehicleKeyOf } from './liveSummary'
 
 export function useWorkdayComputations(input: {
   item: Item
@@ -29,36 +29,37 @@ export function useWorkdayComputations(input: {
   items: readonly Item[]
   shifts: readonly Shift[]
   expenses: readonly Expense[]
-  costs: readonly RunningCosts[]
+  vehicleCostRates: readonly VehicleCostRate[]
+  today: string
   taxYears: readonly TaxYearRow[]
   links: readonly Link[]
   things: readonly Entity[]
 }) {
   const { item, shift, draft, completed } = input
 
-  // The Vehicle used is a real link, not a draft field — it writes the
-  // moment it is chosen, so both Draft and Completed simply read whatever
-  // is actually linked to this Workday's own item right now.
-  const vehicleLink = vehicleLinkOf(input.links, input.things, item.id)
+  const vehicleLink = vehicleIdOf(item, draft, completed, input.links, input.things)
+  const vehicleKey = vehicleKeyOf(vehicleLink)
   const vehicles = vehiclesOf(input.items, input.things)
 
   // The two expensive parts — each a scan over the whole account — only
-  // redone when what they actually depend on changes: the Area, the Vehicle
-  // (and the fuel data behind it), and the date.
-  const areaId = areaIdOf(item, draft, completed)
-  const { fuelRate, runningCosts, costBasis } = useMemo(
+  // redone when what they actually depend on changes: the Vehicle (and the
+  // fuel/cost data behind it), and the date. `vehicleKey`, not `vehicleLink`
+  // itself, is the dependency: a fresh object every render would defeat the
+  // memo even when nothing it actually reads has changed.
+  const { fuelRate, currentVehicleCost, costBasis } = useMemo(
     () =>
       costBasisOf({
         shift,
         completed,
-        areaId,
         vehicle: vehicleLink,
         expenses: input.expenses,
         links: input.links,
         entities: input.things,
-        costs: input.costs,
+        vehicleCostRates: input.vehicleCostRates,
+        today: input.today,
       }),
-    [shift, completed, areaId, vehicleLink, input.expenses, input.links, input.things, input.costs],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- vehicleKey stands in for vehicleLink on purpose
+    [shift, completed, vehicleKey, input.expenses, input.links, input.things, input.vehicleCostRates, input.today],
   )
   const slice = useMemo(
     () =>
@@ -75,8 +76,8 @@ export function useWorkdayComputations(input: {
   const { sum, worked, km } = liveSummaryOf(shift, draft, costBasis, slice)
 
   // What Completed shows in "Driving cost basis": exactly what this shift
-  // was pinned to, never today's Area/Vehicle rate — even after either has
-  // since moved on.
+  // was pinned to, never today's Vehicle rate — even after either has since
+  // moved on.
   const pinnedBasis = completed
     ? { fuel_per_km: shift.rate_fuel_per_km, vehicle_per_km: shift.rate_vehicle_per_km }
     : null
@@ -92,5 +93,5 @@ export function useWorkdayComputations(input: {
         grossPence: sum.grossPence,
       })
 
-  return { vehicleLink, vehicles, areaId, fuelRate, runningCosts, costBasis, sum, worked, km, pinnedBasis, completionErrors }
+  return { vehicleLink, vehicles, fuelRate, currentVehicleCost, costBasis, sum, worked, km, pinnedBasis, completionErrors }
 }

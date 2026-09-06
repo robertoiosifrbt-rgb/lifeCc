@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import type { FuelRate, RunningCosts } from '../repository/items'
+import type { FuelRate } from '../repository/items'
 import { rateOf } from './money'
 
 /** Exactly what a Completed workday was pinned to — never today's rate. */
@@ -9,10 +9,13 @@ export type PinnedBasis = { fuel_per_km: number | null; vehicle_per_km: number |
 type Props = {
   /** Worked out fresh from the linked Vehicle's full-tank fill-ups, not typed. */
   fuelRate: FuelRate
-  /** The area's current vehicle rate, or null if nobody has set it yet. */
-  costs: RunningCosts | null
+  /** The Vehicle's own currently-applicable cost rate, or null if nobody has
+   *  set one yet — independent of `fuelRate`: configuring this never needs a
+   *  known fuel rate first. */
+  vehicleCost: number | null
   /** Set only once Completed: the shift's own frozen rates, shown instead of
-   *  `fuelRate`/`costs` — which stay live even after this workday is done. */
+   *  `fuelRate`/`vehicleCost` — which stay live even after this workday is
+   *  done. */
   pinned: PinnedBasis | null
   busy: boolean
   readOnly: boolean
@@ -25,19 +28,20 @@ function rateText(value: number | null): string {
 
 /**
  * What a kilometre costs, shown for what it is: fuel worked out for you, and
- * the vehicle rate as a setting you configure, not a box you fill in on your
- * way out the door.
+ * the Vehicle's own wear rate as a setting you configure, not a box you fill
+ * in on your way out the door.
  *
  * Fuel is never typed here. The repo already knows the full-tank-to-full-tank
  * price from the linked Vehicle's fuel expenses — that is the one number this
  * shows, or it says plainly that there is not enough of it yet. A shift that
  * shows £0 for a rate nobody has set is a lie in the direction that costs
- * money, so it never does.
+ * money, so it never does. The two are independent: an unknown fuel rate
+ * never blocks configuring the Vehicle's own cost, and vice versa.
  *
  * Once Completed, `pinned` takes over entirely: the shift's own frozen rates,
- * labelled as pinned, never the Area or Vehicle's rate as it stands today —
- * changing either after the day is done must not make this screen and the
- * summary above it disagree about what the day actually cost.
+ * labelled as pinned, never the Vehicle's rate as it stands today — changing
+ * it after the day is done must not make this screen and the summary above
+ * it disagree about what the day actually cost.
  */
 export function DrivingCostBasis(props: Props) {
   const [open, setOpen] = useState(false)
@@ -49,9 +53,9 @@ export function DrivingCostBasis(props: Props) {
 
   /** Always seeded from the latest props at the moment it opens — never a
    *  value captured once and left stale by a newer rate arriving underneath
-   *  while the editor was closed, whether or not the Area itself changed. */
+   *  while the editor was closed. */
   function openEditor() {
-    setTyped(props.costs === null ? '' : String(props.costs.vehicle_per_km))
+    setTyped(props.vehicleCost === null ? '' : String(props.vehicleCost))
     setOpen(true)
   }
 
@@ -95,20 +99,13 @@ export function DrivingCostBasis(props: Props) {
         <span className="shift-cost-value">
           {props.pinned !== null
             ? rateText(props.pinned.vehicle_per_km)
-            : props.costs === null
+            : props.vehicleCost === null
               ? 'Not set'
-              : `£${props.costs.vehicle_per_km.toFixed(4)}/km`}
+              : `£${props.vehicleCost.toFixed(4)}/km`}
         </span>
       </div>
 
-      {!props.readOnly && !fuelKnown && (
-        <p className="shift-missing">
-          Add full-tank fuel purchases for the Vehicle used before the
-          vehicle cost can be configured.
-        </p>
-      )}
-
-      {!props.readOnly && fuelKnown && !open && (
+      {!props.readOnly && !open && (
         <button
           type="button"
           name="configure-vehicle-cost"
@@ -120,7 +117,7 @@ export function DrivingCostBasis(props: Props) {
         </button>
       )}
 
-      {!props.readOnly && fuelKnown && open && (
+      {!props.readOnly && open && (
         <div className="shift-paid">
           <span className="shift-platform">Vehicle £/km</span>
           <input

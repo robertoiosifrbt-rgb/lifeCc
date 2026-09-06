@@ -178,7 +178,14 @@ export function supabaseShiftWriter(owner: string) {
       if (response.error !== null) fail('Removing the session', response.error)
     },
     async setEarning(values: Record<string, unknown>) {
-      const response = await on('shift_earnings').upsert(values).select(ALL).single()
+      // Explicit now that `shift_earnings`'s primary key is a surrogate id:
+      // without naming the real conflict target, an upsert with no matching
+      // key would just insert a second row for the same platform instead of
+      // replacing the first.
+      const response = await on('shift_earnings')
+        .upsert(values, { onConflict: 'item_id,platform' })
+        .select(ALL)
+        .single()
       if (response.error !== null) fail('Writing what a platform paid', response.error)
       return response.data as unknown
     },
@@ -187,6 +194,24 @@ export function supabaseShiftWriter(owner: string) {
         .delete()
         .eq('item_id', item_id)
         .eq('platform', platform)
+        .eq('owner', owner)
+      if (response.error !== null) fail('Removing what a platform paid', response.error)
+    },
+    /** The configurable-Platform path alongside the legacy one above — same
+     *  table, the other partial unique index as its conflict target. */
+    async setPlatformEarning(values: Record<string, unknown>) {
+      const response = await on('shift_earnings')
+        .upsert(values, { onConflict: 'item_id,platform_item_id' })
+        .select(ALL)
+        .single()
+      if (response.error !== null) fail('Writing what a platform paid', response.error)
+      return response.data as unknown
+    },
+    async removePlatformEarning(item_id: string, platform_item_id: string) {
+      const response = await on('shift_earnings')
+        .delete()
+        .eq('item_id', item_id)
+        .eq('platform_item_id', platform_item_id)
         .eq('owner', owner)
       if (response.error !== null) fail('Removing what a platform paid', response.error)
     },

@@ -17,13 +17,16 @@ import {
   recordExpense,
   removeEarning as removeShiftEarning,
   removeExpense,
+  removePlatformEarning as removeShiftPlatformEarning,
   removeSession as removeShiftSession,
   runStartDeliveryWork,
   setSessionBreak,
   saveRunningCosts,
   saveShift,
   saveTaxYear,
+  saveVehicleCostRate,
   setEarning,
+  setPlatformEarning as setShiftPlatformEarning,
   startSessionSafely,
 } from '../repository/items'
 import type {
@@ -55,6 +58,9 @@ export type MoneyActions = {
     fuel_per_km: number,
     vehicle_per_km: number,
   ) => Promise<void>
+  /** A Vehicle's own cost per km, effective from a given date — never the
+   *  Area's, and never requiring a known fuel rate first. */
+  saveVehicleCost: (vehicle_item_id: string, effective_from: string, vehicle_per_km: number) => Promise<void>
   /**
    * The delivery.work Quick Action's "start" state: a shift made and its
    * first session already running, in one tap — the previous "Start a
@@ -72,6 +78,10 @@ export type MoneyActions = {
   setPaid: (item_id: string, platform: Platform, amount: number) => Promise<void>
   /** Taking a platform's earning back — not writing a fake zero over it. */
   removeEarning: (item_id: string, platform: Platform) => Promise<void>
+  /** The same two writes, keyed by a configurable Platform's own item
+   *  instead of the legacy hardcoded name. */
+  setPlatformPaid: (item_id: string, platform_item_id: string, amount: number) => Promise<void>
+  removePlatformEarning: (item_id: string, platform_item_id: string) => Promise<void>
 }
 
 export function moneyActions(owner: string, write: Write): MoneyActions {
@@ -84,6 +94,9 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
 
   saveCosts: (area_id, fuel_per_km, vehicle_per_km) =>
     write(() => saveRunningCosts(owner, area_id, fuel_per_km, vehicle_per_km)),
+
+  saveVehicleCost: (vehicle_item_id, effective_from, vehicle_per_km) =>
+    write(() => saveVehicleCostRate(owner, vehicle_item_id, effective_from, vehicle_per_km)),
 
   // A shift is made already processed: it is not something you found in
   // your pocket, it is a day you worked. So it goes in with its kind, its
@@ -135,5 +148,9 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
     write(() => setEarning(owner, item_id, platform, amount)),
   removeEarning: (item_id, platform) =>
     write(() => removeShiftEarning(owner, item_id, platform)),
+  setPlatformPaid: (item_id, platform_item_id, amount) =>
+    write(() => setShiftPlatformEarning(owner, item_id, platform_item_id, amount)),
+  removePlatformEarning: (item_id, platform_item_id) =>
+    write(() => removeShiftPlatformEarning(owner, item_id, platform_item_id)),
   }
 }

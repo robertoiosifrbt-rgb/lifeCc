@@ -2,23 +2,13 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { FuelRate, RunningCosts } from '../repository/items'
+import type { FuelRate } from '../repository/items'
 import { DrivingCostBasis } from './DrivingCostBasis'
 import { mount } from './domTestHelpers'
 
 const KNOWN: FuelRate = { perKm: 0.1234, legs: 2, km: 200, litresPer100Km: null, mpg: null, reason: 'ok' }
 const UNKNOWN: FuelRate = { perKm: null, legs: 0, km: 0, litresPer100Km: null, mpg: null, reason: 'no-fills' }
-
-const configuredVehicle: RunningCosts = {
-  area_id: 'area-1',
-  owner: 'me',
-  fuel_per_km: 0.1234,
-  vehicle_per_km: 0.05,
-  version: 1,
-  created_at: '2026-09-01T00:00:00Z',
-  updated_at: '2026-09-01T00:00:00Z',
-  deleted_at: null,
-}
+const CONFIGURED_VEHICLE_COST = 0.05
 
 let mounted: ReturnType<typeof mount> | null = null
 
@@ -38,7 +28,7 @@ describe('DrivingCostBasis — Fuel £/km is never a daily editable input', () =
     mounted = mount(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={configuredVehicle}
+        vehicleCost={CONFIGURED_VEHICLE_COST}
         pinned={null}
         busy={false}
         readOnly={false}
@@ -53,7 +43,7 @@ describe('DrivingCostBasis — Fuel £/km is never a daily editable input', () =
     mounted = mount(
       <DrivingCostBasis
         fuelRate={UNKNOWN}
-        costs={null}
+        vehicleCost={null}
         pinned={null}
         busy={false}
         readOnly={false}
@@ -69,7 +59,7 @@ describe('DrivingCostBasis — Fuel £/km is never a daily editable input', () =
     mounted = mount(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={configuredVehicle}
+        vehicleCost={CONFIGURED_VEHICLE_COST}
         pinned={null}
         busy={false}
         readOnly={false}
@@ -87,7 +77,7 @@ describe('DrivingCostBasis — Fuel £/km is never a daily editable input', () =
     mounted = mount(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={configuredVehicle}
+        vehicleCost={CONFIGURED_VEHICLE_COST}
         pinned={{ fuel_per_km: 0.1234, vehicle_per_km: 0.05 }}
         busy={false}
         readOnly={true}
@@ -99,12 +89,30 @@ describe('DrivingCostBasis — Fuel £/km is never a daily editable input', () =
   })
 })
 
+describe('DrivingCostBasis — vehicle cost is independent of the fuel rate', () => {
+  it('Configure vehicle cost is available even when the fuel rate is unknown', () => {
+    mounted = mount(
+      <DrivingCostBasis
+        fuelRate={UNKNOWN}
+        vehicleCost={null}
+        pinned={null}
+        busy={false}
+        readOnly={false}
+        onConfigureVehicle={() => Promise.resolve()}
+      />,
+    )
+    const button = mounted.container.querySelector<HTMLButtonElement>('button[name="configure-vehicle-cost"]')
+    expect(button).not.toBeNull()
+    expect(button?.disabled).toBe(false)
+  })
+})
+
 describe('DrivingCostBasis — Completed shows only its pinned basis', () => {
   it('shows the pinned rates, not the live ones, even when they differ', () => {
     mounted = mount(
       <DrivingCostBasis
         fuelRate={{ perKm: 9.9999, legs: 5, km: 500, litresPer100Km: null, mpg: null, reason: 'ok' }}
-        costs={{ ...configuredVehicle, vehicle_per_km: 9.9999 }}
+        vehicleCost={9.9999}
         pinned={{ fuel_per_km: 0.1234, vehicle_per_km: 0.05 }}
         busy={false}
         readOnly={true}
@@ -121,7 +129,7 @@ describe('DrivingCostBasis — Completed shows only its pinned basis', () => {
     mounted = mount(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={configuredVehicle}
+        vehicleCost={CONFIGURED_VEHICLE_COST}
         pinned={{ fuel_per_km: null, vehicle_per_km: null }}
         busy={false}
         readOnly={true}
@@ -136,11 +144,11 @@ describe('DrivingCostBasis — Completed shows only its pinned basis', () => {
 })
 
 describe('DrivingCostBasis — Configure vehicle cost always opens from the latest props', () => {
-  it('the same Area receiving a newer rate shows the new one once opened, not a value captured earlier', () => {
+  it('the same Vehicle receiving a newer rate shows the new one once opened, not a value captured earlier', () => {
     mounted = mount(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={configuredVehicle}
+        vehicleCost={CONFIGURED_VEHICLE_COST}
         pinned={null}
         busy={false}
         readOnly={false}
@@ -150,7 +158,7 @@ describe('DrivingCostBasis — Configure vehicle cost always opens from the late
     mounted.rerender(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={{ ...configuredVehicle, vehicle_per_km: 0.099 }}
+        vehicleCost={0.099}
         pinned={null}
         busy={false}
         readOnly={false}
@@ -171,7 +179,7 @@ describe('DrivingCostBasis — a pending configuration save blocks nothing it sh
     mounted = mount(
       <DrivingCostBasis
         fuelRate={KNOWN}
-        costs={configuredVehicle}
+        vehicleCost={CONFIGURED_VEHICLE_COST}
         pinned={null}
         busy={false}
         readOnly={false}
@@ -191,7 +199,7 @@ describe('DrivingCostBasis — a pending configuration save blocks nothing it sh
     })
     const stillOpen = mounted.container.querySelector<HTMLInputElement>('input[name="vehicle_per_km"]')
     expect(stillOpen).not.toBeNull()
-    expect(stillOpen?.value).toBe(String(configuredVehicle.vehicle_per_km))
+    expect(stillOpen?.value).toBe(String(CONFIGURED_VEHICLE_COST))
     expect(mounted.container.textContent).toContain('offline')
   })
 })

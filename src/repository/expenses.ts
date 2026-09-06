@@ -110,7 +110,14 @@ export async function refreshVehicleFuelRate(owner: string, vehicleItemId: strin
     thingsOf(owner),
   ])
   const rate = fuelRateForVehicle(expenses, links, entities, vehicleItemId)
-  if (rate.perKm === null) return
+  if (rate.perKm === null) {
+    // The rate this Vehicle used to have has become unknowable — an edit or
+    // a removal broke the full-tank chain. Left alone, the cache would keep
+    // pinning a number no fill-up here still supports; invalidating it is
+    // what makes "unknown" and "stale" the same thing again.
+    await supabaseSettingsWriter().clearVehicleFuelRate(vehicleItemId)
+    return
+  }
   await supabaseSettingsWriter().saveVehicleFuelRate({
     vehicle_item_id: vehicleItemId,
     fuel_per_km: rate.perKm,

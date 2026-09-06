@@ -1,5 +1,5 @@
 // sliceFor and liveSummaryOf's own tests — split out of liveSummary.test.ts
-// at the 300-line limit; costBasisOf/areaIdOf stay there.
+// at the 300-line limit; costBasisOf stays there.
 
 import { describe, expect, it } from 'vitest'
 
@@ -91,7 +91,7 @@ describe('sliceFor', () => {
     const bigEarlyProfit = item({ id: 'other1', due: '2026-09-10' })
     const bigEarlyShift = shift({
       item_id: 'other1',
-      earnings: [{ platform: 'uber_eats', amount: 100000 }],
+      earnings: [{ id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 100000 }],
     })
     const base = {
       item: anchor,
@@ -147,7 +147,7 @@ describe('sliceFor', () => {
     // anchor were not excluded, its own (stale) row would fall inside the
     // "before" window under its old date and double-count its own profit.
     const anchor = item({ due: '2026-09-01' })
-    const day = shift({ earnings: [{ platform: 'uber_eats', amount: 500 }] })
+    const day = shift({ earnings: [{ id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 500 }] })
     const base = {
       item: anchor,
       due: '2026-09-20',
@@ -163,7 +163,7 @@ describe('liveSummaryOf', () => {
   it('reads exactly the cost basis and slice it is handed', () => {
     const anchor = item()
     const day = shift({ odo_start: 0, odo_end: 100, tips: 50 })
-    const draft = draftFrom(anchor, day)
+    const draft = draftFrom(anchor, day, [], [])
     const result = liveSummaryOf(day, draft, { fuel_per_km: 0.1, vehicle_per_km: 0.05 }, {
       figures: null,
       income: null,
@@ -177,19 +177,19 @@ describe('liveSummaryOf', () => {
   it('with insufficient full-tank data, costs stay unknown — never priced as if the rate were nothing', () => {
     const anchor = item({ area_id: 'area-B' })
     const day = shift({ odo_start: 0, odo_end: 100 })
-    const draft = draftFrom(anchor, day)
+    const draft = draftFrom(anchor, day, [], [])
     // No fuel expenses at all: fuelRateForVehicle comes back with perKm
     // null, which is exactly what costBasisOf hands a Draft when data is
     // missing.
     const { costBasis } = costBasisOf({
       shift: day,
       completed: false,
-      areaId: 'area-B',
       vehicle: NO_VEHICLE,
       expenses: [],
       links: [],
       entities: [],
-      costs: [],
+      vehicleCostRates: [],
+      today: '2026-09-05',
     })
     const result = liveSummaryOf(day, draft, costBasis, { figures: null, income: null, beforePence: 0 })
     expect(result.sum.missing).toContain('costs')

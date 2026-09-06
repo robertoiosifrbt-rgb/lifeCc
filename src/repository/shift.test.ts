@@ -51,20 +51,41 @@ describe('sessionFromRow', () => {
 
 describe('earningFromRow', () => {
   it('reads the amount PostgREST hands back as text', () => {
-    expect(earningFromRow({ platform: 'uber_eats', amount: '64.20' })).toEqual({
+    expect(earningFromRow({ id: 'e1', platform: 'uber_eats', amount: '64.20' })).toEqual({
+      id: 'e1',
       platform: 'uber_eats',
+      platform_item_id: null,
       amount: 64.2,
     })
   })
 
   it('refuses a platform nobody drives for', () => {
-    expect(() => earningFromRow({ platform: 'bolt', amount: '5' })).toThrow('bolt')
+    expect(() => earningFromRow({ id: 'e1', platform: 'bolt', amount: '5' })).toThrow('bolt')
   })
 
   it('refuses a platform that paid less than nothing', () => {
-    expect(() => earningFromRow({ platform: 'just_eat', amount: '-1' })).toThrow(
-      'less than nothing',
-    )
+    expect(() =>
+      earningFromRow({ id: 'e1', platform: 'just_eat', amount: '-1' }),
+    ).toThrow('less than nothing')
+  })
+
+  it('refuses a row naming both platform and platform_item_id', () => {
+    expect(() =>
+      earningFromRow({ id: 'e1', platform: 'uber_eats', platform_item_id: 'p1', amount: '5' }),
+    ).toThrow('both')
+  })
+
+  it('refuses a row naming neither platform nor platform_item_id', () => {
+    expect(() => earningFromRow({ id: 'e1', amount: '5' })).toThrow('neither')
+  })
+
+  it('reads a configurable-Platform earning, keyed by platform_item_id', () => {
+    expect(earningFromRow({ id: 'e1', platform_item_id: 'p1', amount: '12.50' })).toEqual({
+      id: 'e1',
+      platform: null,
+      platform_item_id: 'p1',
+      amount: 12.5,
+    })
   })
 })
 
@@ -140,9 +161,9 @@ describe('earnedPence', () => {
       tips: 12.5,
       personal_km: null,
       earnings: [
-        { platform: 'uber_eats', amount: 64.2 },
-        { platform: 'deliveroo', amount: 31.0 },
-        { platform: 'just_eat', amount: 18.75 },
+        { id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 64.2 },
+        { id: 'e2', platform: 'deliveroo', platform_item_id: null, amount: 31.0 },
+        { id: 'e3', platform: 'just_eat', platform_item_id: null, amount: 18.75 },
       ],
     })
     expect(earnedPence(day)).toBe(12645)
@@ -153,8 +174,8 @@ describe('earnedPence', () => {
     // the error in the direction nobody checks.
     const day = shift({
       earnings: [
-        { platform: 'uber_eats', amount: 0.1 },
-        { platform: 'deliveroo', amount: 0.2 },
+        { id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 0.1 },
+        { id: 'e2', platform: 'deliveroo', platform_item_id: null, amount: 0.2 },
       ],
     })
     expect(earnedPence(day)).toBe(30)

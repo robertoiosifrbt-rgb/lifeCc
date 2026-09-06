@@ -6,7 +6,13 @@ import type { TaxYearPatch, TaxYearRow } from './hmrc-year'
 import { runningCostsFromRow } from './settings'
 import type { RunningCosts } from './settings'
 import { settingsStore } from './settings-store'
-import { supabaseSettings, supabaseSettingsWriter } from './settings-source'
+import {
+  supabaseSettings,
+  supabaseSettingsWriter,
+  supabaseVehicleCostRates,
+} from './settings-source'
+import { vehicleCostRateFromRow } from './vehicle-cost'
+import type { VehicleCostRate } from './vehicle-cost'
 
 async function requireAccount(owner: string): Promise<void> {
   const session = await currentSession()
@@ -20,9 +26,10 @@ async function requireAccount(owner: string): Promise<void> {
 
 /** Reads the settings from the server and puts them in the cache. */
 export async function syncSettings(owner: string): Promise<void> {
-  const fetched = await supabaseSettings()
+  const [fetched, rates] = await Promise.all([supabaseSettings(), supabaseVehicleCostRates()])
   await settingsStore.replaceCosts(owner, fetched.costs.map(runningCostsFromRow))
   await settingsStore.replaceTaxYears(owner, fetched.years.map(taxYearFromRow))
+  await settingsStore.replaceVehicleCostRates(owner, rates.map(vehicleCostRateFromRow))
 }
 
 /** Every tax year the person has set up. A handful, fetched whole. */
@@ -60,5 +67,29 @@ export async function saveRunningCosts(
 ): Promise<void> {
   await requireAccount(owner)
   await supabaseSettingsWriter().saveCosts({ area_id, fuel_per_km, vehicle_per_km })
+  await syncSettings(owner)
+}
+
+/** Every Vehicle cost rate the owner has set, a handful, fetched whole. */
+export async function vehicleCostRatesOf(owner: string): Promise<VehicleCostRate[]> {
+  await requireAccount(owner)
+  return settingsStore.vehicleCostRates(owner)
+}
+
+/**
+ * What a kilometre wears a Vehicle, from this date on.
+ *
+ * A new row, not an overwrite: `effective_from` defaults to today unless the
+ * caller names an earlier date to correct, so a rate set once already stands
+ * for every day it actually applied to.
+ */
+export async function saveVehicleCostRate(
+  owner: string,
+  vehicle_item_id: string,
+  effective_from: string,
+  vehicle_per_km: number,
+): Promise<void> {
+  await requireAccount(owner)
+  await supabaseSettingsWriter().saveVehicleCostRate({ vehicle_item_id, effective_from, vehicle_per_km })
   await syncSettings(owner)
 }

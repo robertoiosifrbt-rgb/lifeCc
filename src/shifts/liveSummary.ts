@@ -5,17 +5,18 @@
 // Split in three so the two expensive parts — the cost basis and the tax
 // slice, each a scan over the whole account — are only worth redoing when
 // what they actually depend on changes (the caller memoizes those two on
-// the Area and the date), while the cheap part — one shift's own preview —
-// is free to run on every keystroke, which is the whole point of it.
+// the Vehicle used and the date), while the cheap part — one shift's own
+// preview — is free to run on every keystroke, which is the whole point of it.
 
 import {
-  costsFor,
+  currentVehicleCostRateOf,
   fuelRateForVehicle,
   kilometres,
   minutesWorked,
   reserveFor,
   sliceOfYear,
   takeHome,
+  vehicleLinkOf,
 } from '../repository/items'
 import type {
   Entity,
@@ -23,70 +24,88 @@ import type {
   FuelRate,
   Item,
   Link,
-  RunningCosts,
   Shift,
   Slice,
   TakeHome,
   TaxYearRow,
+  VehicleCostRate,
   VehicleLink,
 } from '../repository/items'
 import type { CostBasis, Draft } from './draft'
 import { previewShiftOf } from './draft'
 
 /**
- * The Area a Draft's cost basis and Live preview follow.
- *
- * Completed always means the shift's own, already-settled Area — nothing
- * about a Completed workday is still moving. A Draft follows whatever the
- * form is currently showing, blank meaning none chosen yet.
+ * The Vehicle a Draft's cost basis and Live preview follow, now that the
+ * Vehicle link is itself deferred to Save draft/Complete: a Draft follows
+ * whatever is currently chosen in the form (never "ambiguous" — the draft
+ * field is always none or one), Completed follows exactly what is actually
+ * linked, frozen along with everything else about it.
  */
-export function areaIdOf(item: Item, draft: Draft, completed: boolean): string | null {
-  if (completed) return item.area_id
-  return draft.area_id === '' ? null : draft.area_id
+export function vehicleIdOf(
+  item: Item,
+  draft: Draft,
+  completed: boolean,
+  links: readonly Link[],
+  entities: readonly Entity[],
+): VehicleLink {
+  if (completed) return vehicleLinkOf(links, entities, item.id)
+  return draft.vehicle_item_id === ''
+    ? { kind: 'none' }
+    : { kind: 'one', vehicleItemId: draft.vehicle_item_id, linkId: '' }
 }
 
-export type CostBasisInfo = { fuelRate: FuelRate; runningCosts: RunningCosts | null; costBasis: CostBasis }
+/** A stable primitive to key a memoized call on — `VehicleLink` is a fresh
+ *  object every call, and comparing it by reference would recompute on
+ *  every render even when nothing about it actually changed. */
+export function vehicleKeyOf(vehicle: VehicleLink): string {
+  return vehicle.kind === 'one' ? `one:${vehicle.vehicleItemId}` : vehicle.kind
+}
+
+export type CostBasisInfo = {
+  fuelRate: FuelRate
+  /** The Vehicle's own currently-applicable cost rate — never the Area's. */
+  currentVehicleCost: number | null
+  costBasis: CostBasis
+}
 
 /**
  * The cost basis a preview should use, and what `DrivingCostBasis` shows
- * alongside it — worked out once for whichever Area and Vehicle are
- * currently in play.
+ * alongside it — worked out once for whichever Vehicle is currently in play.
  *
- * Takes the Area as a plain id and the Vehicle as an already-resolved
- * `VehicleLink` rather than the draft or the raw links they came from: the
- * caller already resolved both (`areaIdOf`, `vehicleLinkOf`), and reading
- * only the primitives this actually depends on is what lets a memoized call
- * skip redoing this whenever some other field of the draft changes instead.
+ * Takes the Vehicle as an already-resolved `VehicleLink` rather than the
+ * draft or the raw links it came from: the caller already resolved it
+ * (`vehicleIdOf`), and reading only the primitive this actually depends on
+ * is what lets a memoized call skip redoing this whenever some other field
+ * of the draft changes instead.
  *
- * Fuel is the linked Vehicle's, never the Area's — two vehicles sharing an
- * Area do not share one fuel chain, and an ambiguous or missing Vehicle
- * leaves it unknown rather than guessed. Vehicle wear stays the Area's own
- * setting, unrelated to which Vehicle is linked.
+ * Both rates are the linked Vehicle's now, never the Area's: fuel from its
+ * full-tank fill-ups, wear from its own effective-dated configuration — two
+ * vehicles sharing an Area never share either, and an ambiguous or missing
+ * Vehicle leaves both unknown rather than guessed.
  *
  * Completed uses exactly what the shift itself was pinned to, frozen; a
- * Draft uses the current rate for whichever Area/Vehicle is currently
- * showing — the same numbers `DrivingCostBasis` shows a Draft, never a
- * stale one left behind by an Area, a Vehicle, or fuel data that has since
- * moved on.
+ * Draft uses the current rate for whichever Vehicle is currently chosen —
+ * the same numbers `DrivingCostBasis` shows a Draft, never a stale one left
+ * behind by fuel data or a configuration that has since moved on.
  */
 export function costBasisOf(input: {
   shift: Shift
   completed: boolean
-  areaId: string | null
   vehicle: VehicleLink
   expenses: readonly Expense[]
   links: readonly Link[]
   entities: readonly Entity[]
-  costs: readonly RunningCosts[]
+  vehicleCostRates: readonly VehicleCostRate[]
+  today: string
 }): CostBasisInfo {
-  const { shift, completed, areaId, vehicle } = input
+  const { shift, completed, vehicle } = input
   const vehicleItemId = vehicle.kind === 'one' ? vehicle.vehicleItemId : null
   const fuelRate = fuelRateForVehicle(input.expenses, input.links, input.entities, vehicleItemId)
-  const runningCosts = costsFor(input.costs, areaId)
+  const currentVehicleCost = currentVehicleCostRateOf(input.vehicleCostRates, vehicleItemId, input.today)
   const costBasis: CostBasis = completed
     ? { fuel_per_km: shift.rate_fuel_per_km, vehicle_per_km: shift.rate_vehicle_per_km }
-    : { fuel_per_km: fuelRate.perKm, vehicle_per_km: runningCosts?.vehicle_per_km ?? null }
-  return { fuelRate, runningCosts, costBasis }
+    : { fuel_per_km: fuelRate.perKm, vehicle_per_km: currentVehicleCost }
+  return { fuelRate, currentVehicleCost, costBasis }
 }
 
 /**

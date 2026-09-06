@@ -7,12 +7,13 @@ import type {
   Expense,
   Item,
   Link,
+  LinkKind,
   Patch,
   Platform,
-  RunningCosts,
   Shift,
   ShiftPatch,
   TaxYearRow,
+  VehicleCostRate,
 } from '../repository/items'
 import { Sheet } from '../ui/Sheet'
 import { DrivingCostBasis } from './DrivingCostBasis'
@@ -40,10 +41,11 @@ type Props = {
   items: Item[]
   shifts: Shift[]
   expenses: Expense[]
-  costs: RunningCosts[]
+  vehicleCostRates: VehicleCostRate[]
   taxYears: TaxYearRow[]
   links: Link[]
   things: Entity[]
+  today: string // Picks the Vehicle cost rate actually in force right now.
   onClockOn: () => Promise<void>
   onClockOff: (sessionId: string) => Promise<void>
   onDropSession: (sessionId: string) => Promise<void>
@@ -54,14 +56,14 @@ type Props = {
   onSetBreak: (sessionId: string, minutes: number) => Promise<void>
   onUpdateItem: (patch: Patch) => Promise<void>
   onDelete: () => Promise<void>
+  /** A new dated row for the Vehicle's own cost — never the Area's. */
   onSaveVehicleCost: (
-    area_id: string,
-    fuel_per_km: number,
+    vehicle_item_id: string,
+    effective_from: string,
     vehicle_per_km: number,
   ) => Promise<void>
-  /** Replaces whatever Vehicle is linked with this one, or none when null.
-   *  Immediate, not deferred to Save draft: an association, not a field. */
-  onSetVehicle: (vehicleItemId: string | null) => Promise<void>
+  onLink: (to_id: string, kind: LinkKind) => Promise<void>
+  onUnlink: (id: string) => Promise<void>
   onClose: () => void
 }
 
@@ -71,21 +73,21 @@ type Props = {
  * Everything typed here goes into a local draft first. The live summary reads
  * that draft immediately, on every keystroke; nothing is written until Save
  * draft or Complete Workday is pressed. Start and Stop are the one exception —
- * they are real events, not form fields, so they write the moment they are
- * pressed, same as before.
+ * they write the moment they are pressed. The Vehicle used follows the same
+ * deferred rule now, not an immediate write: Discard has to be able to undo it.
  */
 export function ShiftSheet(props: Props) {
   const { item, onClose } = props
   const shift = props.shift ?? EMPTY_SHIFT
   const completed = item.state === 'done'
 
-  const [draft, setDraft] = useState<Draft>(() => draftFrom(item, shift))
+  const [draft, setDraft] = useState<Draft>(() => draftFrom(item, shift, props.links, props.things))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [savingVehicleCost, setSavingVehicleCost] = useState(false)
   const [confirmingClose, setConfirmingClose] = useState(false)
 
-  const dirty = !completed && isDirty(item, shift, draft)
+  const dirty = !completed && isDirty(item, shift, draft, props.links, props.things)
   const errors = completed ? [] : validateDraft(shift, draft)
   const blockedByOpenSession = !canCompleteWorkday(shift) || !canDeleteWorkday(shift)
   const sessionMessage = sessionMessageOf(shift)
@@ -116,19 +118,21 @@ export function ShiftSheet(props: Props) {
     onRemoveEarning: props.onRemoveEarning,
     onSetBreak: props.onSetBreak,
     onDropSession: props.onDropSession,
+    onLink: props.onLink,
+    onUnlink: props.onUnlink,
   }
 
   function onSaveDraft() {
     void guarded(async () => {
-      const settled = await saveWorkday(item, shift, draft, writers)
-      setDraft(draftFrom(settled.item, settled.shift))
+      const settled = await saveWorkday(item, shift, draft, props.links, props.things, writers)
+      setDraft(draftFrom(settled.item, settled.shift, props.links, props.things))
     })
   }
 
   function onComplete() {
     if (blockedByOpenSession) return
     void guarded(async () => {
-      await saveWorkday(item, shift, draft, writers, { forceShiftTouch: true })
+      await saveWorkday(item, shift, draft, props.links, props.things, writers, { forceShiftTouch: true })
       await props.onUpdateItem({ state: 'done' })
     })
   }
@@ -152,9 +156,8 @@ export function ShiftSheet(props: Props) {
   const {
     vehicleLink,
     vehicles,
-    areaId,
     fuelRate,
-    runningCosts,
+    currentVehicleCost,
     costBasis,
     sum,
     worked,
@@ -169,12 +172,13 @@ export function ShiftSheet(props: Props) {
     items: props.items,
     shifts: props.shifts,
     expenses: props.expenses,
-    costs: props.costs,
+    vehicleCostRates: props.vehicleCostRates,
+    today: props.today,
     taxYears: props.taxYears,
     links: props.links,
     things: props.things,
   })
-  const fuelPerKm = fuelRate.perKm
+  const vehicleItemId = vehicleLink.kind === 'one' ? vehicleLink.vehicleItemId : null
 
   return (
     <Sheet title={`Workday · ${item.due ?? 'undated'}`} onClose={requestClose}>
@@ -194,7 +198,7 @@ export function ShiftSheet(props: Props) {
         onChangeTitle={(typed) => set('title', typed)}
         onChangeDue={(typed) => set('due', typed)}
         onChangeArea={(area_id) => set('area_id', area_id)}
-        onChangeVehicle={(vehicleItemId) => run(() => props.onSetVehicle(vehicleItemId))}
+        onChangeVehicle={(id) => set('vehicle_item_id', id ?? '')}
       />
 
       <ShiftSummary
@@ -260,21 +264,20 @@ export function ShiftSheet(props: Props) {
         onChange={(key, typed) => set(key, typed)}
       />
 
-      {(areaId !== null || pinnedBasis !== null) && (
+      {(vehicleItemId !== null || pinnedBasis !== null) && (
         <DrivingCostBasis
           fuelRate={fuelRate}
-          costs={runningCosts}
+          vehicleCost={currentVehicleCost}
           pinned={pinnedBasis}
           busy={busy || savingVehicleCost}
           readOnly={completed}
-          // Not routed through `guarded()`: that swallows a rejection into
-          // `error`, which would resolve this promise either way and close
-          // the editor even on failure. `savingVehicleCost` still blocks
-          // Complete the same as `busy` does everywhere else.
+          // Not `guarded()`: that swallows a rejection into `error`, which
+          // would close the editor even on failure. `savingVehicleCost`
+          // still blocks Complete the same as `busy` does everywhere else.
           onConfigureVehicle={(vehicle_per_km) => {
-            if (fuelPerKm === null || areaId === null) return Promise.resolve()
+            if (vehicleItemId === null) return Promise.resolve()
             setSavingVehicleCost(true)
-            return props.onSaveVehicleCost(areaId, fuelPerKm, vehicle_per_km)
+            return props.onSaveVehicleCost(vehicleItemId, props.today, vehicle_per_km)
               .finally(() => setSavingVehicleCost(false))
           }}
         />

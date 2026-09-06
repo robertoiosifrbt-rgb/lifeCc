@@ -471,12 +471,18 @@ al doilea status paralel doar pentru Delivery.
   Save draft sau Complete Workday. Start/Stop rămân excepția: sunt evenimente
   reale și se scriu imediat.
 - **Fuel cost** nu mai este un input manual în Workday. Se citește automat
-  din calculul full-tank-to-full-tank existent (`fuelRate`/`fillsOf`, peste
-  fuel expenses ale Ariei), afișat ca „Automatic · £x.xxxx/km” sau „Not
-  enough full-tank data yet” — niciodată £0 ca și cum ar fi un cost real.
-- **Vehicle rate** rămâne o configurare a Ariei (`running_costs`), nu o
-  formulă automată inventată aici. Se editează dintr-o acțiune secundară,
-  „Configure vehicle cost”, separată de completarea normală a turei.
+  din calculul full-tank-to-full-tank existent (`fuelRate`/`fillsOf`), ținut
+  strict per Vehicle (fuel expenses legate de acel Vehicle, niciodată de
+  Area), afișat ca „Automatic · £x.xxxx/km” sau „Not enough full-tank data
+  yet” — niciodată £0 ca și cum ar fi un cost real.
+- **Vehicle rate** este o configurare per Vehicle, cu istoric datat
+  (`vehicle_cost_rates`), independentă de fuel — nu o configurare a Ariei
+  (`running_costs`) și nu o formulă automată inventată aici. Se editează
+  dintr-o acțiune secundară, „Configure vehicle cost”, separată de
+  completarea normală a turei.
+- **Vehicle folosit** este el însuși deferred la Save draft/Discard, la fel
+  ca orice alt câmp al turei — alegerea lui nu scrie nimic pe server până la
+  Save draft. Complete Workday cere un Vehicle unic și neambiguu legat.
 - Vechiul Delivery Hub Manager e folosit ca referință de **funcționalitate**
   recuperată (Draft/Completed, Save draft, Complete workday, live preview),
   nu ca arhitectură de reprodus — fără tabele Zite, fără status paralel,

@@ -10,34 +10,34 @@ import {
   SyncPending,
   update as updateItem,
 } from '../repository/items'
-import {
-  createArea,
-  discardArea,
-  updateArea,
-} from '../repository/items'
+import { areaActions } from './areaActions'
+import type { AreaActions } from './areaActions'
 import { coreActions } from './coreActions'
 import type { CoreActions } from './coreActions'
 import { journalActions } from './journalActions'
 import type { JournalActions } from './journalActions'
 import { moneyActions } from './moneyActions'
 import type { MoneyActions } from './moneyActions'
+import { platformActions } from './platformActions'
+import type { PlatformActions } from './platformActions'
 import { quickActionActions } from './quickActionActions'
 import type { QuickActionActions } from './quickActionActions'
 import { readSnapshot } from './snapshot'
 import type { Snapshot } from './snapshot'
 import type {
   Area,
-  AreaPatch,
   Entity,
   Item,
   JournalEntry,
   Link,
   Patch,
+  PlatformRecord,
   Expense,
   QuickAction,
   RunningCosts,
   TaxYearRow,
   Shift,
+  VehicleCostRate,
 } from '../repository/items'
 import { downloadText } from '../ui/download'
 
@@ -62,15 +62,19 @@ export type Unsaved = { item: Item; patch: Patch; reason: string }
 export type ItemsHandle = MoneyActions &
   CoreActions &
   JournalActions &
-  QuickActionActions & {
+  PlatformActions &
+  QuickActionActions &
+  AreaActions & {
   items: Item[]
   areas: Area[]
   shifts: Shift[]
   expenses: Expense[]
   costs: RunningCosts[]
+  vehicleCostRates: VehicleCostRate[]
   taxYears: TaxYearRow[]
   things: Entity[]
   links: Link[]
+  platforms: PlatformRecord[]
   journal: JournalEntry[]
   quickActions: QuickAction[]
   loading: boolean
@@ -82,10 +86,6 @@ export type ItemsHandle = MoneyActions &
   discard: (item: Item) => Promise<void>
   retry: (itemId: string) => Promise<void>
   download: () => Promise<void>
-  addArea: (name: string, parent_id: string | null) => Promise<void>
-  /** Name and parent together, in the one write a settings save may make. */
-  saveArea: (area: Area, patch: AreaPatch) => Promise<void>
-  dropArea: (area: Area) => Promise<void>
 }
 
 function reasonOf(error: unknown): string {
@@ -105,9 +105,11 @@ export function useItems(owner: string): ItemsHandle {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [costs, setCosts] = useState<RunningCosts[]>([])
+  const [vehicleCostRates, setVehicleCostRates] = useState<VehicleCostRate[]>([])
   const [taxYears, setTaxYears] = useState<TaxYearRow[]>([])
   const [things, setThings] = useState<Entity[]>([])
   const [links, setLinks] = useState<Link[]>([])
+  const [platforms, setPlatforms] = useState<PlatformRecord[]>([])
   const [journal, setJournal] = useState<JournalEntry[]>([])
   const [quickActions, setQuickActions] = useState<QuickAction[]>([])
   const [loading, setLoading] = useState(true)
@@ -121,9 +123,11 @@ export function useItems(owner: string): ItemsHandle {
     setShifts(snapshot.shifts)
     setExpenses(snapshot.expenses)
     setCosts(snapshot.costs)
+    setVehicleCostRates(snapshot.vehicleCostRates)
     setTaxYears(snapshot.taxYears)
     setThings(snapshot.things)
     setLinks(snapshot.links)
+    setPlatforms(snapshot.platforms)
     setJournal(snapshot.journal)
     setQuickActions(snapshot.quickActions)
   }, [])
@@ -235,9 +239,11 @@ export function useItems(owner: string): ItemsHandle {
     shifts,
     expenses,
     costs,
+    vehicleCostRates,
     taxYears,
     things,
     links,
+    platforms,
     journal,
     quickActions,
     loading,
@@ -278,22 +284,13 @@ export function useItems(owner: string): ItemsHandle {
       downloadText(file.name, file.contents)
     },
 
-    // The area writes go through the same `write`: a conflict on an area is
-    // still a write that did not happen, and the caller still has to hear it.
+    // Every other write goes through the same `write`: a conflict is still a
+    // write that did not happen, and the caller still has to hear it.
     ...moneyActions(owner, write),
-
-    // The core writes go through the same `write` as everything else: an arrow
-    // that did not get drawn is still a write the caller has to hear about.
     ...coreActions(owner, write),
-
-    // Same for the journal: an entry that did not save is still unsaved.
     ...journalActions(owner, write),
-
-    addArea: (name, parent_id) => write(() => createArea(owner, name, parent_id)),
-
-    saveArea: (area, patch) => write(() => updateArea(owner, area, patch)),
-
-    dropArea: (area) => write(() => discardArea(owner, area, new Date())),
+    ...platformActions(owner, write),
+    ...areaActions(owner, write),
 
     ...quickActionActions(owner, quickActions, write),
   }

@@ -10,7 +10,7 @@ import { SyncPending } from './not-cached'
 import { supabaseShiftParts, supabaseShiftWriter } from './source'
 import { earningFromRow, sessionFromRow, shiftFromRow } from './shift'
 import type { Platform, Shift, ShiftPatch, ShiftSession } from './shift'
-import { shiftStore } from './store'
+import { shiftStore } from './shift-store'
 
 async function requireAccount(owner: string): Promise<void> {
   const session = await currentSession()
@@ -251,5 +251,33 @@ export async function removeEarning(
 ): Promise<Shift[]> {
   await requireAccount(owner)
   await supabaseShiftWriter(owner).removeEarning(item_id, platform)
+  return syncShifts(owner)
+}
+
+/**
+ * What a configurable Platform paid — the same one-row-per-platform rule as
+ * `setEarning`, keyed by the Platform's own item rather than a hardcoded
+ * name. Writing it again replaces it, never adds a second.
+ */
+export async function setPlatformEarning(
+  owner: string,
+  item_id: string,
+  platform_item_id: string,
+  amount: number,
+): Promise<Shift[]> {
+  await requireAccount(owner)
+  await supabaseShiftWriter(owner).setPlatformEarning({ item_id, platform_item_id, amount })
+  return syncShifts(owner)
+}
+
+/** A configurable Platform's earning, taken back — the same rule as
+ *  `removeEarning`: gone outright, never a zero standing in for "unsaid". */
+export async function removePlatformEarning(
+  owner: string,
+  item_id: string,
+  platform_item_id: string,
+): Promise<Shift[]> {
+  await requireAccount(owner)
+  await supabaseShiftWriter(owner).removePlatformEarning(item_id, platform_item_id)
   return syncShifts(owner)
 }

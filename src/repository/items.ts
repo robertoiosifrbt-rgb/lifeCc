@@ -17,6 +17,7 @@ import { syncCore } from './core'
 import { syncExpenses } from './expenses'
 import { syncJournalEntries } from './journal-entries'
 import { journalStore } from './journal-store'
+import { syncPlatforms } from './platforms'
 import { syncShifts } from './shifts'
 import { areaStore, quickActionStore, store } from './store'
 import { sync } from './sync'
@@ -33,7 +34,7 @@ export type { SyncResult } from './sync'
 export type { ExportFile } from './export'
 export { Conflict, isItemConflict } from './write'
 export type { Area, AreaPatch } from './area'
-export type { Platform, Shift, ShiftPatch, ShiftSession } from './shift'
+export type { Platform, Shift, ShiftEarning, ShiftPatch, ShiftSession } from './shift'
 export { takeHome, takeHomeOfAll } from './takehome'
 export { currentYearMoney, monthRange, periodMoney } from './period'
 export { dayBefore, sliceOfYear } from './slice'
@@ -52,8 +53,12 @@ export {
   runningCostsOf,
   saveRunningCosts,
   saveTaxYear,
+  saveVehicleCostRate,
   taxYearsOf,
+  vehicleCostRatesOf,
 } from './settings-api'
+export type { VehicleCostRate } from './vehicle-cost'
+export { currentVehicleCostRateOf } from './vehicle-cost'
 export { taxBill } from './hmrc'
 export type { Income, TaxBill, TaxFigures } from './hmrc'
 export { AMOUNTS, RATES, figuresOf, incomeOf, yearIn } from './hmrc-year'
@@ -82,9 +87,11 @@ export type { SessionControls } from './workdayGuards'
 export {
   endSession,
   removeEarning,
+  removePlatformEarning,
   removeSession,
   saveShift,
   setEarning,
+  setPlatformEarning,
   shiftsOf,
   startSession,
 } from './shifts'
@@ -139,13 +146,9 @@ async function requireAccount(owner: string): Promise<void> {
 /**
  * Fetches what changed and puts it in the cache. The first time, everything.
  *
- * Two tables, two cursors, one sync — because "is it up to date?" is a
- * question about the account, not about a table. Areas go first: an item can
- * name an area, so arriving in the other order shows, for a moment, an item
- * pointing at an area this device has never heard of.
- *
- * They are reported as one. A count split in two would have to be explained
- * on every screen that shows it, and no screen cares which table a row was in.
+ * Areas go first: an item can name an area, so arriving in the other order
+ * shows, for a moment, an item pointing at an area this device has never
+ * heard of. Reported as one count — no screen cares which table a row was in.
  */
 export async function syncAccount(owner: string): Promise<SyncResult> {
   await requireAccount(owner)
@@ -164,10 +167,12 @@ export async function syncAccount(owner: string): Promise<SyncResult> {
   const shifts = await syncShifts(owner)
   const spent = await syncExpenses(owner)
   // The core last, and whole. Entities and links carry no cursor either: both
-  // ride the anchors that have just arrived above. The journal rides its own
-  // anchors the same way, so it goes here too, not with the other two.
+  // ride the anchors that have just arrived above. The journal and Platforms
+  // ride their own anchors the same way, so they go here too, not with the
+  // other two.
   await syncCore(owner)
   const journal = await syncJournalEntries(owner)
+  await syncPlatforms(owner)
   return {
     // A full snapshot of either table is a full sync: something was rebuilt
     // from nothing, and that is what the word has to keep meaning.
@@ -251,13 +256,9 @@ export async function exportAll(owner: string, now: Date): Promise<ExportFile> {
   return exportFile(owner, items, journal, quickActions, cursor, now)
 }
 
-/**
- * The row the server returned goes into the cache straight away.
- *
- * The cursor does not move: this row will come back on the next delta anyway,
- * and a cursor moved on a single write could skip past what somebody else
- * wrote in the meantime.
- */
+/** The row the server returned goes into the cache straight away. The cursor
+ *  does not move: a cursor moved on a single write could skip past what
+ *  somebody else wrote in the meantime. */
 async function cache(owner: string, item: Item): Promise<Item> {
   try {
     await store.upsert(owner, [item], null)
@@ -292,3 +293,6 @@ export {
 export type { JournalEntry, JournalPatch } from './journal-entry'
 export { findRequestedEntry, searchJournal, timelineOf } from './journal-entry'
 export { createJournalEntry, journalEntriesOf, saveJournalEntry } from './journal-entries'
+export type { CashoutFeeType, PlatformPatch, PlatformRecord } from './platform-record'
+export { CASHOUT_FEE_TYPES, orderedPlatformsOf } from './platform-record'
+export { platformsOf, recordPlatform, removePlatform, savePlatform } from './platforms'

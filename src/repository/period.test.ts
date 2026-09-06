@@ -41,7 +41,7 @@ function shift(item_id: string, pounds: number, over: Partial<Shift> = {}): Shif
     rate_fuel_per_km: null,
     rate_vehicle_per_km: null,
     sessions: [],
-    earnings: [{ platform: 'uber_eats', amount: pounds }],
+    earnings: [{ id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: pounds }],
     ...over,
   }
 }

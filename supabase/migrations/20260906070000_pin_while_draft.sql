@@ -66,6 +66,19 @@ create trigger vehicle_fuel_rates_stamp
   before insert or update on public.vehicle_fuel_rates
   for each row execute function public.stamp_setting();
 
+-- Order matters here, and a full-diff audit found it wrong: `revoke all` was
+-- written AFTER the targeted grant below, which wiped it out again —
+-- `entities`/`vehicle_cost_rates` both revoke first, then grant, and this
+-- table did the opposite. The result was an upsert that could never
+-- succeed: `.upsert()` names every column of its payload in the SET list,
+-- `vehicle_item_id` included, and UPDATE on it had just been revoked with
+-- nothing granting it back.
+revoke all on table public.vehicle_fuel_rates from anon, authenticated;
+
+grant select on table public.vehicle_fuel_rates to authenticated;
+grant insert (vehicle_item_id, fuel_per_km) on table public.vehicle_fuel_rates to authenticated;
+grant update (fuel_per_km, deleted_at) on table public.vehicle_fuel_rates to authenticated;
+
 -- Same upsert-vs-grant fix `20260905170000_upsert_keys` already gave every
 -- other keyed setting: the key column has to be grantable for the upsert to
 -- name it, and the trigger is what actually keeps it from moving.
@@ -73,12 +86,6 @@ grant update (vehicle_item_id) on table public.vehicle_fuel_rates to authenticat
 create trigger vehicle_fuel_rates_pin
   before update on public.vehicle_fuel_rates
   for each row execute function public.pin('vehicle_item_id');
-
-revoke all on table public.vehicle_fuel_rates from anon, authenticated;
-
-grant select on table public.vehicle_fuel_rates to authenticated;
-grant insert (vehicle_item_id, fuel_per_km) on table public.vehicle_fuel_rates to authenticated;
-grant update (fuel_per_km, deleted_at) on table public.vehicle_fuel_rates to authenticated;
 
 alter table public.vehicle_fuel_rates enable row level security;
 

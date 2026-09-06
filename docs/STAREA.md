@@ -311,9 +311,10 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
   înainte să fie pierdute.
 - Cât timp e Draft, costul folosit de preview este: fuel — rata curentă a
   **Vehiculului legat** de Workday (`fuelRateForVehicle`, peste
-  `fuelRate`/`fillsOf`), niciodată rata Ariei; vehicle wear — rata curentă
-  configurată pe **Aria** arătată în formular (`running_costs`, neschimbat).
-  Niciodată rata veche pinuită pe rândul `shifts`. Odată Completed,
+  `fuelRate`/`fillsOf`); vehicle wear — rata curentă configurată pe același
+  **Vehicul**, dintr-un istoric datat propriu (`vehicle_cost_rates`, cea mai
+  recentă intrare cu `effective_from` ≤ azi). Niciodată rata Ariei, niciodată
+  rata veche pinuită pe rândul `shifts`. Odată Completed,
   `DrivingCostBasis` arată **numai** rata pinuită a turei (etichetată
   „Pinned”, cu „Not recorded” pentru o valoare pinuită `null`) — nu mai arată
   rata curentă a Ariei/Vehiculului, care ar putea deja fi alta.
@@ -347,7 +348,9 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
 - Validarea pentru Complete Workday e separată de validarea pentru Save
   draft. Save draft rămâne permisiv — un Draft incomplet se salvează exact
   cum e tastat. Complete Workday cere în plus: dată nevidă, cel puțin o
-  sesiune de lucru încheiată, ambele citiri de odometru, un **Vehicul folosit
+  sesiune de lucru încheiată, ambele citiri de odometru cu finalul **strict**
+  peste început (un Draft poate încă avea end === start, netastat; Complete
+  refuză explicit egalitatea, nu doar mersul înapoi), un **Vehicul folosit
   neambiguu**, rata automată de fuel cunoscută, rata vehicle configurată și
   **cel puțin un câștig efectiv** (platformă, tip sau bonus > 0 — un draft
   complet gol de câștiguri, sau cu £0 explicit peste tot, nu poate fi
@@ -358,13 +361,17 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
 - Data unui Workday se editează ca `due` pe aceeași ancoră (nu se creează un
   al doilea shift) — mutarea pe altă zi îl scoate/introduce corect din
   Overdue/ziua respectivă, prin filtrele generice deja existente.
-- **Vehicul folosit**, pe Workday: un `<select>` propriu, separat de Arie,
-  care scrie imediat (nu prin draft) o legătură `about` de la item-ul turei
-  către un `Item`/`Entity` de tip Vehicle — același mecanism `links` deja
-  folosit pentru „reînnoirea e about mașina”, fără model paralel. Nicio
+- **Vehicul folosit**, pe Workday: un `<select>` propriu, separat de Arie.
+  Alegerea lui este acum **deferred la Save draft**, exact ca orice alt câmp
+  al turei — nu mai scrie imediat. Save draft leagă/înlocuiește/șterge
+  legătura `about` de la item-ul turei către `Item`/`Entity` de tip Vehicle
+  (același mecanism `links`, fără model paralel) numai dacă draftul chiar a
+  schimbat alegerea; Discard nu scrie nimic. O ambiguitate deja persistată
+  (2+ legături) nu este niciodată „rezolvată” automat ca efect secundar al
+  salvării unui alt câmp — draftul pornește gol pentru un Vehicul ambiguu, iar
+  golul acela înseamnă explicit „neatins”, nu „șterge legăturile”. Nicio
   legătură, sau mai mult de una simultan, înseamnă „niciun Vehicul
-  neambiguu” — Complete Workday e blocat cu mesaj explicit, iar alegerea unui
-  Vehicul din listă înlocuiește orice legături vechi cu una singură.
+  neambiguu” — Complete Workday e blocat cu mesaj explicit.
 - „Fuel £/km” nu mai e input manual în Workday: se citește automat din
   calculul full-tank-to-full-tank existent (`fuelRateForVehicle`, peste
   `fuelRate`/`fillsOf`), urmărind fill-up-urile legate (tot prin `about`) de
@@ -374,11 +381,13 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
   £x.xxxx/km” sau „Not enough full-tank data yet” — niciodată £0 ca și cum ar
   fi un cost real. Un fuel expense fără Vehicul legat (sau cu unul ambiguu)
   rămâne în afara oricărui calcul — nu e reasignat automat niciunui vehicul,
-  nici măcar istoricul deja scris. „Vehicle £/km” rămâne o configurare a
-  Ariei (`running_costs`, neschimbat de acest task), mutată într-o acțiune
-  secundară „Configure vehicle cost”, care citește mereu valoarea curentă la
-  deschidere (nu doar la schimbarea Ariei) și blochează Complete Workday cât
-  timp scrierea ei e în curs.
+  nici măcar istoricul deja scris. „Vehicle £/km” este acum o configurare per
+  **Vehicul**, cu istoric datat (`vehicle_cost_rates`), complet independentă
+  de fuel — nu mai e o configurare a Ariei (`running_costs`), care nu mai e
+  scrisă de acest cost. Se editează dintr-o acțiune secundară „Configure
+  vehicle cost”, care citește mereu valoarea curentă la deschidere (nu doar
+  la schimbarea Vehiculului) și blochează Complete Workday cât timp scrierea
+  ei e în curs.
 - Rezumatul turei (Made/Roughly yours/etc.) distinge acum de ce lipsește
   costul pe km: fuel necunoscut, cost vehicul neconfigurat, sau amândouă —
   trei mesaje diferite, niciodată „scrie fuel” când fuel e deja cunoscut.
@@ -430,15 +439,23 @@ fuel per Vehicul, cache-ul trigger-ului — nimic din cod nu-l mai citește
 `pin_shift_rates()` să rezolve Vehiculul legat de tura respectivă printr-un
 join `links`⋈`entities` cu verificare explicită de unicitate (exact 1 →
 folosit; 0 sau ≥2 → `null`, niciodată o alegere ghicită), pinuind fuel de
-acolo. `rate_vehicle_per_km` (uzura) rămâne exact ca înainte — citit din
-`running_costs` după Arie, neatins de această schimbare.
+acolo. La acel moment, `rate_vehicle_per_km` (uzura) rămăsese încă citit din
+`running_costs` după Arie — corectat ulterior de migrația D1 de mai jos, care
+rescrie `pin_shift_rates()` din nou ca să citească uzura tot per Vehicul.
 
 Testat manual, comportamental, pe un Postgres local efemer (nu Supabase,
-nicio conexiune live): Vehicul neambiguu → fuel din Vehicul, uzură din Arie;
-niciun Vehicul legat → fuel `null`, uzură neschimbată; două Vehicule legate
-(ambiguu) → fuel `null`; Completed → ambele rate înghețate, neatinse chiar
-și după ce configurarea curentă a Ariei/Vehiculului se schimbă sau legătura
-e ștearsă; Arie nesetată → uzură `null`, fuel neschimbat (necuplat de Arie).
+nicio conexiune live): Vehicul neambiguu → fuel din Vehicul; niciun Vehicul
+legat → fuel `null`; două Vehicule legate (ambiguu) → fuel `null`; Completed
+→ rata înghețată, neatinsă chiar și după ce configurarea curentă a
+Vehiculului se schimbă sau legătura e ștearsă.
+
+Un audit ulterior (rundă D1) a găsit o greșeală de `grant`/`revoke` în acest
+fișier: `revoke all` pe `vehicle_fuel_rates` rula **după** un `grant` țintit,
+ștergându-l silențios pe cel din urmă — exact ordinea inversă față de
+migrația live `entities_and_links`, care revocă întâi și acordă apoi. Fără
+reparație, upsert-ul pe `vehicle_fuel_rates` ar fi eșuat mereu din lipsă de
+`UPDATE` pe `vehicle_item_id`. Fișierul a fost **rescris pe loc** (nefiind
+niciodată live, nimic de păstrat): revoke-ul precede acum toate grant-urile.
 
 **Nu este aplicată live** și nu apare încă în `docs/MIGRATII.md` ca aplicată.
 
@@ -453,6 +470,52 @@ sus). Deci `0700` nu e „gata de producție” doar pentru că modelul de Vehic
 din ea e acum corect; aplicarea ei, ca și repararea celor 15 sesiuni sau
 aplicarea lui `0600`, rămâne o decizie separată, explicită, a proprietarului
 — niciuna dintre ele nu s-a făcut aici.
+
+### Migrație nouă (D1): fundația de date pentru Delivery
+
+`supabase/migrations/20260907000000_delivery_data_foundation.sql` este a doua
+migrație nouă a acestei runde, tot **nefiind niciodată live**. Conține patru
+bucăți independente:
+
+- **`vehicle_cost_rates`** — istoricul de cost pe km al unui Vehicul, cheie
+  `(vehicle_item_id, effective_from)`, exact tabelul citit acum de
+  `pin_shift_rates()` pentru uzură (vezi mai sus). Înlocuiește
+  `running_costs` pentru acest rol; `running_costs` rămâne neschimbat pentru
+  restul rolului lui (costurile Ariei, neatinse aici).
+- **Imutabilitate Completed impusă la nivel de bază, nu doar în UI** — două
+  funcții trigger noi, `reject_write_to_completed_shift()` (pe `shifts`,
+  `shift_sessions`, `shift_earnings`) și `reject_link_change_on_completed_shift()`
+  (pe `links`, pentru legătura Vehicul-Workday), care refuză orice scriere pe
+  o tură deja `done`. Independent de invariantele din `shift_invariants`
+  (0600) — nu depinde de aplicarea ei.
+- **`platforms`** — a cincea ancoră de tip `entities`/`links`: un `item` de
+  kind nou `'platform'` + o extensie proprie, cu exact același `touch_anchor()`/
+  `pin()` generic ca `entities`. Relația cu o Companie se face prin `links`
+  existent, fără coloană nouă. Acesta este **doar fundația de date** —
+  configurarea platformelor ca înregistrări (fără Uber/Deliveroo/Just Eat
+  hardcodate în cod) există acum în schemă și în repository/cache, dar
+  **nu e încă legată în UI-ul de Earnings al unui Workday**; asta rămâne
+  pentru D3, conform roadmap-ului (D1 date → D2 payout/cash-out/settlement →
+  D3 experiența finală Delivery).
+- **`shift_earnings` extins** — `id` surogat, `platform`/`platform_item_id`
+  ambele nullable cu un `CHECK` de exact-unul-dintre-ele, două indexuri unice
+  parțiale (unul pentru enumul vechi, unul pentru legătura la o Platformă
+  configurabilă), `pin()` extins să acopere ambele. Coloana enum
+  `platform` existentă **nu e ștearsă, redenumită sau reasignată** — coexistă
+  cu calea nouă, exact regula „nicio istorie ghicită sau distrusă”.
+
+Verificat comportamental pe același Postgres local efemer (nu Supabase):
+scenarii pentru fiecare trigger de imutabilitate, pentru `CHECK`-ul
+exact-unul-dintre-ele și pentru cele două indexuri unice parțiale — toate au
+trecut. **Nu este aplicată live** și nu apare în `docs/MIGRATII.md` ca
+aplicată. Ordinea de aplicare rămâne aceeași dependență secvențială: `0600`
+înaintea lui `0700`, `0700` înaintea acestei migrații D1 — niciuna dintre ele
+nu poate ajunge pe live înaintea celei dinaintea ei.
+
+Ce rămâne neschimbat de această rundă: D2 (payout/cash-out/settlement) și D3
+(experiența finală Delivery — Dashboard/Shifts/Platforms/Earnings/Expenses/
+Fuel/Performance) nu sunt implementate. Criteriul Multi-App Delivery din
+`docs/PROGRESS.md` rămâne `PARTIAL`, nu `DONE`.
 
 ### Command Centre — partea existentă
 
@@ -491,8 +554,10 @@ aplicații paralele.
 
 - baza live este urmărită separat în `docs/MIGRATII.md`;
 - `reserves` este declarat acolo ca drift live rămas după o reparație manuală;
-- turele și ratele pot fi încă asociate unor containere de arie unde semantic
-  nu au sens; validarea de domeniu nu este completă.
+- turele pot fi încă asociate oricărei Arii, fără o validare de domeniu care
+  să restrângă la Arii de Delivery — ratele de fuel/vehicle cost nu mai sunt
+  cuplate de Arie (rezolvat de rundele Vehicle-fuel și D1), dar clasificarea
+  turei pe Arie rămâne nevalidată semantic.
 
 Pentru istorie: `docs/JURNAL.md` și `docs/audits/`.
 Pentru produsul țintă: `docs/PLAN.md`.

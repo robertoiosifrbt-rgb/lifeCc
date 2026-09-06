@@ -8,7 +8,6 @@ import { useItems } from '../items/useItems'
 import { ExpenseSheet } from '../spend/ExpenseSheet'
 import { ShiftSheet } from '../shifts/ShiftSheet'
 import type { Session } from '../repository/auth'
-import { vehicleLinkIdsOf } from '../repository/items'
 import { useToday } from './today'
 import { MoreSheet } from './MoreSheet'
 import { ShellHeader } from './ShellHeader'
@@ -122,10 +121,11 @@ export function AppShell({ session }: Props) {
           items={data.items}
           shifts={data.shifts}
           expenses={data.expenses}
-          costs={data.costs}
+          vehicleCostRates={data.vehicleCostRates}
           taxYears={data.taxYears}
           links={data.links}
           things={data.things}
+          today={today}
           onClockOn={() => data.clockOn(openItem.id)}
           onClockOff={(sessionId) => data.clockOff(sessionId)}
           onDropSession={(sessionId) => data.dropSession(sessionId)}
@@ -135,12 +135,11 @@ export function AppShell({ session }: Props) {
           onSetBreak={(sessionId, minutes) => data.setBreak(sessionId, minutes)}
           onUpdateItem={(patch) => data.update(openItem, patch)}
           onDelete={() => data.discard(openItem)}
-          onSaveVehicleCost={(area_id, fuel, vehicle) => data.saveCosts(area_id, fuel, vehicle)}
-          onSetVehicle={async (vehicleItemId) => {
-            const toRemove = vehicleLinkIdsOf(data.links, data.things, openItem.id)
-            for (const linkId of toRemove) await data.unlink(linkId)
-            if (vehicleItemId !== null) await data.link(openItem.id, vehicleItemId, 'about')
-          }}
+          onSaveVehicleCost={(vehicle_item_id, effective_from, vehicle_per_km) =>
+            data.saveVehicleCost(vehicle_item_id, effective_from, vehicle_per_km)
+          }
+          onLink={(to_id, kind) => data.link(openItem.id, to_id, kind)}
+          onUnlink={(id) => data.unlink(id)}
           onClose={closeItem}
         />
       )}

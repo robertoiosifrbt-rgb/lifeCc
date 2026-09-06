@@ -50,46 +50,46 @@ function shift(over: Partial<Shift> = {}): Shift {
 describe('validateDraft', () => {
   it('refuses an end reading below the start', () => {
     const day = shift()
-    const draft = { ...draftFrom(item(), day), odo_start: '150', odo_end: '100' }
+    const draft = { ...draftFrom(item(), day, [], []), odo_start: '150', odo_end: '100' }
     expect(validateDraft(day, draft).map((e) => e.field)).toContain('odo_end')
   })
 
   it('refuses personal kilometres beyond the day', () => {
     const day = shift()
-    const draft = { ...draftFrom(item(), day), odo_start: '100', odo_end: '150', personal_km: '60' }
+    const draft = { ...draftFrom(item(), day, [], []), odo_start: '100', odo_end: '150', personal_km: '60' }
     expect(validateDraft(day, draft).map((e) => e.field)).toContain('personal_km')
   })
 
   it('refuses a break longer than the session that holds it', () => {
     const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
     const day = shift({ sessions: [session] })
-    const draft = { ...draftFrom(item(), day), breaks: { s1: '90' } }
+    const draft = { ...draftFrom(item(), day, [], []), breaks: { s1: '90' } }
     expect(validateDraft(day, draft).map((e) => e.field)).toContain('break:s1')
   })
 
   it('does not flag an open session missing a break as too long', () => {
     const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
     const day = shift({ sessions: [session] })
-    const draft = draftFrom(item(), day)
+    const draft = draftFrom(item(), day, [], [])
     expect(validateDraft(day, draft)).toEqual([])
   })
 
   it('does not validate a break belonging to a session marked for removal', () => {
     const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
     const day = shift({ sessions: [session] })
-    const draft = { ...draftFrom(item(), day), breaks: { s1: '9999' }, removedSessions: ['s1'] }
+    const draft = { ...draftFrom(item(), day, [], []), breaks: { s1: '9999' }, removedSessions: ['s1'] }
     expect(validateDraft(day, draft)).toEqual([])
   })
 
   it('refuses a blank title', () => {
     const day = shift()
-    const draft = { ...draftFrom(item(), day), title: '   ' }
+    const draft = { ...draftFrom(item(), day, [], []), title: '   ' }
     expect(validateDraft(day, draft).map((e) => e.field)).toContain('title')
   })
 
   it('is clean for an untouched draft', () => {
     const day = shift({ odo_start: 100, odo_end: 150 })
-    expect(validateDraft(day, draftFrom(item(), day))).toEqual([])
+    expect(validateDraft(day, draftFrom(item(), day, [], []))).toEqual([])
   })
 })
 
@@ -101,10 +101,10 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
       odo_start: 100,
       odo_end: 150,
       sessions: [closedSession],
-      earnings: [{ platform: 'uber_eats', amount: 50 }],
+      earnings: [{ id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 50 }],
     })
     return {
-      draft: draftFrom(item(), day),
+      draft: draftFrom(item(), day, [], []),
       shift: day,
       vehicle: ONE_VEHICLE,
       fuelPerKm: 0.1,
@@ -116,7 +116,7 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
 
   it('an incomplete Draft still saves — validateDraft alone is clean', () => {
     const day = shift()
-    expect(validateDraft(day, draftFrom(item(), day))).toEqual([])
+    expect(validateDraft(day, draftFrom(item(), day, [], []))).toEqual([])
   })
 
   it('a workday with everything Complete needs can Complete', () => {
@@ -132,7 +132,7 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
   it('blocks Complete with no sessions at all', () => {
     const day = shift({ odo_start: 100, odo_end: 150 })
     const fields = validateCompletion({
-      draft: draftFrom(item(), day),
+      draft: draftFrom(item(), day, [], []),
       shift: day,
       vehicle: ONE_VEHICLE,
       fuelPerKm: 0.1,
@@ -146,7 +146,7 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
     const openSession = { id: 's2', started_at: '2026-09-05T17:00:00Z', ended_at: null, break_minutes: 0 }
     const day = shift({ odo_start: 100, odo_end: 150, sessions: [openSession] })
     const fields = validateCompletion({
-      draft: draftFrom(item(), day),
+      draft: draftFrom(item(), day, [], []),
       shift: day,
       vehicle: ONE_VEHICLE,
       fuelPerKm: 0.1,
@@ -165,6 +165,24 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
   it('blocks Complete with no end odometer reading', () => {
     const input = completeInput()
     const fields = validateCompletion({ ...input, draft: { ...input.draft, odo_end: '' } }).map((e) => e.field)
+    expect(fields).toContain('odo_end')
+  })
+
+  it('blocks Complete when the end reading equals the start — drove nowhere is not enough', () => {
+    const input = completeInput()
+    const fields = validateCompletion({
+      ...input,
+      draft: { ...input.draft, odo_start: '100', odo_end: '100' },
+    }).map((e) => e.field)
+    expect(fields).toContain('odo_end')
+  })
+
+  it('blocks Complete when the end reading is below the start', () => {
+    const input = completeInput()
+    const fields = validateCompletion({
+      ...input,
+      draft: { ...input.draft, odo_start: '150', odo_end: '100' },
+    }).map((e) => e.field)
     expect(fields).toContain('odo_end')
   })
 

@@ -5,34 +5,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { Entity } from '../repository/entity'
 import type { Expense } from '../repository/expense'
-import type { Item } from '../repository/item'
 import type { Link } from '../repository/link'
-import type { RunningCosts } from '../repository/settings'
 import type { Shift } from '../repository/shift'
+import type { VehicleCostRate } from '../repository/vehicle-cost'
 import type { VehicleLink } from '../repository/vehicle'
-import { draftFrom } from './draft'
-import { areaIdOf, costBasisOf } from './liveSummary'
+import { costBasisOf } from './liveSummary'
 
 const NO_VEHICLE: VehicleLink = { kind: 'none' }
-
-function item(over: Partial<Item> = {}): Item {
-  return {
-    id: 'i1',
-    owner: 'me',
-    kind: 'shift',
-    state: 'active',
-    title: 'Shift',
-    due: '2026-09-05',
-    done_at: null,
-    area_id: 'area-1',
-    waiting_since: null,
-    version: 1,
-    created_at: '2026-09-05T00:00:00Z',
-    updated_at: '2026-09-05T00:00:00Z',
-    deleted_at: null,
-    ...over,
-  }
-}
+const TODAY = '2026-09-05'
 
 function shift(over: Partial<Shift> = {}): Shift {
   return {
@@ -92,11 +72,11 @@ function fuelExpense(item_id: string, odo: number, pounds: number): Expense {
   }
 }
 
-function costs(area_id: string, fuel_per_km: number, vehicle_per_km: number): RunningCosts {
+function costRate(vehicle_item_id: string, effective_from: string, vehicle_per_km: number): VehicleCostRate {
   return {
-    area_id,
+    vehicle_item_id,
     owner: 'me',
-    fuel_per_km,
+    effective_from,
     vehicle_per_km,
     version: 1,
     created_at: '2026-09-01T00:00:00Z',
@@ -105,22 +85,8 @@ function costs(area_id: string, fuel_per_km: number, vehicle_per_km: number): Ru
   }
 }
 
-describe('areaIdOf', () => {
-  it('follows the Draft while it is a Draft, blank meaning none chosen', () => {
-    const anchor = item({ area_id: 'area-1' })
-    expect(areaIdOf(anchor, { ...draftFrom(anchor, shift()), area_id: 'area-2' }, false)).toBe('area-2')
-    expect(areaIdOf(anchor, { ...draftFrom(anchor, shift()), area_id: '' }, false)).toBeNull()
-  })
-
-  it('is always the shift’s own settled Area once Completed, regardless of the draft', () => {
-    const anchor = item({ area_id: 'area-1', state: 'done' })
-    const draft = { ...draftFrom(anchor, shift()), area_id: 'area-2' }
-    expect(areaIdOf(anchor, draft, true)).toBe('area-1')
-  })
-})
-
 describe('costBasisOf', () => {
-  it('a Draft uses the linked Vehicle’s current automatic fuel rate and the Area’s configured vehicle rate, never the shift’s own stale pinned one', () => {
+  it('a Draft uses the linked Vehicle’s current automatic fuel rate and its own configured cost rate, never the shift’s own stale pinned one', () => {
     const day = shift({ rate_fuel_per_km: 0.9, rate_vehicle_per_km: 0.9 })
     const entities = [vehicle('v1')]
     const links = [about('l1', 'f1', 'v1'), about('l2', 'f2', 'v1')]
@@ -130,56 +96,92 @@ describe('costBasisOf', () => {
     const { costBasis } = costBasisOf({
       shift: day,
       completed: false,
-      areaId: 'area-B',
       vehicle: { kind: 'one', vehicleItemId: 'v1', linkId: 'l1' },
       expenses: [fuelExpense('f1', 1000, 0), fuelExpense('f2', 1100, 10)],
       links,
       entities,
-      costs: [costs('area-B', 0.9, 0.05)],
+      vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
+      today: TODAY,
     })
     expect(costBasis).toEqual({ fuel_per_km: 0.1, vehicle_per_km: 0.05 })
   })
 
-  it('a Completed Workday uses exactly its own pinned rate, never the Area’s or Vehicle’s current one', () => {
+  it('a Completed Workday uses exactly its own pinned rate, never the Vehicle’s current one', () => {
     const day = shift({ rate_fuel_per_km: 0.9, rate_vehicle_per_km: 0.9 })
     const { costBasis } = costBasisOf({
       shift: day,
       completed: true,
-      areaId: 'area-B',
       vehicle: { kind: 'one', vehicleItemId: 'v1', linkId: 'l1' },
       expenses: [],
       links: [],
       entities: [],
-      costs: [costs('area-B', 0.1, 0.05)],
+      vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
+      today: TODAY,
     })
     expect(costBasis).toEqual({ fuel_per_km: 0.9, vehicle_per_km: 0.9 })
   })
 
-  it('no Vehicle linked, or an ambiguous one: fuel stays unknown, never guessed from the Area', () => {
+  it('no Vehicle linked, or an ambiguous one: fuel and vehicle cost both stay unknown, never guessed', () => {
     const day = shift()
     const entities = [vehicle('v1'), vehicle('v2')]
     const links = [about('l1', 'f1', 'v1'), about('l2', 'f1', 'v2')]
     const forNone = costBasisOf({
       shift: day,
       completed: false,
-      areaId: 'area-B',
       vehicle: NO_VEHICLE,
       expenses: [fuelExpense('f1', 1000, 40)],
       links: [],
       entities: [],
-      costs: [],
+      vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
+      today: TODAY,
     })
     const forAmbiguous = costBasisOf({
       shift: day,
       completed: false,
-      areaId: 'area-B',
       vehicle: { kind: 'ambiguous' },
       expenses: [fuelExpense('f1', 1000, 40)],
       links,
       entities,
-      costs: [],
+      vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
+      today: TODAY,
     })
-    expect(forNone.costBasis.fuel_per_km).toBeNull()
-    expect(forAmbiguous.costBasis.fuel_per_km).toBeNull()
+    expect(forNone.costBasis).toEqual({ fuel_per_km: null, vehicle_per_km: null })
+    expect(forAmbiguous.costBasis).toEqual({ fuel_per_km: null, vehicle_per_km: null })
+  })
+
+  it('the Vehicle cost is independent of the fuel rate — configuring one never needs the other known', () => {
+    const day = shift()
+    const { costBasis } = costBasisOf({
+      shift: day,
+      completed: false,
+      vehicle: { kind: 'one', vehicleItemId: 'v1', linkId: 'l1' },
+      expenses: [],
+      links: [],
+      entities: [],
+      vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
+      today: TODAY,
+    })
+    expect(costBasis.fuel_per_km).toBeNull()
+    expect(costBasis.vehicle_per_km).toBe(0.05)
+  })
+
+  it('picks the newest Vehicle cost rate not yet in the future, never a stale earlier one or one not yet effective', () => {
+    const day = shift()
+    const rates = [
+      costRate('v1', '2020-01-01', 0.05),
+      costRate('v1', '2026-09-01', 0.09),
+      costRate('v1', '2026-09-10', 0.2),
+    ]
+    const { costBasis } = costBasisOf({
+      shift: day,
+      completed: false,
+      vehicle: { kind: 'one', vehicleItemId: 'v1', linkId: 'l1' },
+      expenses: [],
+      links: [],
+      entities: [],
+      vehicleCostRates: rates,
+      today: TODAY,
+    })
+    expect(costBasis.vehicle_per_km).toBe(0.09)
   })
 })

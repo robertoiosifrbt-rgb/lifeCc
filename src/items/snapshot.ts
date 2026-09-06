@@ -11,11 +11,13 @@ import {
   expensesOf,
   journalEntriesOf,
   linksOf,
+  platformsOf,
   quickActionsOf,
   runningCostsOf,
   taxYearsOf,
   shiftsOf,
   thingsOf,
+  vehicleCostRatesOf,
 } from '../repository/items'
 import type {
   Area,
@@ -24,10 +26,12 @@ import type {
   Item,
   JournalEntry,
   Link,
+  PlatformRecord,
   QuickAction,
   RunningCosts,
   Shift,
   TaxYearRow,
+  VehicleCostRate,
 } from '../repository/items'
 
 export type Snapshot = {
@@ -36,9 +40,11 @@ export type Snapshot = {
   shifts: Shift[]
   expenses: Expense[]
   costs: RunningCosts[]
+  vehicleCostRates: VehicleCostRate[]
   taxYears: TaxYearRow[]
   things: Entity[]
   links: Link[]
+  platforms: PlatformRecord[]
   journal: JournalEntry[]
   quickActions: QuickAction[]
 }
@@ -51,18 +57,25 @@ export type Snapshot = {
  * pointing at nothing, or a cost of nothing where there is a cost.
  */
 export async function readSnapshot(owner: string): Promise<Snapshot> {
-  const [items, areas, shifts, expenses, costs, taxYears, things, links, journal, quickActions] =
-    await Promise.all([
-      all(owner),
-      areasOf(owner),
-      shiftsOf(owner),
-      expensesOf(owner),
-      runningCostsOf(owner),
-      taxYearsOf(owner),
-      thingsOf(owner),
-      linksOf(owner),
-      journalEntriesOf(owner),
-      quickActionsOf(owner),
-    ])
-  return { items, areas, shifts, expenses, costs, taxYears, things, links, journal, quickActions }
+  const [
+    items, areas, shifts, expenses, costs, vehicleCostRates, taxYears,
+    things, links, platforms, journal, quickActions,
+  ] = await Promise.all([
+    all(owner),
+    areasOf(owner),
+    shiftsOf(owner),
+    expensesOf(owner),
+    runningCostsOf(owner),
+    vehicleCostRatesOf(owner),
+    taxYearsOf(owner),
+    thingsOf(owner),
+    linksOf(owner),
+    platformsOf(owner),
+    journalEntriesOf(owner),
+    quickActionsOf(owner),
+  ])
+  return {
+    items, areas, shifts, expenses, costs, vehicleCostRates, taxYears,
+    things, links, platforms, journal, quickActions,
+  }
 }

@@ -30,9 +30,9 @@ function day(over: Partial<Shift> = {}): Shift {
     rate_vehicle_per_km: 0.116,
     sessions: [],
     earnings: [
-      { platform: 'uber_eats', amount: 64.2 },
-      { platform: 'deliveroo', amount: 31 },
-      { platform: 'just_eat', amount: 18.75 },
+      { id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 64.2 },
+      { id: 'e2', platform: 'deliveroo', platform_item_id: null, amount: 31 },
+      { id: 'e3', platform: 'just_eat', platform_item_id: null, amount: 18.75 },
     ],
     ...over,
   }

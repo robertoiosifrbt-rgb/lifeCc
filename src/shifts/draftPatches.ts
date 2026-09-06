@@ -7,8 +7,8 @@
 // everything would overwrite a field changed from another device in the time
 // this sheet has been open.
 
-import type { Item, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
-import { PLATFORMS } from '../repository/items'
+import type { Entity, Item, Link, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
+import { PLATFORMS, vehicleLinkIdsOf } from '../repository/items'
 import type { Draft, ParsedField } from './draft'
 import { parseBreak, parseMoney, parseReading } from './draft'
 
@@ -22,6 +22,43 @@ export function itemPatchOf(item: Item, draft: Draft): Patch {
   const area_id = draft.area_id === '' ? null : draft.area_id
   if (area_id !== item.area_id) patch.area_id = area_id
   return patch
+}
+
+/**
+ * The Vehicle link change worth writing, or null when the draft still
+ * matches whatever is actually linked.
+ *
+ * "Set" is always "replace every existing Vehicle link with this one" — the
+ * same choice `onChangeVehicle` in the header already commits to — so an
+ * ambiguous starting state (two stale links) is resolved the moment a single
+ * Vehicle is chosen and saved, never left to guess which of the old ones to
+ * keep.
+ */
+export type VehicleLinkPatch = { toUnlink: string[]; toLinkVehicleId: string | null }
+
+export function vehicleLinkPatchOf(
+  links: readonly Link[],
+  entities: readonly Entity[],
+  itemId: string,
+  draft: Draft,
+): VehicleLinkPatch | null {
+  const current = vehicleLinkIdsOf(links, entities, itemId)
+  const wanted = draft.vehicle_item_id === '' ? null : draft.vehicle_item_id
+
+  if (wanted !== null) {
+    const currentSingle = current.length === 1 ? links.find((l) => l.id === current[0]) : undefined
+    if (currentSingle?.to_id === wanted) return null
+    return { toUnlink: current, toLinkVehicleId: wanted }
+  }
+
+  // The draft names no Vehicle. Only a real "clear it" instruction when
+  // there was exactly one linked to clear — a blank draft next to zero, or
+  // next to an ambiguous pair, changes nothing: an untouched, still-ambiguous
+  // state must never be resolved by the side effect of an unrelated Save
+  // draft. Ambiguity is only ever resolved by picking one concrete Vehicle,
+  // the branch above.
+  if (current.length === 1) return { toUnlink: current, toLinkVehicleId: null }
+  return null
 }
 
 /** The shift's own numbers, changed and worth writing — never a bad parse. */
@@ -112,13 +149,20 @@ export function sessionsToRemoveOf(shift: Shift, draft: Draft): string[] {
 }
 
 /** Whether anything typed, cleared or marked for removal differs from what is saved. */
-export function isDirty(item: Item, shift: Shift, draft: Draft): boolean {
+export function isDirty(
+  item: Item,
+  shift: Shift,
+  draft: Draft,
+  links: readonly Link[],
+  entities: readonly Entity[],
+): boolean {
   return (
     Object.keys(itemPatchOf(item, draft)).length > 0 ||
     Object.keys(shiftPatchOf(shift, draft)).length > 0 ||
     earningsPatchOf(shift, draft).length > 0 ||
     earningsToRemoveOf(shift, draft).length > 0 ||
     breaksPatchOf(shift, draft).length > 0 ||
-    sessionsToRemoveOf(shift, draft).length > 0
+    sessionsToRemoveOf(shift, draft).length > 0 ||
+    vehicleLinkPatchOf(links, entities, item.id, draft) !== null
   )
 }

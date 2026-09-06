@@ -132,6 +132,19 @@ export function validateCompletion(input: {
   if (!end.ok || end.value === null) {
     errors.push({ field: 'odo_end', message: 'A completed workday needs an ending odometer reading.' })
   }
+  // Strictly ahead, not merely not-behind: `validateDraft` already refuses a
+  // reading that runs backwards, but a Draft may still sit at end === start
+  // (no distance typed yet). Complete is where "this day drove somewhere"
+  // stops being optional — a Workday with equal readings drove nowhere.
+  if (
+    start.ok && end.ok && start.value !== null && end.value !== null &&
+    end.value <= start.value
+  ) {
+    errors.push({
+      field: 'odo_end',
+      message: 'A completed workday needs an ending reading strictly ahead of the start.',
+    })
+  }
 
   if (vehicle.kind !== 'one') {
     errors.push({ field: 'vehicle-used', message: 'A completed workday needs an unambiguous Vehicle used.' })

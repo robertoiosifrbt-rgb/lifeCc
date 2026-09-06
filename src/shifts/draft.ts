@@ -13,14 +13,18 @@
 // are their own files — the same split the structure checker already asks
 // every other 300-line file in this codebase to make.
 
-import type { Item, Platform, Shift } from '../repository/items'
-import { PLATFORMS } from '../repository/items'
+import type { Entity, Item, Link, Platform, Shift } from '../repository/items'
+import { PLATFORMS, vehicleLinkOf } from '../repository/items'
 import { penceOf, readingOf } from './money'
 
 export type Draft = {
   title: string
   due: string
   area_id: string
+  /** The Vehicle used, typed like Area: blank means none chosen. Deferred to
+   *  Save draft/Complete the same way, and for the same reason — Start/Stop
+   *  are the only immediate writes a Workday makes. */
+  vehicle_item_id: string
   odo_start: string
   odo_end: string
   personal_km: string
@@ -56,8 +60,21 @@ function readingText(value: number | null): string {
   return value === null ? '' : String(value)
 }
 
-/** The draft as it starts: exactly what is already saved, as typed text. */
-export function draftFrom(item: Item, shift: Shift): Draft {
+/**
+ * The draft as it starts: exactly what is already saved, as typed text.
+ *
+ * The Vehicle is seeded from whatever is actually linked right now —
+ * unambiguous, and its id is shown; none or ambiguous both start blank,
+ * asking the owner to pick one rather than guessing between stale
+ * candidates. Either way nothing about the link itself is written until
+ * Save draft or Complete actually runs; this only reads it.
+ */
+export function draftFrom(
+  item: Item,
+  shift: Shift,
+  links: readonly Link[],
+  entities: readonly Entity[],
+): Draft {
   const earnings = {} as Record<Platform, string>
   for (const platform of PLATFORMS) {
     const found = shift.earnings.find((earning) => earning.platform === platform)
@@ -67,10 +84,12 @@ export function draftFrom(item: Item, shift: Shift): Draft {
   for (const session of shift.sessions) {
     breaks[session.id] = session.break_minutes === 0 ? '' : String(session.break_minutes)
   }
+  const vehicle = vehicleLinkOf(links, entities, item.id)
   return {
     title: item.title,
     due: item.due ?? '',
     area_id: item.area_id ?? '',
+    vehicle_item_id: vehicle.kind === 'one' ? vehicle.vehicleItemId : '',
     odo_start: readingText(shift.odo_start),
     odo_end: readingText(shift.odo_end),
     personal_km: readingText(shift.personal_km),
@@ -127,20 +146,27 @@ export type CostBasis = { fuel_per_km: number | null; vehicle_per_km: number | n
  * back to unknown rather than freezing on the last good number, the same rule
  * as everywhere else in the app: unknown is never zero and never a guess.
  *
- * `costBasis` is the caller's job to pick: the Area's current automatic rate
- * while still a Draft (so changing the Area, or the fuel data behind it,
- * shows up immediately — never a stale rate pinned under a different Area),
- * or the shift's own pinned, frozen rate once Completed. Either way this
+ * `costBasis` is the caller's job to pick: the linked Vehicle's current
+ * automatic rate while still a Draft (so changing the Vehicle used, or the
+ * fuel/cost data behind it, shows up immediately — never a stale rate pinned
+ * under a different Vehicle), or the shift's own pinned, frozen rate once
+ * Completed. Either way this
  * function only ever swaps numbers into the same `Shift` shape; the same
  * `takeHome`, `kilometres` and `minutesWorked` the persisted shift uses read
  * the result. There is no second formula for "while you are typing".
  */
 export function previewShiftOf(shift: Shift, draft: Draft, costBasis: CostBasis): Shift {
-  const earnings = PLATFORMS.flatMap((platform) => {
+  const legacyEarnings = PLATFORMS.flatMap((platform) => {
     const parsed = parseMoney(draft.earnings[platform])
     if (!parsed.ok || parsed.value === null) return []
-    return [{ platform, amount: parsed.value }]
+    return [{ id: '', platform, platform_item_id: null, amount: parsed.value }]
   })
+  // Configurable-Platform earnings have no draft field of their own yet — no
+  // UI writes one in this round — so whatever the shift already has of that
+  // kind passes through unchanged rather than being silently dropped from
+  // the live total.
+  const keyedEarnings = shift.earnings.filter((earning) => earning.platform_item_id !== null)
+  const earnings = [...legacyEarnings, ...keyedEarnings]
   const sessions = shift.sessions
     // Defensive, same as `sessionsToRemoveOf`: a still-open session named in
     // `removedSessions` would be malformed draft data, and the preview must

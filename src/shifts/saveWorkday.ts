@@ -4,7 +4,7 @@
 // reason for it — can be tested with injected writers, the same way
 // `runSessionRecovery`/`runStartSessionSafely` already are for clocking on.
 
-import type { Item, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
+import type { Entity, Item, Link, LinkKind, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
 import type { Draft } from './draft'
 import {
   breaksPatchOf,
@@ -13,6 +13,7 @@ import {
   itemPatchOf,
   sessionsToRemoveOf,
   shiftPatchOf,
+  vehicleLinkPatchOf,
 } from './draftPatches'
 
 export type WorkdayWriters = {
@@ -22,6 +23,8 @@ export type WorkdayWriters = {
   onRemoveEarning: (platform: Platform) => Promise<void>
   onSetBreak: (sessionId: string, minutes: number) => Promise<void>
   onDropSession: (sessionId: string) => Promise<void>
+  onLink: (to_id: string, kind: LinkKind) => Promise<void>
+  onUnlink: (id: string) => Promise<void>
 }
 
 /**
@@ -30,11 +33,13 @@ export type WorkdayWriters = {
  * fresh draft on the result without waiting for the next full sync.
  *
  * The item is written first, always — even when nothing about it changed.
- * A Draft shift's cost basis is re-derived from its own Area at the moment
- * the `shifts` row itself is written (the database's pin trigger reads
- * `items.area_id` for the shift being written), so a changed Area has to
- * have already landed on the anchor before that write, or the pin still
- * reads the Area this day is leaving.
+ * The Vehicle link, in turn, is written before the `shifts` row itself: a
+ * Draft's cost basis (fuel and vehicle wear alike) is re-derived at the
+ * moment that row is written, and the database's pin trigger resolves "the"
+ * Vehicle by joining `links` for this shift's item — never by its Area, which
+ * the trigger no longer reads at all. A changed Vehicle link has to have
+ * already landed before that write, or the pin still resolves against the
+ * old one.
  *
  * `forceShiftTouch` is for Complete Workday alone: a shift with nothing
  * operational typed this round would otherwise never issue a write to
@@ -47,10 +52,13 @@ export async function saveWorkday(
   item: Item,
   shift: Shift,
   draft: Draft,
+  links: readonly Link[],
+  entities: readonly Entity[],
   writers: WorkdayWriters,
   opts: { forceShiftTouch?: boolean } = {},
 ): Promise<{ item: Item; shift: Shift }> {
   const itemPatch = itemPatchOf(item, draft)
+  const vehiclePatch = vehicleLinkPatchOf(links, entities, item.id, draft)
   const shiftPatch = shiftPatchOf(shift, draft)
   const earningsPatch = earningsPatchOf(shift, draft)
   const earningsRemoved = earningsToRemoveOf(shift, draft)
@@ -60,6 +68,14 @@ export async function saveWorkday(
   const sessionsRemoved = sessionsToRemoveOf(shift, draft)
 
   if (Object.keys(itemPatch).length > 0) await writers.onUpdateItem(itemPatch)
+
+  // Before the shift row itself: the pin trigger resolves "the" Vehicle by
+  // joining `links` at the moment that row is written, the same reason a
+  // changed Area already has to land on the anchor first.
+  if (vehiclePatch !== null) {
+    for (const linkId of vehiclePatch.toUnlink) await writers.onUnlink(linkId)
+    if (vehiclePatch.toLinkVehicleId !== null) await writers.onLink(vehiclePatch.toLinkVehicleId, 'about')
+  }
 
   if (Object.keys(shiftPatch).length > 0) {
     await writers.onSaveShiftParts(shiftPatch)
@@ -78,8 +94,8 @@ export async function saveWorkday(
     ...shiftPatch,
     earnings: shift.earnings
       .filter((earning) => !earningsPatch.some((changed) => changed.platform === earning.platform))
-      .filter((earning) => !earningsRemoved.includes(earning.platform))
-      .concat(earningsPatch),
+      .filter((earning) => earning.platform === null || !earningsRemoved.includes(earning.platform))
+      .concat(earningsPatch.map((changed) => ({ ...changed, id: '', platform_item_id: null }))),
     sessions: shift.sessions
       .filter((session) => !sessionsRemoved.includes(session.id))
       .map((session) => {

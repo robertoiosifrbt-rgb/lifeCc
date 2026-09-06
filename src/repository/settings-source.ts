@@ -18,6 +18,14 @@ export async function supabaseSettings(): Promise<{
   return { costs: costs.data as unknown[], years: years.data as unknown[] }
 }
 
+/** Every Vehicle cost rate this account has, whole: a handful of rows, one
+ *  per Vehicle per date it changed. */
+export async function supabaseVehicleCostRates(): Promise<unknown[]> {
+  const response = await supabase().from('vehicle_cost_rates').select(ALL)
+  if (response.error !== null) fail('Fetching the vehicle cost rates', response.error)
+  return response.data as unknown[]
+}
+
 /**
  * The settings writes.
  *
@@ -58,6 +66,31 @@ export function supabaseSettingsWriter() {
         .select(ALL)
         .single()
       if (response.error !== null) fail('Writing the vehicle fuel rate', response.error)
+      return response.data as unknown
+    },
+    /** Invalidates a Vehicle's cached fuel rate — soft-deleted, not deleted
+     *  outright, the same rule every other row in this schema follows, so a
+     *  rate that has become unknowable stops being pinned onto new Draft
+     *  writes instead of quietly staying available and wrong. */
+    async clearVehicleFuelRate(vehicle_item_id: string) {
+      const response = await supabase()
+        .from('vehicle_fuel_rates')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('vehicle_item_id', vehicle_item_id)
+      if (response.error !== null) fail('Clearing the vehicle fuel rate', response.error)
+    },
+    /** A new dated row: history, not an overwrite — see vehicle-cost.ts. */
+    async saveVehicleCostRate(values: {
+      vehicle_item_id: string
+      effective_from: string
+      vehicle_per_km: number
+    }) {
+      const response = await supabase()
+        .from('vehicle_cost_rates')
+        .upsert(values, { onConflict: 'vehicle_item_id,effective_from' })
+        .select(ALL)
+        .single()
+      if (response.error !== null) fail('Writing the vehicle cost rate', response.error)
       return response.data as unknown
     },
   }

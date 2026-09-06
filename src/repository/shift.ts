@@ -43,7 +43,18 @@ export type ShiftSession = {
   break_minutes: number
 }
 
-export type ShiftEarning = { platform: Platform; amount: number }
+/**
+ * One earning, keyed either the legacy way or the configurable way — never
+ * both, never neither, the same rule the database's own check constraint
+ * enforces. `id` is the row's own stable identity: D2 will need it to attach
+ * a settlement event to the earning that produced it.
+ */
+export type ShiftEarning = {
+  id: string
+  platform: Platform | null
+  platform_item_id: string | null
+  amount: number
+}
 
 export type Shift = {
   item_id: string
@@ -121,14 +132,23 @@ export function sessionFromRow(row: unknown): ShiftSession {
 
 export function earningFromRow(row: unknown): ShiftEarning {
   const raw = asRecord(row)
-  const platform = requiredText(raw, 'platform')
-  if (!(PLATFORMS as readonly string[]).includes(platform)) {
-    throw new Error(`Unknown platform: ${platform}`)
+  const legacy = optionalText(raw, 'platform')
+  const platform_item_id = optionalText(raw, 'platform_item_id')
+  if ((legacy === null) === (platform_item_id === null)) {
+    throw new Error('An earning naming both, or neither, of platform/platform_item_id')
+  }
+  if (legacy !== null && !(PLATFORMS as readonly string[]).includes(legacy)) {
+    throw new Error(`Unknown platform: ${legacy}`)
   }
   const amount = optionalNumber(raw, 'amount')
   if (amount === null) throw new Error('Earning without an amount')
   if (amount < 0) throw new Error(`A platform paid less than nothing: ${amount}`)
-  return { platform: platform as Platform, amount }
+  return {
+    id: requiredText(raw, 'id'),
+    platform: legacy as Platform | null,
+    platform_item_id,
+    amount,
+  }
 }
 
 export function shiftFromRow(

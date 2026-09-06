@@ -73,7 +73,7 @@ construi încă modulele viitoare.
 
 ## FAZA 2 — Areas reale
 
-- `PARTIAL` — Work → Gig Work → Multi-App Delivery (Workday recuperat cu lifecycle clar Draft/Completed pe item.state existent, Save draft cu live preview, Complete/Delete workday blocate corect de o sesiune deschisă, fuel automat legat de Vehiculul folosit — nu de Arie —, vehicle rate mutat într-o configurare separată pe Arie, Complete Workday cere acum un Vehicul neambiguu și cel puțin un câștig efectiv, Completed arată numai rata pinuită — dar platformele configurabile, earning cycle/payout/cash-out rămân TODO, vezi criteriul suplimentar de mai jos);
+- `PARTIAL` — Work → Gig Work → Multi-App Delivery (Workday recuperat cu lifecycle clar Draft/Completed pe item.state existent, Save draft cu live preview, Complete/Delete workday blocate corect de o sesiune deschisă, fuel și vehicle rate legate amândouă de Vehiculul folosit — niciodată de Arie —, ambele cu istoric propriu (`vehicle_fuel_rates`/`vehicle_cost_rates`), Vehiculul folosit este el însuși deferred la Save draft/Discard ca orice alt câmp, Complete Workday cere un Vehicul neambiguu, citiri de odometru cu finalul strict peste început și cel puțin un câștig efectiv, Completed arată numai rata pinuită și e imutabil impus acum la nivel de bază (trigger-e), nu doar în UI — dar platformele configurabile ca payout/cash-out/earning cycle rămân TODO, vezi criteriul suplimentar de mai jos; are o fundație de date locală, neaplicată live, pentru D2/D3);
 - `TODO` — Work → Employment;
 - `TODO` — Work → Business → ACHU LTD;
 - `TODO` — Health;
@@ -84,7 +84,7 @@ construi încă modulele viitoare.
 
 ### Criterii suplimentare
 
-- `TODO` — platformele Multi-App Delivery sunt records configurabile, cu earning cycle, payout schedule, cash-out behaviour și fees configurabile/effective-dated, fără cazuri Uber/Deliveroo/Just Eat hardcodate.
+- `TODO` — platformele Multi-App Delivery sunt records configurabile, cu earning cycle, payout schedule, cash-out behaviour și fees configurabile/effective-dated, fără cazuri Uber/Deliveroo/Just Eat hardcodate. O fundație de date locală (tabelul `platforms`, ancorat ca `entities`/`links`, plus `shift_earnings` extins cu `platform_item_id` opțional alături de enumul vechi) există în schema/repository/cache, dar neaplicată live și **neconectată încă în UI-ul de Earnings** — earning cycle, payout schedule și cash-out rămân neconfigurabile. Criteriul rămâne `TODO` până la firul complet UI → repository → Supabase.
 
 ---
 

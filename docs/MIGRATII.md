@@ -67,18 +67,34 @@ de cost a unui Workday încă Draft la fiecare scriere, în loc s-o lase înghe�
 din prima scriere — comportamentul pentru un Workday Completed rămâne exact cel
 de dinainte. Adaugă și tabelul `vehicle_fuel_rates`: rata de combustibil se
 citește acum după Vehiculul legat de Workday (via `links`/`entities`), nu după
-Aria lui — `rate_vehicle_per_km` (uzura) rămâne exact ca înainte, citită din
-`running_costs` după Arie. Vezi `docs/STAREA.md`, secțiunea Delivery/Work,
-pentru motivul complet.
+Aria lui. La momentul acestei migrații, `rate_vehicle_per_km` (uzura) rămăsese
+încă citită din `running_costs` după Arie — corectat de migrația D1 de mai jos.
+Un audit ulterior a mai găsit și reparat o greșeală de ordine `grant`/`revoke`
+pe `vehicle_fuel_rates` din acest fișier (`revoke all` rula după un `grant`
+țintit și îl ștergea silențios); fișierul a fost rescris pe loc, nefiind
+niciodată live. Vezi `docs/STAREA.md`, secțiunea Delivery/Work, pentru motivul
+complet.
+
+`20260907000000_delivery_data_foundation` **nu** este aplicată live și nu
+apare în tabelul de mai sus. Adaugă `vehicle_cost_rates` (istoricul de cost pe
+km al unui Vehicul, înlocuind `running_costs` pentru acest rol — vezi
+corecția de mai sus), imutabilitate Completed impusă prin trigger-e noi pe
+`shifts`/`shift_sessions`/`shift_earnings`/`links` (independent de
+`shift_invariants`), tabelul `platforms` (fundație de date, neconectat încă
+în UI-ul de Earnings) și o extindere a `shift_earnings` (id surogat,
+`platform_item_id` opțional alături de enumul `platform` existent, fără să-l
+înlocuiască). Vezi `docs/STAREA.md`, secțiunea „Migrație nouă (D1)”, pentru
+detalii.
 
 **Dependență operațională, nu doar ordine de fișiere.** Ordinea standard de
-migrații pune `0600` înaintea lui `0700`. `0600` este blocată de incidentul
-live cunoscut cu 15 rânduri `shift_sessions` simultan deschise (vezi
-`docs/STAREA.md`). Codul Workday din acest task poate fi logic independent de
-invariantele din `0600`, dar aplicarea secvențială normală a migrațiilor nu
-poate ajunge la `0700` cât timp `0600` rămâne neaplicată/blocată — deci `0700`
-nu este pregătită de producție doar pentru că există în repo și modelul de
-Vehicul din ea este acum corect. Aplicarea oricăreia dintre ele, repararea
+migrații pune `0600` înaintea lui `0700`, iar `0700` înaintea migrației D1 de
+mai sus. `0600` este blocată de incidentul live cunoscut cu 15 rânduri
+`shift_sessions` simultan deschise (vezi `docs/STAREA.md`). Codul Workday din
+aceste runde poate fi logic independent de invariantele din `0600`, dar
+aplicarea secvențială normală a migrațiilor nu poate ajunge la `0700` sau la
+D1 cât timp `0600` rămâne neaplicată/blocată — deci nici `0700`, nici D1 nu
+sunt pregătite de producție doar pentru că există în repo și modelul de
+Vehicul din ele este acum corect. Aplicarea oricăreia dintre ele, repararea
 celor 15 sesiuni sau alegerea uneia reale rămân decizii separate, explicite,
 ale proprietarului — nu s-a făcut nimic din toate astea aici.
 

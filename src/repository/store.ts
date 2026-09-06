@@ -12,7 +12,6 @@ import type { Item } from './item'
 import { fromRow as fromQuickActionRow } from './quick-action'
 import type { QuickAction } from './quick-action'
 import type { Row } from './row'
-import type { Shift } from './shift'
 
 export type Store<T extends Row> = {
   readAll(owner: string): Promise<T[]>
@@ -30,11 +29,10 @@ export type Store<T extends Row> = {
 }
 
 const DB_NAME = 'life-control-centre'
-// Two, because areas arrived: a second object store, and a cursor key that
-// says which table it belongs to. The old cursors are dropped rather than
-// converted — a missing cursor costs one full snapshot, and a converted one
-// that is wrong costs rows that never arrive.
-const DB_VERSION = 10
+// Bumped for the D1 data foundation: Platforms ride their anchor like
+// entities/links; vehicle cost rates are a handful of settings rows, kept
+// the same way running_costs/tax_years already are.
+const DB_VERSION = 11
 const ITEMS = 'items'
 const AREAS = 'areas'
 // Home's Quick Actions: its own table, own cursor, the same reason areas
@@ -46,6 +44,8 @@ const QUICK_ACTIONS = 'quick_actions'
 // strategy their migration declares.
 const ENTITIES = 'entities'
 const LINKS = 'links'
+// Platforms: a fifth kind of anchor, same no-cursor rule as entities.
+const PLATFORMS = 'platforms'
 // The parts of a shift, one record per anchor. Not a synced table of its own:
 // it has no cursor, because the anchor carries the news that it changed.
 const SHIFTS = 'shifts'
@@ -56,6 +56,9 @@ const COSTS = 'running_costs'
 // One row per tax year, because the figures change every April and last
 // year's bill must not move when this year's are set.
 const TAX_YEARS = 'tax_years'
+// A Vehicle's own cost-per-km history: one row per Vehicle per date it
+// changed, few enough to fetch whole, no cursor of its own.
+const VEHICLE_COST_RATES = 'vehicle_cost_rates'
 // The personal journal. No cursor either, for the same reason as entities: it
 // rides the anchor that carries the news it changed.
 const JOURNAL = 'journal_entries'
@@ -76,7 +79,17 @@ export function completed(tx: IDBTransaction): Promise<void> {
   })
 }
 
-export const STORES = { COSTS, ENTITIES, EXPENSES, JOURNAL, LINKS, TAX_YEARS }
+export const STORES = {
+  COSTS,
+  ENTITIES,
+  EXPENSES,
+  JOURNAL,
+  LINKS,
+  PLATFORMS,
+  SHIFTS,
+  TAX_YEARS,
+  VEHICLE_COST_RATES,
+}
 
 let db: Promise<IDBDatabase> | null = null
 
@@ -128,6 +141,16 @@ export function open(): Promise<IDBDatabase> {
       if (!opened.objectStoreNames.contains(JOURNAL)) {
         const journal = opened.createObjectStore(JOURNAL, { keyPath: 'item_id' })
         journal.createIndex('owner', 'owner', { unique: false })
+      }
+      if (!opened.objectStoreNames.contains(PLATFORMS)) {
+        const platforms = opened.createObjectStore(PLATFORMS, { keyPath: 'item_id' })
+        platforms.createIndex('owner', 'owner', { unique: false })
+      }
+      if (!opened.objectStoreNames.contains(VEHICLE_COST_RATES)) {
+        const rates = opened.createObjectStore(VEHICLE_COST_RATES, {
+          keyPath: ['vehicle_item_id', 'effective_from'],
+        })
+        rates.createIndex('owner', 'owner', { unique: false })
       }
       if (opened.objectStoreNames.contains(CURSORS)) {
         opened.deleteObjectStore(CURSORS)
@@ -250,39 +273,3 @@ function storeFor<T extends Row>(
 export const store: Store<Item> = storeFor(ITEMS, fromItemRow)
 export const areaStore: Store<Area> = storeFor(AREAS, fromAreaRow)
 export const quickActionStore: Store<QuickAction> = storeFor(QUICK_ACTIONS, fromQuickActionRow)
-
-/**
- * The parts of every shift this account has, kept whole.
- *
- * There is no upsert and no cursor here on purpose. The parts of a shift are
- * never asked for on their own — only ever as "the parts of this anchor" — so
- * they are replaced wholesale, which is exactly the strategy the migration
- * declares. What tells you a shift changed is its anchor's version, and that
- * travels in the items delta.
- */
-export const shiftStore = {
-  async readAll(owner: string): Promise<Shift[]> {
-    const opened = await open()
-    const tx = opened.transaction(SHIFTS, 'readonly')
-    const rows: unknown = await request(
-      tx.objectStore(SHIFTS).index('owner').getAll(owner),
-    )
-    if (!Array.isArray(rows)) throw new Error('The cache did not return a list')
-    return rows as Shift[]
-  },
-
-  async replaceAll(owner: string, shifts: readonly Shift[]): Promise<void> {
-    for (const shift of shifts) {
-      if (shift.owner !== owner) {
-        throw new Error(`Shift ${shift.item_id} belongs to ${shift.owner}`)
-      }
-    }
-    const opened = await open()
-    const tx = opened.transaction(SHIFTS, 'readwrite')
-    const store = tx.objectStore(SHIFTS)
-    const keys = await request(store.index('owner').getAllKeys(owner))
-    for (const key of keys) store.delete(key)
-    for (const shift of shifts) store.put(shift)
-    await completed(tx)
-  },
-}
