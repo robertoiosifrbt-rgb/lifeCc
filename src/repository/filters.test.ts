@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { alive, forCalendar, forToday } from './filters'
+import { alive, forCalendar, forTasks, forToday, forWaiting } from './filters'
 import type { Item } from './item'
 
 const TODAY = '2026-09-04'
@@ -143,6 +143,81 @@ describe('forCalendar', () => {
       task('b', { due: '2026-09-07' }),
     ])
     expect(days.map((d) => d.day)).toEqual(['2026-09-05', '2026-09-07', '2026-09-11'])
+  })
+})
+
+describe('forTasks', () => {
+  // Regression: Plan's Tasks view used to be built from forToday's groups,
+  // which silently drop anything due later than today. A task due next
+  // month must stay visible in Plan, not vanish until the day it is due.
+  it('keeps a future-dated active task, unlike forToday', () => {
+    const future = task('next-month', { due: '2026-10-04' })
+    expect(forToday([future], TODAY).today).toEqual([])
+    expect(forToday([future], TODAY).overdue).toEqual([])
+    expect(forToday([future], TODAY).undated).toEqual([])
+
+    const groups = forTasks([future], TODAY)
+    expect(groups.upcoming.map((i) => i.id)).toEqual(['next-month'])
+  })
+
+  it('splits into overdue, today, upcoming and undated, each in date order', () => {
+    const groups = forTasks(
+      [
+        task('overdue-old', { due: '2026-08-20' }),
+        task('overdue-new', { due: '2026-09-03' }),
+        task('today', { due: TODAY }),
+        task('soon', { due: '2026-09-06' }),
+        task('later', { due: '2026-10-01' }),
+        task('undated'),
+      ],
+      TODAY,
+    )
+    expect(groups.overdue.map((i) => i.id)).toEqual(['overdue-old', 'overdue-new'])
+    expect(groups.today.map((i) => i.id)).toEqual(['today'])
+    expect(groups.upcoming.map((i) => i.id)).toEqual(['soon', 'later'])
+    expect(groups.undated.map((i) => i.id)).toEqual(['undated'])
+  })
+
+  it('leaves out the inbox, things, and finished or deleted rows', () => {
+    const groups = forTasks(
+      [
+        item('captured'),
+        item('car', { kind: 'entity', state: 'active', due: null }),
+        task('finished', { state: 'done', due: TODAY, done_at: TODAY }),
+        task('discarded', { due: TODAY, deleted_at: '2026-09-04T08:00:00+00:00' }),
+      ],
+      TODAY,
+    )
+    expect(groups).toEqual({ overdue: [], today: [], upcoming: [], undated: [] })
+  })
+})
+
+describe('forWaiting', () => {
+  it('only lists active items waiting on somebody else', () => {
+    const list = forWaiting([
+      task('waiting', { waiting_since: '2026-08-30' }),
+      task('not-waiting'),
+      task('done-waiting', { state: 'done', waiting_since: '2026-08-20' }),
+    ])
+    expect(list.map((i) => i.id)).toEqual(['waiting'])
+  })
+
+  it('puts the longest wait first', () => {
+    const list = forWaiting([
+      task('asked-this-morning', { waiting_since: '2026-09-03' }),
+      task('asked-last-week', { waiting_since: '2026-08-27' }),
+    ])
+    expect(list.map((i) => i.id)).toEqual(['asked-last-week', 'asked-this-morning'])
+  })
+
+  it('drops a deleted row even if it is still waiting', () => {
+    const list = forWaiting([
+      task('discarded', {
+        waiting_since: '2026-08-30',
+        deleted_at: '2026-09-01T00:00:00+00:00',
+      }),
+    ])
+    expect(list).toEqual([])
   })
 })
 

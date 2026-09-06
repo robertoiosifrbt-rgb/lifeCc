@@ -50,19 +50,13 @@ export function ShellHeader({
         <button className="head-button" type="button" name="download" onClick={onDownload}>
           Download everything
         </button>
-        {/* The way into the year. It used to be reachable only from a link
-            under the month in the Calendar, and that block is not drawn at all
-            for a month with no work in it — so a new year, or a quiet one, had
-            no door to the screen that decides what every other number on the
-            app means. */}
-        <Link className="head-button" to="/hmrc">
-          HMRC
-        </Link>
-        {/* The door to the things — the car, the landlord, the insurer. Beside
-            HMRC because the bar is full at three, and behind a door is still a
-            door: check:reachable is what makes sure of that. */}
+        {/* The door to the people and things a life is made of — the car, the
+            landlord, the insurer. Named after all four kinds it holds, not a
+            shorthand that quietly drops two of them. The bar is full at
+            four, and behind a door is still a door: check:reachable is what
+            makes sure of that. */}
         <Link className="head-button" to="/things">
-          Things
+          People, Companies, Vehicles &amp; Property
         </Link>
       </div>
 

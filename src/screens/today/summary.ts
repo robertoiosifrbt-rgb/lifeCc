@@ -11,6 +11,7 @@
 
 import type { Entity } from '../../repository/entity'
 import { dueOn } from '../../repository/entity'
+import { forWaiting } from '../../repository/filters'
 import type { Item } from '../../repository/item'
 
 /** How far ahead "coming up" reaches. A week is what a week of work plans. */
@@ -98,15 +99,12 @@ export function summarise(input: {
   }
 
   // Longest wait first: the one you asked about a week ago is the one to chase,
-  // not the one you asked about this morning.
-  const waiting: Waiting[] = alive
-    .filter((item) => item.state === 'active' && item.waiting_since !== null)
-    .map((item) => ({
-      title: item.title,
-      since: item.waiting_since as string,
-      days: daysBetween(item.waiting_since as string, today),
-    }))
-    .sort((one, other) => other.days - one.days)
+  // not the one you asked about this morning. forWaiting already orders it so.
+  const waiting: Waiting[] = forWaiting(input.items).map((item) => ({
+    title: item.title,
+    since: item.waiting_since as string,
+    days: daysBetween(item.waiting_since as string, today),
+  }))
 
   return {
     overdue,

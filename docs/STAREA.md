@@ -12,13 +12,28 @@ procente de progres sau explicații despre cum s-a ajuns aici.
 - autentificare cu email/parolă;
 - snapshot/cache și sincronizare prin repository;
 - export complet al datelor;
-- ecrane principale: Today, Calendar, Areas;
+- navigația principală exprimă harta mentală țintă: Home / Plan / Areas /
+  Money;
 - ecran de arie;
-- HMRC;
-- Things.
+- HMRC, expus acum ca `Tax` sub Money;
+- Things (Person/Company/Vehicle/Property), etichetat clar în header ca
+  „People, Companies, Vehicles & Property" și accesibil de acolo, nu din
+  navigația principală.
 
-Landing-ul actual este `Today`. La începutul lui există deja un rezumat de tip
-Command Centre; Home complet nu este încă separat ca un al patrulea tab.
+Landing-ul actual rămâne fostul `Today`, la ruta `/today`; el este acum
+etichetat `Home` în navigație și își păstrează toate funcțiile (Inbox, Today,
+Overdue, rezumatul Command Centre, Start shift, Money out). `Plan` este un
+ecran nou cu Tasks (orice task activ, indiferent de dată — inclusiv cele
+programate în viitor, nu doar due azi/overdue/nedatate) și Waiting, plus o
+intrare spre Calendar (rămas ecran propriu la `/calendar`). `Money` este un
+ecran nou care arată anul fiscal curent (Made/Put aside/Left, calculat printr-un
+singur selector comun cu Home, `currentYearMoney`) și o intrare spre `Tax`
+(fostul ecran HMRC, rută `/hmrc` neschimbată). Amândouă arată „Loading…" cât
+timp snapshotul inițial nu s-a încărcat, ca să nu afișeze liste goale sau
+£0.00 false. Când ești pe Calendar sau pe Tax, antetul și bara de jos arată
+în continuare contextul corect (`Plan · Calendar`, respectiv
+`Money · Tax`, cu tab-ul părinte aprins). Niciunul dintre aceste ecrane nu
+introduce date sau modele noi — reexpun ce exista deja.
 
 ### Items
 

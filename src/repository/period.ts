@@ -8,9 +8,13 @@
 import type { Expense } from './expense'
 import type { Item } from './item'
 import type { Income, TaxFigures } from './hmrc'
+import { figuresOf, incomeOf, yearIn } from './hmrc-year'
+import type { TaxYearRow } from './hmrc-year'
 import { reserveFor } from './reserve'
 import { directCostsPence, earnedPence } from './shift'
 import type { Shift } from './shift'
+import { taxYearOf } from './taxyear'
+import type { TaxYear } from './taxyear'
 
 export type Period = {
   /** Everything the platforms and the tips brought in. */
@@ -133,6 +137,36 @@ export function periodMoney(input: {
     km: Math.round(km * 10) / 10,
     missingRates: figures === null || income === null,
   }
+}
+
+/**
+ * The tax year "now" falls in, and what it has come to so far.
+ *
+ * Home's summary and Money asked this exact question separately before, each
+ * working out the year, finding its settings row and calling `periodMoney`
+ * on its own — two places that could answer "what has this year made" with
+ * two different sums the day one of them changed and the other did not.
+ * This is the one place now; neither screen works it out by hand.
+ */
+export function currentYearMoney(input: {
+  items: readonly Item[]
+  shifts: readonly Shift[]
+  expenses: readonly Expense[]
+  taxYears: readonly TaxYearRow[]
+  today: string
+}): { year: TaxYear; money: Period } {
+  const year = taxYearOf(input.today)
+  const settings = yearIn(input.taxYears, year.label)
+  const money = periodMoney({
+    items: input.items,
+    shifts: input.shifts,
+    expenses: input.expenses,
+    from: year.from,
+    to: year.to,
+    figures: settings === null ? null : figuresOf(settings),
+    income: settings === null ? null : incomeOf(settings, 0),
+  })
+  return { year, money }
 }
 
 /** The first and last day of a month, as 'YYYY-MM-DD'. */

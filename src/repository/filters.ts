@@ -67,6 +67,49 @@ export function forToday(items: readonly Item[], today: string): TodayGroups {
   }
 }
 
+export type TaskGroups = {
+  overdue: Item[]
+  today: Item[]
+  /** Due later than today. Today's own groups stop before this one exists. */
+  upcoming: Item[]
+  undated: Item[]
+}
+
+/**
+ * Every active task, whatever its date — the full backlog Plan asks about.
+ *
+ * Today deliberately stops at "due today or earlier": `forToday` excludes a
+ * task due next month on purpose, because Today only answers "what needs
+ * doing right now". Plan asks a different question — everything that is on
+ * the plate at all — so it cannot reuse Today's result and must not apply
+ * the same cutoff, or a future-dated task would disappear from the whole app
+ * until the day it became due.
+ */
+export function forTasks(items: readonly Item[], today: string): TaskGroups {
+  const relevant = alive(items).filter(
+    (item) => item.kind !== 'entity' && item.state === 'active',
+  )
+
+  return {
+    overdue: relevant.filter((item) => item.due !== null && item.due < today).sort(byDue),
+    today: relevant.filter((item) => item.due === today).sort(byDue),
+    upcoming: relevant.filter((item) => item.due !== null && item.due > today).sort(byDue),
+    undated: relevant.filter((item) => item.due === null).sort(byCreated),
+  }
+}
+
+/**
+ * Active items stuck on somebody else's answer, oldest wait first.
+ *
+ * The same field Today's summary already reads, `waiting_since` — not a
+ * fourth state of the item cycle, just one more date like `due`.
+ */
+export function forWaiting(items: readonly Item[]): Item[] {
+  return alive(items)
+    .filter((item) => item.state === 'active' && item.waiting_since !== null)
+    .sort((a, b) => (a.waiting_since as string).localeCompare(b.waiting_since as string))
+}
+
 export type CalendarDay = {
   /** The day, as 'YYYY-MM-DD'. */
   day: string

@@ -12,14 +12,14 @@ import { signOut } from '../repository/auth'
 import type { Session } from '../repository/auth'
 import { useToday } from './today'
 import { ShellHeader } from './ShellHeader'
-import { SCREENS } from './screens'
+import { SCREENS, tabInfoFor } from './screens'
 import './AppShell.css'
 
 type Props = { session: Session }
 
 export function AppShell({ session }: Props) {
   const location = useLocation()
-  const current = SCREENS.find((screen) => screen.path === location.pathname)
+  const tab = tabInfoFor(location.pathname)
   const data = useItems(session.userId)
 
   const [error, setError] = useState<string | null>(null)
@@ -53,7 +53,7 @@ export function AppShell({ session }: Props) {
   return (
     <div className="shell">
       <ShellHeader
-        title={current?.label ?? 'Life Control Centre'}
+        title={tab?.title ?? 'Life Control Centre'}
         email={session.email}
         sync={data.sync}
         onResync={data.resync}
@@ -80,7 +80,18 @@ export function AppShell({ session }: Props) {
 
         <nav className="shell-nav" aria-label="Screens">
           {SCREENS.map((screen) => (
-            <NavLink key={screen.path} to={screen.path} className="shell-nav-button">
+            <NavLink
+              key={screen.path}
+              to={screen.path}
+              // React Router's own match lights the tab for its own URL and
+              // anything nested under it (an area's own page under Areas).
+              // The `||` adds the one case it cannot see: a screen reached
+              // by name rather than by URL nesting — Calendar under Plan,
+              // Tax under Money — still lights its parent tab.
+              className={({ isActive }) =>
+                `shell-nav-button${isActive || tab?.tabPath === screen.path ? ' active' : ''}`
+              }
+            >
               {screen.label}
             </NavLink>
           ))}

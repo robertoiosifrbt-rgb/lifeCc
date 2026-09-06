@@ -1,0 +1,69 @@
+/* Imported by exactly one .tsx in this directory: MoneyScreen.tsx */
+
+.money-hub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.money-hub-year {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.money-hub-sums {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.money-hub-sums div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.money-hub-sums dt {
+  color: var(--text-dim);
+  font-size: var(--text-m);
+}
+
+.money-hub-sums dd {
+  margin: 0;
+  font-size: var(--text-m);
+  font-weight: 600;
+}
+
+.money-hub-left dd {
+  font-size: var(--text-l);
+}
+
+.money-hub-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.money-hub-tax {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--text-m);
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  text-decoration: none;
+}
+
+.money-hub-tax:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

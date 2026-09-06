@@ -2,14 +2,7 @@ import { useState } from 'react'
 
 import { SpendSheet } from '../../spend/SpendSheet'
 
-import {
-  figuresOf,
-  forToday,
-  incomeOf,
-  periodMoney,
-  taxYearOf,
-  yearIn,
-} from '../../repository/items'
+import { currentYearMoney, forToday } from '../../repository/items'
 import type { Item } from '../../repository/items'
 import { useScreen } from '../../items/context'
 import { ItemRow } from '../../ui/ItemRow'
@@ -98,19 +91,14 @@ export function TodayScreen() {
   const todaysShift = data.items.find(
     (item) => item.kind === 'shift' && item.due === today && item.deleted_at === null,
   )
-  // The tax year as it stands, for the money at the top. Read here rather than
-  // inside the summary: the same sum is already the HMRC screen's, and two
-  // places working it out is two places to get it wrong.
-  const year = taxYearOf(today)
-  const figures = yearIn(data.taxYears, year.label)
-  const soFar = periodMoney({
+  // The tax year as it stands, for the money at the top. The same helper
+  // Money reads, so the two cannot drift into two different answers.
+  const { money: soFar } = currentYearMoney({
     items: data.items,
     shifts: data.shifts,
     expenses: data.expenses,
-    from: year.from,
-    to: year.to,
-    figures: figures === null ? null : figuresOf(figures),
-    income: figures === null ? null : incomeOf(figures, 0),
+    taxYears: data.taxYears,
+    today,
   })
 
   const nothing =
