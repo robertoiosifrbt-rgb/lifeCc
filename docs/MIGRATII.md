@@ -40,9 +40,25 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260905190000_from_the_reference` | câmpuri adoptate din aplicația de referință | 5 sep 2026 |
 | `20260905200000_waiting` | `items.waiting_since` + update grant | 6 sep 2026 |
 | `20260906000000_journal` | `journal_entries` + `items.kind='journal'` | 6 sep 2026 |
+| `20260906050000_quick_actions` | tabelul `quick_actions` | 6 sep 2026 |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
+
+### Notă despre versiunea din istoricul live pentru `quick_actions`
+
+Istoricul de migrații Supabase înregistrează această migrație ca
+`version = 20260906075956`, `name = quick_actions` — un timestamp diferit de
+prefixul `20260906050000` din numele fișierului din repo. Corespondența este
+verificată din înregistrarea de migrații live însăși, nu doar afirmată:
+rândul de mai sus se referă la
+`supabase/migrations/20260906050000_quick_actions.sql`, singura migrație din
+repo cu numele `quick_actions`. Diferența de timestamp vine din ora la care
+fișierul a fost efectiv rulat pe live față de ora din numele lui în repo —
+nu este drift de schemă și nu schimbă ce face migrația.
+
+`20260906060000_shift_invariants` **nu** este aplicată live și nu apare în
+tabelul de mai sus. Vezi `docs/STAREA.md` pentru motivul blocajului.
 
 ## Schimbări manuale declarate
 

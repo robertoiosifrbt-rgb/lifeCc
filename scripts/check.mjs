@@ -26,6 +26,7 @@
  *          npm run check -- --all — toți, oricât ai atins
  */
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 
 /**
  * ─── Incrementală ───────────────────────────────────────────────────────────
@@ -83,9 +84,55 @@ const STEPS = [
  * layout-ul vede un text sub bara de status. Poarta îi numește la final ca să
  * nu poți crede că ai verificat tot.
  */
+const env =
+  (...names) =>
+  async () =>
+    names.every((one) => process.env[one] !== undefined)
+
+/**
+ * Există pe mașina asta Chromium-ul de care are nevoie `check:quick-actions-row`?
+ *
+ * ⛔ Nu o variabilă de mediu: pasul nu cere chei, cere un browser instalat.
+ * Întrebat pe Playwright însuși, nu ghicit dintr-o cale.
+ *
+ * ⛔ Și nu numele variabilei: `CHROMIUM_EXECUTABLE` setat spre un fișier care
+ * nu există ar raporta „poate rula" pentru un browser inexistent. Se verifică
+ * fișierul. O valoare goală nu e un override — exact ce face și
+ * scripts/lib/browser.mjs cu aceeași variabilă.
+ *
+ * Chromium anume, fiindcă asta cere pasul: `CHECK_BROWSER` nu-l mai mută.
+ */
+const chromiumForCheck = async () => {
+  const override = process.env.CHROMIUM_EXECUTABLE
+  if (override) return existsSync(override)
+  try {
+    const { chromium } = await import('playwright')
+    return existsSync(chromium.executablePath())
+  } catch {
+    return false
+  }
+}
+
 const ELSEWHERE = [
-  ['check:rls', 'ce poate citi și scrie de fapt un client', 'DATABASE_URL'],
-  ['check:layout', 'ce se vede pe un telefon de 320px', 'CHECK_EMAIL și CHECK_PASSWORD'],
+  ['check:rls', 'ce poate citi și scrie de fapt un client', 'DATABASE_URL', env('DATABASE_URL')],
+  [
+    'check:layout',
+    'ce se vede pe un telefon de 320px',
+    'CHECK_EMAIL și CHECK_PASSWORD',
+    env('CHECK_EMAIL', 'CHECK_PASSWORD'),
+  ],
+  /**
+   * 🆕 A fost un `.test.mjs`, deci `npm test` părea că-l acoperă — dar cerea
+   * browsere instalate ca să treacă, în jobul ieftin care nu le are. Aici e
+   * numit ca ce este: un pas care se uită la DOM-ul adevărat și care nu poate
+   * rula fără browser.
+   */
+  [
+    'check:quick-actions-row',
+    'ce DOM produce de fapt QuickActionsRow când o scriere e refuzată',
+    'Chromium instalat pentru Playwright',
+    chromiumForCheck,
+  ],
 ]
 
 /** Ce a atins felia asta: arborele de lucru, plus ce e comis peste bază. */
@@ -128,8 +175,8 @@ if (skipped.length > 0) {
 }
 
 console.log('\n── ce nu se poate verifica de aici')
-for (const [name, why, needs] of ELSEWHERE) {
-  const has = needs.split(' și ').every((one) => process.env[one] !== undefined)
+for (const [name, why, needs, available] of ELSEWHERE) {
+  const has = await available()
   console.log(`   ${has ? 'poate rula' : 'NU a rulat'}  ${name} — ${why} (cere ${needs})`)
 }
 

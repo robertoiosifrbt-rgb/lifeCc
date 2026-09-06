@@ -116,6 +116,13 @@ jobs:
 
       # The full cycle from the end of step 5: write a line, process it, tick
       # it, download it, see it on a second device and after a refresh.
+      # Not part of `npm test`: it renders the real component in a real page,
+      # so it belongs to the job that has browsers, not to the cheap one.
+      # Chromium alone — what it proves is the DOM the component produces,
+      # which is not where engines differ.
+      - name: QuickActionsRow, rendered for real
+        run: npm run check:quick-actions-row
+
       - name: the full cycle, on Chromium
         run: npm run check:cycle
 

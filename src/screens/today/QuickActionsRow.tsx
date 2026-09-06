@@ -122,11 +122,16 @@ export function QuickActionsRow({ data, openItem, today, onSpend }: Props) {
   }
 
   if (configured.length === 0) {
+    // The link is its own element, not a phrase inside the sentence: wrapped
+    // across two lines of small text it was a 34px tap target, under the 44px
+    // minimum, and the only way out of an empty Home.
     return (
-      <p className="today-note">
-        No Quick Actions set up yet.{' '}
-        <Link to="/quick-actions">Choose what appears here</Link>.
-      </p>
+      <div className="today-quick-actions">
+        <p className="today-note">No Quick Actions set up yet.</p>
+        <Link className="today-configure" to="/quick-actions">
+          Choose what appears here
+        </Link>
+      </div>
     )
   }
 

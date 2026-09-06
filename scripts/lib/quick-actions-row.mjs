@@ -1,8 +1,5 @@
-// Proves what quickActionRun.test.ts cannot: that a rejected delivery.work
-// write in the *real*, rendered QuickActionsRow shows up as a real visible
-// role="alert" element, never opens anything, and lets the button go back to
-// enabled — not just that the helper functions compose correctly in the
-// abstract.
+// The harness for the rendered QuickActionsRow check: everything needed to
+// turn the real component into a script a browser can run.
 //
 // There is no DOM-rendering framework anywhere else in this repository (no
 // jsdom, no @testing-library) — adding one for a single component would be a
@@ -10,20 +7,19 @@
 // is Vite, the app's own bundler, and Playwright, already a devDependency and
 // already how check-layout.mjs drives a real browser (see
 // scripts/lib/browser.mjs). This bundles the one real component into a
-// self-contained script with Vite and renders it in a real Chromium page —
-// the same two tools, nothing new, proving the actual DOM the component
-// produces rather than a re-implementation of it.
+// self-contained script with Vite; scripts/check-quick-actions-row.mjs renders
+// it in a real page and makes the assertions.
+//
+// It is deliberately not a `.test.mjs`: `npm test` is the cheap job that runs
+// without browsers installed, and a Vitest file that launches Chromium turns
+// it into a job that needs them.
 
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 import react from '@vitejs/plugin-react'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { build } from 'vite'
-
-import { engine } from './browser.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '../..')
 
@@ -49,10 +45,22 @@ const STAMPS = `{
   deleted_at: null,
 }`
 
+/** The message the rejected write fails with, asserted on the other side. */
+export const REJECTION = 'could not reach the server'
+
 function entrySource() {
   const component = path.join(ROOT, 'src/screens/today/QuickActionsRow.tsx')
   const areaModule = path.join(ROOT, 'src/repository/area.ts')
   const quickActionModule = path.join(ROOT, 'src/repository/quick-action.ts')
+  // The same three stylesheets the real screen loads for this component:
+  // tokens + reset from main.tsx, TodayScreen.css from TodayScreen.tsx.
+  // `?inline` returns each as a string instead of Vite extracting a separate
+  // CSS asset, which a bare `build()` here has nothing to link back in.
+  // Without them every tap-target measurement would be against unstyled,
+  // var()-less boxes — not the pixels a phone actually gets.
+  const tokensCss = path.join(ROOT, 'src/styles/tokens.css?inline')
+  const resetCss = path.join(ROOT, 'src/styles/reset.css?inline')
+  const screenCss = path.join(ROOT, 'src/screens/today/TodayScreen.css?inline')
 
   return `
 import { createRoot } from 'react-dom/client'
@@ -60,6 +68,13 @@ import { MemoryRouter } from 'react-router-dom'
 import { QuickActionsRow } from ${JSON.stringify(component)}
 import { fromRow as areaFromRow } from ${JSON.stringify(areaModule)}
 import { fromRow as quickActionFromRow } from ${JSON.stringify(quickActionModule)}
+import tokensCss from ${JSON.stringify(tokensCss)}
+import resetCss from ${JSON.stringify(resetCss)}
+import screenCss from ${JSON.stringify(screenCss)}
+
+const style = document.createElement('style')
+style.textContent = tokensCss + '\\n' + resetCss + '\\n' + screenCss
+document.head.appendChild(style)
 
 const stamps = ${STAMPS}
 
@@ -75,7 +90,7 @@ const data = {
   shifts: [],
   areas: [area],
   quickActions: [quickAction],
-  startDeliveryWork: () => Promise.reject(new Error('could not reach the server')),
+  startDeliveryWork: () => Promise.reject(new Error(${JSON.stringify(REJECTION)})),
   clockOn: () => Promise.reject(new Error('should not be called')),
 }
 
@@ -91,7 +106,8 @@ createRoot(document.getElementById('root')).render(
 `
 }
 
-async function buildHarness(workDir) {
+/** Bundles the real component, and returns the script to put in a page. */
+export async function buildHarness(workDir) {
   const entryPath = path.join(workDir, 'entry.tsx')
   await writeFile(entryPath, entrySource(), 'utf8')
 
@@ -121,43 +137,3 @@ async function buildHarness(workDir) {
 
   return readFile(path.join(outDir, 'bundle.js'), 'utf8')
 }
-
-describe('QuickActionsRow, rendered for real', () => {
-  let workDir
-  let bundle
-  let browser
-  let page
-
-  beforeAll(async () => {
-    workDir = await mkdtemp(path.join(tmpdir(), 'quick-actions-row-'))
-    bundle = await buildHarness(workDir)
-    browser = await engine().launch()
-    page = await browser.newPage()
-    await page.setContent('<div id="root"></div>')
-    await page.addScriptTag({ content: bundle })
-    await page.waitForSelector('button[name="delivery-work"]')
-  }, 60_000)
-
-  afterAll(async () => {
-    await browser?.close()
-    if (workDir !== undefined) await rm(workDir, { recursive: true, force: true })
-  })
-
-  it(
-    'shows the rejection in a visible alert, opens nothing, and releases busy',
-    async () => {
-      expect(await page.textContent('button[name="delivery-work"]')).toBe('Start delivery work')
-
-      await page.click('button[name="delivery-work"]')
-      await page.waitForSelector('[role="alert"]')
-
-      expect(await page.textContent('[role="alert"]')).toBe('could not reach the server')
-      expect(await page.evaluate(() => window.__harness.openItemCalls.length)).toBe(0)
-
-      // Busy is released once the rejection is handled — the button is
-      // clickable again, not stuck disabled behind a failed attempt.
-      expect(await page.isDisabled('button[name="delivery-work"]')).toBe(false)
-    },
-    30_000,
-  )
-})

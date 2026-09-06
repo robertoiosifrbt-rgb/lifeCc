@@ -19,7 +19,8 @@
     "check:cycle": "node scripts/check-cycle.mjs",
     "check": "node scripts/check.mjs",
     "check:reachable": "node scripts/check-reachable.mjs",
-    "check:drops": "node scripts/check-drops.mjs"
+    "check:drops": "node scripts/check-drops.mjs",
+    "check:quick-actions-row": "node scripts/check-quick-actions-row.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.115.0",

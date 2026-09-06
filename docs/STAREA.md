@@ -198,27 +198,36 @@ Există în repo două fișiere de migrație, complete și explicit atomice
 - `20260906050000_quick_actions` — tabelul `quick_actions` însuși;
 - `20260906060000_shift_invariants` — cele două invariante de mai sus.
 
-**Niciuna nu este aplicată pe baza live.** `docs/MIGRATII.md` este ledger-ul
-pentru ce e confirmat aplicat live și nu se actualizează doar pentru că un
-fișier de migrație există în repo — deci cele două de mai sus nu apar acolo
-încă, iar asta nu e o omisiune de reparat.
+**`20260906050000_quick_actions` este aplicată pe baza live**, aprobată
+explicit de proprietar și aplicată live în afara acestei sesiuni.
+`docs/MIGRATII.md` o ține acum ca aplicată (6 sep 2026), cu nota despre
+discrepanța de timestamp față de istoricul de migrații Supabase. Tabelul
+`quick_actions` există deci pe live, și configurația Quick Actions se poate
+scrie și citi acolo.
 
-`20260906060000_shift_invariants` nu poate fi aplicată azi fără o decizie
-separată: un read-only check pe baza live a găsit o tură (owner+zi+arie,
-data 2026-09-05) cu **cincisprezece** `shift_sessions` cu `ended_at IS NULL`
-simultan — indexul unic `shift_sessions_one_open_per_shift` ar refuza exact
-acest caz. Nimic din acest task nu a atins acele rânduri; alegerea sesiunii
-„reale" dintre cele cincisprezece este o decizie a proprietarului, nu ceva de
-decis sau executat automat aici.
+**Implementarea frontend a acestui task (Phase 2B) este deja pe producție.**
+Vercel production rulează deja commit-ul
+`10d6e92b5b7b050689232b7f44aa2a968e302fc2`, cu deployment-ul în stare READY.
+Nu mai există un deploy de frontend care așteaptă `shift_invariants` — codul
+e deja livrat; ce lipsește este strict invarianta de bază de mai jos.
 
-Ordinea corectă înainte ca Quick Actions să meargă pe live: proprietarul
-decide cum se repară cele cincisprezece sesiuni deschise → aprobare explicită
-pentru reparația de date → reparația chiar rulează → ambele migrații de mai
-sus rulează pe live → `docs/MIGRATII.md`/`docs/PROGRESS.md` se actualizează
-cu starea live reală → abia atunci se face deploy la implementarea din acest
-task. Quick Actions nu funcționează în producție până atunci — criteriul
-corespunzător din `docs/PROGRESS.md` rămâne `PARTIAL`, nu `DONE`, exact din
-acest motiv.
+**`20260906060000_shift_invariants` rămâne neaplicată.** Nu poate fi aplicată
+azi fără o decizie separată: un read-only check pe baza live a găsit o tură
+(owner+zi+arie, data 2026-09-05) cu **cincisprezece** `shift_sessions` cu
+`ended_at IS NULL` simultan — indexul unic
+`shift_sessions_one_open_per_shift` ar refuza exact acest caz. Cele
+cincisprezece rânduri rămân neatinse; alegerea sesiunii „reale" dintre ele
+este o decizie a proprietarului, nu ceva de decis sau executat automat aici.
+
+Ordinea corectă rămasă, doar pe partea de bază de date: proprietarul decide
+cum se repară cele cincisprezece sesiuni deschise → aprobare explicită pentru
+reparația de date → reparația chiar rulează → `20260906060000_shift_invariants`
+rulează pe live → `docs/MIGRATII.md`/`docs/PROGRESS.md`/acest document se
+actualizează din nou cu starea live reală. Fără a doua migrație, baza nu
+garantează încă cele două invariante (o singură tură vie pe zi/Arie, o
+singură sesiune deschisă) — criteriul corespunzător din `docs/PROGRESS.md`
+rămâne `PARTIAL`, nu `DONE`, exact din acest motiv, chiar dacă frontend-ul
+este deja livrat.
 
 ### Vehicle
 

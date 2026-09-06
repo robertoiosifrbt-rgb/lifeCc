@@ -194,9 +194,14 @@ construi încă modulele viitoare.
   fără potrivire după numele ariei, cu invariante de bază (o singură tură
   vie pe zi/Arie, o singură sesiune deschisă) și recuperare sigură când
   extensia shift-ului lipsește. Implementarea și migrațiile există complet
-  în repo, cu RLS scrise pentru ele — dar rămâne `PARTIAL`, nu `DONE`, până
-  când migrațiile cerute (`20260906050000_quick_actions`,
-  `20260906060000_shift_invariants`) sunt confirmate aplicate pe baza live.
+  în repo, cu RLS scrise pentru ele. `20260906050000_quick_actions` este
+  acum confirmată aplicată pe baza live (vezi `docs/MIGRATII.md`), deci
+  tabelul `quick_actions` există în producție — dar criteriul rămâne
+  `PARTIAL`, nu `DONE`: `20260906060000_shift_invariants` nu este aplicată,
+  iar fără ea baza nu garantează încă cele două invariante de mai sus.
+  Blocajul rămâne cel cunoscut din `docs/STAREA.md` — cincisprezece
+  `shift_sessions` deschise simultan pe o singură tură din live, neatinse,
+  în așteptarea deciziei proprietarului.
 
 ---
 
