@@ -38,6 +38,7 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260905170000_upsert_keys` | chei/upsert + trigger protection | 5 sep 2026 |
 | `20260905180000_entities_and_links` | `entities` + `links`, Life Core | 5 sep 2026 |
 | `20260905190000_from_the_reference` | câmpuri adoptate din aplicația de referință | 5 sep 2026 |
+| `20260905200000_waiting` | `items.waiting_since` + update grant | 6 sep 2026 |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
