@@ -227,4 +227,23 @@ describe('liveSummaryOf', () => {
     expect(result.sum.costsPence).toBe(1500)
     expect(result.sum.grossPence).toBe(5000)
   })
+
+  it('with insufficient full-tank data, costs stay unknown — never priced as if the rate were nothing', () => {
+    const anchor = item({ area_id: 'area-B' })
+    const day = shift({ odo_start: 0, odo_end: 100 })
+    const draft = draftFrom(anchor, day)
+    // No fuel expenses at all: fuelRateForArea comes back with perKm null,
+    // which is exactly what costBasisOf hands a Draft when data is missing.
+    const { costBasis } = costBasisOf({
+      shift: day,
+      completed: false,
+      areaId: 'area-B',
+      items: [anchor],
+      expenses: [],
+      costs: [],
+    })
+    const result = liveSummaryOf(day, draft, costBasis, { figures: null, income: null, beforePence: 0 })
+    expect(result.sum.missing).toContain('costs')
+    expect(result.sum.costsPence).not.toBeGreaterThan(0)
+  })
 })

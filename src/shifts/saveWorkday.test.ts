@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Item } from '../repository/item'
 import type { Shift } from '../repository/shift'
 import { draftFrom } from './draft'
+import { isDirty } from './draftPatches'
 import type { WorkdayWriters } from './saveWorkday'
 import { saveWorkday } from './saveWorkday'
 
@@ -158,5 +159,28 @@ describe('saveWorkday — write order', () => {
     const settled = await saveWorkday(anchor, day, draft, writers(order))
     expect(settled.item.title).toBe('Renamed')
     expect(settled.shift.tips).toBe(5)
+  })
+
+  it('Save draft, then reopen: rebuilding the draft from the settled result shows the saved values, clean', async () => {
+    // Exactly what ShiftSheet's onSaveDraft does with the result: draftFrom
+    // over what was just written. If that composition were wrong, a reopened
+    // sheet would show either stale values or a draft still marked dirty.
+    const anchor = item()
+    const day = shift({ odo_start: 10 })
+    const draft = {
+      ...draftFrom(anchor, day),
+      odo_start: '10',
+      odo_end: '160',
+      tips: '12.50',
+      title: 'Tuesday shift',
+      due: '2026-09-08',
+    }
+    const settled = await saveWorkday(anchor, day, draft, writers([]))
+    const reopened = draftFrom(settled.item, settled.shift)
+    expect(reopened.odo_end).toBe('160')
+    expect(reopened.tips).toBe('12.50')
+    expect(reopened.title).toBe('Tuesday shift')
+    expect(reopened.due).toBe('2026-09-08')
+    expect(isDirty(settled.item, settled.shift, reopened)).toBe(false)
   })
 })

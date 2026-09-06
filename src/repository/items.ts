@@ -63,6 +63,8 @@ export type { DueDates, TaxYear } from './taxyear'
 export type { TakeHome } from './takehome'
 export { setSessionBreak } from './shifts'
 export {
+  canCompleteWorkday,
+  canDeleteWorkday,
   earnedPence,
   isOut,
   kilometres,

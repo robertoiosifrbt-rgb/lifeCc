@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  canCompleteWorkday,
+  canDeleteWorkday,
   earnedPence,
   earningFromRow,
   isOut,
@@ -131,6 +133,48 @@ describe('minutesWorked', () => {
     // second ambiguous one must never look like "closed" by accident.
     const secondOpen = { id: 's3', started_at: '2026-09-05T18:00:00+00:00', ended_at: null, break_minutes: 0 }
     expect(isOut(shift({ sessions: [open, secondOpen] }))).toBe(true)
+  })
+})
+
+describe('canCompleteWorkday / canDeleteWorkday', () => {
+  const openSession = { id: 's2', started_at: '2026-09-05T17:00:00+00:00', ended_at: null, break_minutes: 0 }
+  const closedSession = { id: 's1', started_at: '2026-09-05T09:00:00+00:00', ended_at: '2026-09-05T12:30:00+00:00', break_minutes: 0 }
+
+  it('refuses both while a session is open', () => {
+    const out = shift({ sessions: [openSession] })
+    expect(canCompleteWorkday(out)).toBe(false)
+    expect(canDeleteWorkday(out)).toBe(false)
+  })
+
+  it('allows both once every session has ended', () => {
+    const day = shift({ sessions: [closedSession] })
+    expect(canCompleteWorkday(day)).toBe(true)
+    expect(canDeleteWorkday(day)).toBe(true)
+  })
+
+  it('a day with no sessions at all is never blocked', () => {
+    expect(canCompleteWorkday(shift())).toBe(true)
+    expect(canDeleteWorkday(shift())).toBe(true)
+  })
+
+  it('still refuses with two or more open sessions, the known corrupt case', () => {
+    const secondOpen = { id: 's3', started_at: '2026-09-05T18:00:00+00:00', ended_at: null, break_minutes: 0 }
+    const ambiguous = shift({ sessions: [openSession, secondOpen] })
+    expect(canCompleteWorkday(ambiguous)).toBe(false)
+    expect(canDeleteWorkday(ambiguous)).toBe(false)
+  })
+
+  it('stopping the open session is what turns the refusal off — Stop alone, not Complete', () => {
+    // Stop only ever closes the one session (`endSession` touches
+    // shift_sessions, never items.state): the day becomes completable
+    // because `isOut` now reads false, not because anything decided to
+    // complete it.
+    const wasOut = shift({ sessions: [openSession] })
+    expect(canCompleteWorkday(wasOut)).toBe(false)
+    const afterStop = shift({
+      sessions: [{ ...openSession, ended_at: '2026-09-05T19:00:00+00:00' }],
+    })
+    expect(canCompleteWorkday(afterStop)).toBe(true)
   })
 })
 

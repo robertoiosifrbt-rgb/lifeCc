@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { isOut } from '../repository/items'
+import { canCompleteWorkday, canDeleteWorkday } from '../repository/items'
 import type {
   Area,
   Expense,
@@ -80,7 +80,7 @@ export function ShiftSheet(props: Props) {
 
   const dirty = !completed && isDirty(item, shift, draft)
   const errors = completed ? [] : validateDraft(shift, draft)
-  const blockedByOpenSession = isOut(shift)
+  const blockedByOpenSession = !canCompleteWorkday(shift) || !canDeleteWorkday(shift)
 
   /** Runs a write, catching its own error rather than throwing past the caller. */
   function guarded(body: () => Promise<void>): Promise<void> {
