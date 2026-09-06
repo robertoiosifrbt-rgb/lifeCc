@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { countUnder, fromRow, pathOf, treeOf } from './area'
+import { countUnder, fromRow, pathOf, settingsPatch, subtreeOf, treeOf } from './area'
 import type { Area } from './area'
 
 const GOOD_ROW = {
@@ -116,5 +116,59 @@ describe('countUnder', () => {
   it('stops at the next branch instead of running into it', () => {
     // Home follows the Business branch in the walk; it is not under it.
     expect(countUnder(areas, 'b')).toBe(2)
+  })
+})
+
+describe('subtreeOf', () => {
+  const areas = [
+    area('b', { name: 'Business' }),
+    area('s', { name: 'Self-employed', parent_id: 'b' }),
+    area('d', { name: 'MultiApp Delivery', parent_id: 's' }),
+    area('h', { name: 'Home' }),
+  ]
+
+  it('includes the area itself and everything under it, not a sibling branch', () => {
+    expect(subtreeOf(areas, 'b')).toEqual(['b', 's', 'd'])
+    expect(subtreeOf(areas, 's')).toEqual(['s', 'd'])
+  })
+
+  it('is just the area itself for a leaf, or for one that is not there', () => {
+    expect(subtreeOf(areas, 'd')).toEqual(['d'])
+    expect(subtreeOf(areas, 'h')).toEqual(['h'])
+    expect(subtreeOf(areas, 'gone')).toEqual(['gone'])
+  })
+})
+
+// A settings save is one version-checked write, not two: a patch carrying a
+// changed name and a changed parent together is exactly what stops the
+// second of two sequential saves from discarding whatever the first one did
+// not carry. And a blank name makes the whole form unsaveable, rather than
+// quietly dropping the name while a changed parent slips through underneath
+// it — the same partial save by another route.
+describe('settingsPatch', () => {
+  const business = area('b', { name: 'Business', parent_id: null })
+
+  it('carries a changed name and a changed parent together, in one patch', () => {
+    expect(settingsPatch(business, 'Business Ltd', 's')).toEqual({
+      name: 'Business Ltd',
+      parent_id: 's',
+    })
+  })
+
+  it('carries only the parent, when only the parent changed', () => {
+    expect(settingsPatch(business, 'Business', 's')).toEqual({ parent_id: 's' })
+  })
+
+  it('carries only the name, when only the name changed', () => {
+    expect(settingsPatch(business, 'Business Ltd', null)).toEqual({ name: 'Business Ltd' })
+  })
+
+  it('is empty when neither changed', () => {
+    expect(settingsPatch(business, 'Business', null)).toEqual({})
+  })
+
+  it('refuses the whole save on a blank name, even with a changed parent', () => {
+    expect(settingsPatch(business, '   ', 's')).toBeNull()
+    expect(settingsPatch(business, '', 's')).toBeNull()
   })
 })

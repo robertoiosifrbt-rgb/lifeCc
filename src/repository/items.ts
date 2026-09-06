@@ -76,7 +76,7 @@ export {
   shiftsOf,
   startSession,
 } from './shifts'
-export { countUnder, pathOf, treeOf } from './area'
+export { countUnder, pathOf, settingsPatch, subtreeOf, treeOf } from './area'
 export {
   areasOf,
   createArea,

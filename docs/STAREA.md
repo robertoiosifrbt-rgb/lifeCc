@@ -48,6 +48,31 @@ altcineva. Nu este o a patra stare a ciclului: itemul rămâne `active` și ajun
 la `done` la fel ca oricare altul. E un singur câmp în plus, `waiting_since`,
 o dată, la fel cum `due` este deja.
 
+### Areas
+
+Ariile sunt înregistrări obișnuite în baza de date, nu constante din cod: un
+arbore configurabil de utilizator, de orice adâncime și cu orice nume, ținut
+în tabelul `areas` (owner, parent_id, name), cu chei compuse (id, owner) care
+fac structural imposibil ca un arbore să treacă printre doi utilizatori.
+
+- se pot crea la rădăcină sau sub orice arie existentă, direct din ecranul
+  Areas;
+- se pot redenumi;
+- se pot muta sub o altă arie, sau la rădăcină, din ecranul ariei —
+  lista de părinți posibili exclude aria însăși și tot ce e dedesubtul ei, iar
+  un ciclu mai adânc este refuzat de baza de date;
+- se pot șterge (soft-delete); ce era dedesubt dispare din vedere odată cu ea
+  și revine dacă aria e restaurată;
+- fiecare arie creată are propria rută, `/areas/:id`, unde apare tot ce ține
+  de ea.
+
+Nu există niciun caz special legat de un nume de arie în cod: arborele țintă
+din plan (Work → Gig Work → Multi-App Delivery, Work → Employment, Work →
+Business → ACHU LTD, Health, Home & Life Admin etc.) se poate construi în
+întregime din ecranul existent, ca date, fără nicio modificare de cod. Nu
+există încă un modul propriu pentru Employment sau ACHU LTD ca business —
+doar aria însăși, ca loc unde pot fi puse lucruri.
+
 ### Life Core
 
 Există `Entity` și `links`.

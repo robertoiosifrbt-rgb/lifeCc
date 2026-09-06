@@ -24,6 +24,7 @@ import { readSnapshot } from './snapshot'
 import type { Snapshot } from './snapshot'
 import type {
   Area,
+  AreaPatch,
   Entity,
   Item,
   JournalEntry,
@@ -76,7 +77,8 @@ export type ItemsHandle = MoneyActions &
   retry: (itemId: string) => Promise<void>
   download: () => Promise<void>
   addArea: (name: string, parent_id: string | null) => Promise<void>
-  renameArea: (area: Area, name: string) => Promise<void>
+  /** Name and parent together, in the one write a settings save may make. */
+  saveArea: (area: Area, patch: AreaPatch) => Promise<void>
   dropArea: (area: Area) => Promise<void>
 }
 
@@ -269,7 +271,7 @@ export function useItems(owner: string): ItemsHandle {
 
     addArea: (name, parent_id) => write(() => createArea(owner, name, parent_id)),
 
-    renameArea: (area, name) => write(() => updateArea(owner, area, { name })),
+    saveArea: (area, patch) => write(() => updateArea(owner, area, patch)),
 
     dropArea: (area) => write(() => discardArea(owner, area, new Date())),
   }

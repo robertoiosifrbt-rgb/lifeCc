@@ -85,8 +85,9 @@ export function AreaScreen() {
       {editing && (
         <AreaSheet
           area={area}
+          areas={data.areas}
           under={countUnder(data.areas, area.id)}
-          onRename={(next) => data.renameArea(area, next)}
+          onSave={(patch) => data.saveArea(area, patch)}
           onDrop={async () => {
             await data.dropArea(area)
             // The page you are on has just been removed. Standing on it would

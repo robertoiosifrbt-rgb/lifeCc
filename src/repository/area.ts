@@ -85,25 +85,57 @@ export function treeOf(areas: readonly Area[]): { area: Area; depth: number }[] 
 }
 
 /**
- * How many living areas hang under this one, at any depth.
+ * The id itself, and everything living under it, at any depth.
  *
  * Read off the same walk that draws the tree rather than counted separately:
  * two ways of asking "what is under this" is how a warning ends up naming a
- * different number from the list it warns about.
+ * different number from the list it warns about, and the move picker ends up
+ * offering a parent the cycle check would only refuse after a round trip.
  */
-export function countUnder(areas: readonly Area[], id: string): number {
+export function subtreeOf(areas: readonly Area[], id: string): string[] {
   const rows = treeOf(areas)
   const start = rows.findIndex((row) => row.area.id === id)
-  if (start === -1) return 0
+  if (start === -1) return [id]
   // The walk is depth first, so everything under an area sits right after it,
   // until the depth comes back to its own.
   const depth = rows[start]?.depth ?? 0
-  let count = 0
+  const ids = [id]
   for (let at = start + 1; at < rows.length; at += 1) {
     if ((rows[at]?.depth ?? 0) <= depth) break
-    count += 1
+    ids.push(rows[at]!.area.id)
   }
-  return count
+  return ids
+}
+
+/** How many living areas hang under this one, at any depth. */
+export function countUnder(areas: readonly Area[], id: string): number {
+  return subtreeOf(areas, id).length - 1
+}
+
+/**
+ * The one patch a settings save may send — name and parent together, in the
+ * same version-checked write, never as two separate ones on the same row.
+ * The second of two sequential writes would otherwise discard whichever
+ * field the first one did not carry, and the sheet would have already closed
+ * on it.
+ *
+ * `null` means the whole form is unsaveable: a blank name does not make the
+ * function quietly drop just the name and save the parent anyway — that is
+ * the same partial save by another route. The typed name stays right there
+ * until it is either fixed or abandoned, same as `areas_name_not_blank` on
+ * the write that actually reaches the database.
+ */
+export function settingsPatch(
+  area: Area,
+  name: string,
+  parent_id: string | null,
+): AreaPatch | null {
+  const trimmed = name.trim()
+  if (trimmed === '') return null
+  const patch: AreaPatch = {}
+  if (trimmed !== area.name) patch.name = trimmed
+  if (parent_id !== area.parent_id) patch.parent_id = parent_id
+  return patch
 }
 
 /** The path to an area, root first: 'Business › Self-employed › Delivery'. */

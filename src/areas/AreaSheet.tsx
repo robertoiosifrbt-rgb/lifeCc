@@ -1,14 +1,18 @@
 import { useState } from 'react'
 
-import type { Area } from '../repository/items'
+import type { Area, AreaPatch } from '../repository/items'
+import { settingsPatch, subtreeOf, treeOf } from '../repository/items'
 import { Sheet } from '../ui/Sheet'
 import './AreaSheet.css'
 
 type Props = {
   area: Area
+  /** Every area of the account, to offer as a new parent. */
+  areas: readonly Area[]
   /** How many areas hang under this one, at any depth. */
   under: number
-  onRename: (name: string) => Promise<void>
+  /** Name and/or parent, in the one write a settings save may make. */
+  onSave: (patch: AreaPatch) => Promise<void>
   onDrop: () => Promise<void>
   onClose: () => void
 }
@@ -27,13 +31,26 @@ type Props = {
  * second thing to learn.
  */
 export function AreaSheet(props: Props) {
-  const { area, under, onRename, onDrop, onClose } = props
+  const { area, areas, under, onSave, onDrop, onClose } = props
   const [name, setName] = useState(area.name)
+  const [moveTo, setMoveTo] = useState(area.parent_id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const trimmed = name.trim()
-  const changed = trimmed !== '' && trimmed !== area.name
+  // An area cannot become its own parent, nor its own descendant's — the
+  // database's cycle check would refuse both anyway, only after a round trip
+  // and a raw SQL error where a person expects a picker to already know
+  // better.
+  const excluded = new Set(subtreeOf(areas, area.id))
+  const parentOptions = treeOf(areas).filter((row) => !excluded.has(row.area.id))
+
+  // One patch, whatever changed. Two separate version-checked writes — one
+  // for the name, one for the parent — would let either field close the
+  // sheet on a value the other one never saw, discarding it. `null` means a
+  // blank name makes the whole form unsaveable: a changed parent must not
+  // slip through underneath it.
+  const patch = settingsPatch(area, name, moveTo === '' ? null : moveTo)
+  const changed = patch !== null && Object.keys(patch).length > 0
 
   async function run(body: () => Promise<void>, close: boolean) {
     setBusy(true)
@@ -55,7 +72,7 @@ export function AreaSheet(props: Props) {
       <label className="area-field">
         <span className="area-label">Name</span>
         <input
-          className="area-name"
+          className="area-input"
           name="name"
           value={name}
           disabled={busy}
@@ -63,17 +80,39 @@ export function AreaSheet(props: Props) {
         />
       </label>
 
+      <label className="area-field">
+        <span className="area-label">Under</span>
+        <select
+          className="area-input"
+          name="parent"
+          value={moveTo}
+          disabled={busy}
+          onChange={(event) => setMoveTo(event.target.value)}
+        >
+          <option value="">— (root, no parent)</option>
+          {parentOptions.map(({ area: option, depth }) => (
+            <option key={option.id} value={option.id}>
+              {' '.repeat(depth * 2)}
+              {option.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
       {error !== null && <p className="area-error">{error}</p>}
 
       <div className="area-buttons">
         <button
           type="button"
-          name="rename"
+          name="save"
           className="area-save"
           disabled={busy || !changed}
-          onClick={() => void run(() => onRename(trimmed), true)}
+          onClick={() => {
+            if (patch === null) return
+            void run(() => onSave(patch), true)
+          }}
         >
-          Save the name
+          Save changes
         </button>
 
         <button
