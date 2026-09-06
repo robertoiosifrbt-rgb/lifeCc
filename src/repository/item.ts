@@ -52,7 +52,7 @@ export type Patch = Partial<
 >
 
 const STATES: readonly string[] = ['inbox', 'active', 'done']
-const KINDS: readonly string[] = ['task', 'letter', 'shift', 'expense']
+const KINDS: readonly string[] = ['task', 'letter', 'shift', 'expense', 'entity']
 
 /**
  * A row that came from the server, checked.

@@ -28,6 +28,10 @@ describe('fromRow', () => {
     expect(fromRow(GOOD_ROW)).toEqual(GOOD_ROW)
   })
 
+  it('accepts entity anchor rows produced by the database', () => {
+    expect(fromRow({ ...GOOD_ROW, kind: 'entity' }).kind).toBe('entity')
+  })
+
   it('accepts a captured item: no kind, no dates', () => {
     const captured = fromRow({ ...GOOD_ROW, state: 'inbox', kind: null, due: null })
     expect(captured.kind).toBeNull()

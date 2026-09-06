@@ -15,7 +15,7 @@ const install = spawnSync(process.execPath, ['scripts/install-hooks.mjs'], { std
 if (install.status !== 0) process.exit(install.status ?? 1)
 
 const status = (run(['status', '--porcelain']).stdout ?? '').trim()
-let branch = (run(['branch', '--show-current']).stdout ?? '').trim()
+const branch = (run(['branch', '--show-current']).stdout ?? '').trim()
 
 if (!branch) {
   console.error('BLOCKED: detached HEAD. A work session must start on main.')
@@ -33,7 +33,6 @@ if (branch !== 'main') {
   const hasMain = run(['show-ref', '--verify', '--quiet', 'refs/heads/main'], { allowFailure: true }).status === 0
   if (hasMain) run(['switch', 'main'])
   else run(['switch', '-c', 'main', '--track', 'origin/main'])
-  branch = 'main'
 }
 
 run(['fetch', 'origin', 'main'])
