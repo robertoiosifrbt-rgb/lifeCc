@@ -26,6 +26,8 @@ export type Item = Row & {
   done_at: string | null
   /** The area it belongs to. Null until it is processed out of the inbox. */
   area_id: string | null
+  /** The day you started waiting on someone else. Null unless you are. */
+  waiting_since: string | null
 }
 
 /**
@@ -38,7 +40,14 @@ export type Item = Row & {
 export type Patch = Partial<
   Pick<
     Item,
-    'kind' | 'state' | 'title' | 'due' | 'done_at' | 'deleted_at' | 'area_id'
+    | 'kind'
+    | 'state'
+    | 'title'
+    | 'due'
+    | 'done_at'
+    | 'deleted_at'
+    | 'area_id'
+    | 'waiting_since'
   >
 >
 
@@ -87,6 +96,7 @@ export function fromRow(row: unknown): Item {
     due: optionalDay(raw, 'due'),
     done_at: optionalDay(raw, 'done_at'),
     area_id: optionalText(raw, 'area_id'),
+    waiting_since: optionalDay(raw, 'waiting_since'),
     ...stampsOf(raw),
   }
 }

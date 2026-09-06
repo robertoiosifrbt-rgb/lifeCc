@@ -16,6 +16,7 @@ function meta(item: Item, today: string): string {
   if (item.kind !== null) bits.push(item.kind)
   if (item.due !== null) bits.push(`due ${formatDay(item.due, today)}`)
   if (item.done_at !== null) bits.push(`done ${formatDay(item.done_at, today)}`)
+  if (item.waiting_since !== null) bits.push('waiting')
   return bits.join(' · ')
 }
 

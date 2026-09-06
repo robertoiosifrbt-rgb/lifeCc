@@ -16,6 +16,7 @@ const GOOD_ROW = {
   updated_at: '2026-09-02T10:00:00+00:00',
   deleted_at: null,
   area_id: null,
+  waiting_since: null,
 }
 
 function item(over: Partial<Item> = {}): Item {
@@ -55,6 +56,15 @@ describe('fromRow', () => {
   it('refuses anything that is not an object', () => {
     expect(() => fromRow(null)).toThrow('not an object')
     expect(() => fromRow('a row')).toThrow('not an object')
+  })
+
+  it('accepts a day for waiting_since, and refuses anything else', () => {
+    expect(fromRow({ ...GOOD_ROW, waiting_since: '2026-09-01' }).waiting_since).toBe(
+      '2026-09-01',
+    )
+    expect(() => fromRow({ ...GOOD_ROW, waiting_since: '2026-02-31' })).toThrow(
+      'waiting_since is not a day',
+    )
   })
 })
 

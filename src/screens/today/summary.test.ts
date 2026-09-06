@@ -20,6 +20,7 @@ function item(id: string, over: Partial<Item> = {}): Item {
     updated_at: '2026-09-01T10:00:00+00:00',
     deleted_at: null,
     area_id: null,
+    waiting_since: null,
     ...over,
   }
 }
@@ -102,5 +103,49 @@ describe('the top of the day', () => {
       today: TODAY,
     })
     expect(summary.overdue).toEqual([])
+  })
+})
+
+describe('waiting', () => {
+  it('lists an active item that is waiting, longest first', () => {
+    const summary = summarise({
+      items: [
+        item('recent', { title: 'Refund', waiting_since: '2026-09-04' }),
+        item('old', { title: 'Quote response', waiting_since: '2026-09-01' }),
+        item('not-waiting'),
+      ],
+      things: [],
+      today: TODAY,
+    })
+    expect(summary.waiting).toEqual([
+      { title: 'Quote response', since: '2026-09-01', days: 4 },
+      { title: 'Refund', since: '2026-09-04', days: 1 },
+    ])
+  })
+
+  it('drops an item once it is no longer active', () => {
+    const summary = summarise({
+      items: [
+        item('done', { state: 'done', waiting_since: '2026-09-01' }),
+        item('caught', { state: 'inbox', kind: null, waiting_since: '2026-09-01' }),
+      ],
+      things: [],
+      today: TODAY,
+    })
+    expect(summary.waiting).toEqual([])
+  })
+
+  it('ignores what has been deleted, even if it is waiting', () => {
+    const summary = summarise({
+      items: [
+        item('gone', {
+          waiting_since: '2026-09-01',
+          deleted_at: '2026-09-02T10:00:00+00:00',
+        }),
+      ],
+      things: [],
+      today: TODAY,
+    })
+    expect(summary.waiting).toEqual([])
   })
 })

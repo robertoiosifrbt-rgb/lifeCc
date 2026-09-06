@@ -40,6 +40,7 @@ const anchor: Item = {
   due: '2026-08-10',
   done_at: null,
   area_id: 'a1',
+  waiting_since: null,
   ...stamps,
 }
 

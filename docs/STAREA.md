@@ -27,6 +27,11 @@ soft-delete.
 
 Calendarul și Today folosesc aceleași obiecte, nu copii separate.
 
+Un item activ poate fi marcat ca „waiting" — aștepți un răspuns de la
+altcineva. Nu este o a patra stare a ciclului: itemul rămâne `active` și ajunge
+la `done` la fel ca oricare altul. E un singur câmp în plus, `waiting_since`,
+o dată, la fel cum `due` este deja.
+
 ### Life Core
 
 Există `Entity` și `links`.
@@ -91,6 +96,7 @@ Rezumatul din Today poate arăta date reale pentru:
 - overdue;
 - lucruri apropiate;
 - inbox neprocesat;
+- waiting — itemii activi care așteaptă pe altcineva, cel mai vechi întâi;
 - tax-year `Made / Put aside / Left`.
 
 Nu se consideră implementate doar pentru că au apărut într-un mockup:
@@ -104,7 +110,6 @@ Acestea cer date și definiții reale înainte să apară ca metrici.
 ## Ce lipsește încă din Life CC complet
 
 - Home / Command Centre complet cu toate secțiunile țintă;
-- Waiting ca flux clar;
 - Event ca obiect de produs complet, separat de simpla dată a unui item;
 - Resource ca strat comun pentru bani/assets/informație;
 - Files/Documents;

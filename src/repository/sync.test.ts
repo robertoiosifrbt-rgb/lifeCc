@@ -22,6 +22,7 @@ function item(id: string, over: Partial<Item> = {}): Item {
     updated_at: '2026-09-01T10:00:00+00:00',
     deleted_at: null,
     area_id: null,
+    waiting_since: null,
     ...over,
   }
 }

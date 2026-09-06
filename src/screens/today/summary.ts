@@ -25,6 +25,15 @@ export type Coming = {
   inDays: number
 }
 
+export type Waiting = {
+  /** What it is, as the row already calls it. */
+  title: string
+  /** The day you started waiting, as 'YYYY-MM-DD'. */
+  since: string
+  /** How long that has been, today included as day zero. */
+  days: number
+}
+
 export type Summary = {
   /** Past their day, and still not done. */
   overdue: Item[]
@@ -32,6 +41,8 @@ export type Summary = {
   coming: Coming[]
   /** Caught and not yet given a shape. */
   inbox: Item[]
+  /** Active, but stuck on somebody else's answer. Longest wait first. */
+  waiting: Waiting[]
 }
 
 function daysBetween(from: string, to: string): number {
@@ -86,9 +97,21 @@ export function summarise(input: {
     }
   }
 
+  // Longest wait first: the one you asked about a week ago is the one to chase,
+  // not the one you asked about this morning.
+  const waiting: Waiting[] = alive
+    .filter((item) => item.state === 'active' && item.waiting_since !== null)
+    .map((item) => ({
+      title: item.title,
+      since: item.waiting_since as string,
+      days: daysBetween(item.waiting_since as string, today),
+    }))
+    .sort((one, other) => other.days - one.days)
+
   return {
     overdue,
     coming: coming.sort((one, other) => one.inDays - other.inDays),
     inbox: alive.filter((item) => item.state === 'inbox'),
+    waiting,
   }
 }

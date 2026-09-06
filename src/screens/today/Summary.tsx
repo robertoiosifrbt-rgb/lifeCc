@@ -21,6 +21,12 @@ function whenIn(inDays: number): string {
   return `in ${String(inDays)} days`
 }
 
+function daysLabel(days: number): string {
+  if (days === 0) return 'since today'
+  if (days === 1) return '1 day'
+  return `${String(days)} days`
+}
+
 function Line({
   mark,
   count,
@@ -61,6 +67,7 @@ export function Summary({ items, things, year, today }: Props) {
   // off the screen, and the whole point of this block is to sit above the list
   // rather than instead of it.
   const soonest = counts.coming.slice(0, 2)
+  const longestWaiting = counts.waiting.slice(0, 2)
 
   return (
     <section className="brief" aria-label="What is going on now">
@@ -81,6 +88,15 @@ export function Summary({ items, things, year, today }: Props) {
           count={counts.inbox.length}
           says="not sorted yet"
         />
+        <Line
+          mark="⏳"
+          count={counts.waiting.length}
+          says={
+            counts.waiting.length === 1
+              ? 'thing is waiting on someone else'
+              : 'things are waiting on someone else'
+          }
+        />
       </ul>
 
       {soonest.length > 0 && (
@@ -92,6 +108,17 @@ export function Summary({ items, things, year, today }: Props) {
             >
               <span className="brief-what">{one.title}</span>
               <span className="brief-when">{whenIn(one.inDays)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {longestWaiting.length > 0 && (
+        <ul className="brief-coming" aria-label="Waiting on someone else">
+          {longestWaiting.map((one) => (
+            <li key={`${one.title}-${one.since}`} className="brief-next">
+              <span className="brief-what">{one.title}</span>
+              <span className="brief-when">{daysLabel(one.days)}</span>
             </li>
           ))}
         </ul>

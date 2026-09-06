@@ -158,6 +158,28 @@ export function ItemSheet({
               Save the date
             </button>
           )}
+          {item.state === 'active' &&
+            (item.waiting_since === null ? (
+              <button
+                className="item-button"
+                type="button"
+                name="mark-waiting"
+                disabled={busy}
+                onClick={() => patch({ waiting_since: today })}
+              >
+                Waiting on someone
+              </button>
+            ) : (
+              <button
+                className="item-button"
+                type="button"
+                name="clear-waiting"
+                disabled={busy}
+                onClick={() => patch({ waiting_since: null })}
+              >
+                No longer waiting
+              </button>
+            ))}
           {item.state === 'active' ? (
             <button
               className="item-button item-primary"
@@ -184,6 +206,10 @@ export function ItemSheet({
 
       {item.done_at !== null && (
         <p className="item-hint">Ticked off on {item.done_at}. Today is {today}.</p>
+      )}
+
+      {item.waiting_since !== null && (
+        <p className="item-hint">Waiting on someone since {item.waiting_since}.</p>
       )}
 
       {/* The arrows, above the destructive button and below everything that
