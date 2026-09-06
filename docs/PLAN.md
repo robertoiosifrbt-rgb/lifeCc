@@ -186,6 +186,28 @@ Un singur obiect poate participa în mai multe relații fără a fi duplicat.
     alt cont al aceluiași owner.
 16. Modulele specializate trebuie să poată explica ce obiecte Life Core folosesc
     și unde reapar acele date.
+17. **Configuration over hardcoding.** Codul oferă motorul; datele și
+    configurația definesc sistemul schimbător al utilizatorului.
+18. Structura și regulile de business care se pot schimba fără a schimba natura
+    motorului nu se îngheață în cod: module/sections configurabile unde este
+    cazul, platforme, categorii, conturi, reserve types, payout schedules,
+    cash-out rules/fees, rates, thresholds, labels, display order, visibility,
+    defaults și mappings/rules de business.
+19. Regulile și valorile care se schimbă în timp au `effective_from` sau
+    versionare echivalentă. O regulă nouă nu rescrie retrospectiv adevărul
+    istoric decât printr-o acțiune explicită.
+20. Configurația nu înseamnă cod arbitrar executat din bază. Motorul acceptă
+    primitive sigure și cunoscute — de exemplu fixed amount, percentage,
+    per-distance, transfer, allocation și date rule — iar configurația alege și
+    parametrizează aceste primitive.
+21. În cod rămân invariabilele dure: autentificare, security/ownership/RLS,
+    repository/sync, integritatea datelor, primitivele financiare și de
+    linking, validările fundamentale și componentele UI reutilizabile.
+22. O schimbare normală a vieții sau a unei reguli externe nu trebuie să ceară
+    modificarea aplicației dacă poate fi reprezentată corect ca date.
+23. Configurabilitatea internă nu anulează invariabilele produsului: harta
+    mentală `Home / Plan / Areas / Money`, ownership-ul și semantica Life Core
+    rămân reguli de produs, nu setări arbitrare.
 
 ---
 
@@ -337,6 +359,19 @@ după ce definiția este stabilită și datele o susțin.
 
 Delivery este un domeniu al Life CC, nu o aplicație separată.
 
+Experiența internă poate include:
+
+- Dashboard;
+- Shifts;
+- Platforms;
+- Earnings;
+- Expenses;
+- Performance.
+
+HMRC / Tax nu locuiește în Delivery. Vehicle management nu locuiește în
+Delivery. Domeniul Delivery produce și leagă datele relevante; Money / Tax și
+Vehicle le consumă din aceleași obiecte.
+
 ### Work data
 
 - shifts;
@@ -352,7 +387,90 @@ Delivery este un domeniu al Life CC, nu o aplicație separată.
 ### Platforms
 
 Uber Eats, Deliveroo, Just Eat și alte platforme sunt Companies / income
-sources. Nu devin automat Areas separate.
+sources. Nu devin automat Areas separate și nu sunt coloane sau cazuri
+hardcodate în produs.
+
+Fiecare platformă este un record configurabil. O platformă nouă trebuie să
+poată fi adăugată fără modificarea codului aplicației.
+
+Configurația unei platforme poate include, când este relevant:
+
+- company/entity link;
+- earning cycle;
+- platform-held balance;
+- automatic payout schedule;
+- payout destination account;
+- cash-out enabled / disabled;
+- cash-out settlement timing;
+- cash-out fee type;
+- cash-out fee value;
+- alte reguli specifice platformei care pot fi exprimate prin primitivele
+  sigure ale motorului.
+
+Exemplu de configurație, nu valoare hardcodată:
+
+```text
+Platform: Uber Eats
+
+Earning cycle
+Monday 00:00 → Sunday 23:59
+
+Automatic payout
+Wednesday 23:59
+
+Cash out
+Enabled: Yes
+Settlement: Instant
+Fee type: Fixed
+Fee: £0.50 per transaction
+```
+
+### Earned, held și received
+
+Delivery păstrează separat faptul că banii au fost câștigați de faptul că au
+ajuns efectiv într-un cont controlat de utilizator.
+
+Stări/concepte necesare:
+
+- earned / accrued through work;
+- pending / held by platform;
+- scheduled for payout;
+- cash-out requested, când există;
+- settled / received;
+- adjusted / reversed, când platforma modifică suma înainte de settlement.
+
+Exemplu:
+
+```text
+Earned / worked for      £420
+Held by platforms        £135
+Actually received        £285
+```
+
+În Money, `received income` reprezintă banii ajunși efectiv într-un cont
+controlat. Soldul ținut de platformă nu este modelat ca un current/savings
+account obișnuit al utilizatorului doar pentru a face un transfer să pară
+simplu.
+
+Aceasta este o semantică de produs și de cash visibility, nu o definiție
+automată a momentului fiscal HMRC. Tax aplică separat regulile fiscale și de
+accounting relevante.
+
+Automatic payout și manual cash-out sunt evenimente distincte. Ajustările sau
+reversările înainte de settlement trebuie să poată fi reprezentate fără a
+inventa tranzacții bancare false.
+
+Exemplu conceptual de cash-out:
+
+```text
+Platform balance pending: £300
+Cash-out requested:       £100
+Bank receives:            £100
+Cash-out fee:             £0.50
+```
+
+Efectul exact asupra ledgerului și asupra platform-held balance este definit de
+regula platformei; PLAN nu îngheață prematur o schemă contabilă unică.
 
 ### Vehicle usage
 
@@ -390,6 +508,10 @@ Business use: relevant percentage
 ```
 
 Aceeași intrare contribuie la istoricul mașinii, Delivery profit, Money și tax.
+
+Cheltuiala rămâne vizibilă în Delivery pentru că este necesară pentru costul și
+profitabilitatea muncii, dar este **același obiect financiar** văzut și în
+Money, nu o copie separată.
 
 ---
 
@@ -500,7 +622,63 @@ Conturile sunt resurse cu owner clar.
 
 Owner-ul este explicit: persoană sau company.
 
-### 13.2 Transactions
+Soldurile ținute de platforme de delivery nu sunt introduse aici ca bank
+accounts controlate. Ele au semantică de `platform-held / pending` și devin bani
+într-un cont controlat numai la settlement.
+
+### 13.2 Reserves
+
+O rezervă nu este bani imaginari și nici simplul rezultat al unei formule.
+Sistemul separă explicit:
+
+- required / target reserve;
+- actually funded reserve;
+- contul real sau pot/allocation unde se află banii finanțați;
+- available / unreserved money.
+
+O rezervă poate fi legată de un current/savings account real sau de un pot /
+allocation virtual în interiorul acelui cont, în funcție de implementarea Money.
+
+Exemplu:
+
+```text
+Chase actual balance     £2,400
+
+Available                £1,350
+Tax reserved               £700
+Vehicle reserved           £250
+Other reserved             £100
+```
+
+Trebuie să poată exista și o obligație de rezervă încă nefinanțată pentru că
+banii sunt încă ținuți de platformă:
+
+```text
+Tax required              £25
+Tax funded                 £0
+Awaiting settlement       £25
+```
+
+`Required` nu este prezentat ca și cum ar fi deja cash pus deoparte.
+
+Regulile de funding/allocation ale rezervelor sunt configurabile și versionate,
+nu `if`-uri hardcodate pe categorii.
+
+Exemplu de regulă:
+
+```text
+Rule: Vehicle maintenance
+Applies to: Expense
+Categories: MOT, Service, Repair, Tyres
+Funding source: Vehicle Reserve
+Effective from: [date]
+Active: Yes
+```
+
+Rate precum vehicle reserve per business mile/km sunt tot configurație cu
+effective dating, nu constante în cod.
+
+### 13.3 Transactions
 
 Tipuri de bază:
 
@@ -513,9 +691,15 @@ Tipuri de bază:
 - debt payment;
 - adjustment numai dacă există motiv explicit.
 
-Transferul dintre două conturi ale aceluiași owner nu este income/expense.
+Transferul dintre două conturi controlate ale aceluiași owner nu este
+income/expense.
 
-### 13.3 Bills / commitments
+Settlement-ul unei platforme de delivery este tratat separat de acest caz:
+platform-held pending balance nu este modelat ca încă un bank account controlat.
+La settlement sistemul trebuie să păstreze relația dintre earnings pending și
+banii efectiv received, fără dublare.
+
+### 13.4 Bills / commitments
 
 - rent;
 - subscriptions;
@@ -525,7 +709,7 @@ Transferul dintre două conturi ale aceluiași owner nu este income/expense.
 - tax obligations;
 - alte plăți recurente sau viitoare.
 
-### 13.4 Budgets
+### 13.5 Budgets
 
 Bugetele pot exista pe contexte reale:
 
@@ -536,7 +720,7 @@ Bugetele pot exista pe contexte reale:
 
 Exemple: groceries, ACHU marketing, Delivery costs, 12-week cut.
 
-### 13.5 Metrici financiare
+### 13.6 Metrici financiare
 
 `Available`, `Committed`, `Safe to spend` sau alte metrici apar numai după ce
 există accounts, transactions, commitments și formule definite corect.
@@ -588,11 +772,21 @@ Planul definește relațiile, nu îngheață cifre fiscale în timp. Ratele,
 threshold-urile și formulele trebuie versionate pe tax year și susținute de
 surse/reguli reale. Nu se ghicesc și nu se copiază dintr-un exemplu vechi.
 
+Distincția Delivery/Money dintre `earned`, `held by platform` și `received`
+servește vizibilității financiare a utilizatorului. Ea nu decide singură când
+HMRC consideră un venit recunoscut fiscal. Tax aplică regulile relevante pentru
+tax year și metoda contabilă aplicabilă, fără ca Delivery să hardcodeze această
+decizie.
+
 ---
 
 ## 15. Vehicles
 
 Mașina există o singură dată ca Entity/Asset.
+
+Delivery poate lega shift-uri, mileage, fuel și expenses de această entitate,
+dar nu deține o copie proprie a mașinii. MOT, insurance, service, documents,
+reminders și istoricul asset-ului rămân datele comune ale Vehicle view.
 
 Pagina unui vehicle poate agrega:
 
@@ -1005,6 +1199,9 @@ este cerință de bază și trebuie implementat de la început.
 - transactions;
 - income / expenses;
 - transfers;
+- reserves: required vs funded și legătura cu bani reali;
+- platform settlement / received money fără a transforma platform-held balance
+  într-un bank account controlat;
 - bills / commitments;
 - budgets;
 - owner personal vs company.
@@ -1067,6 +1264,10 @@ Nu adăugăm fără nevoie reală:
 - categorii și sub-areas doar ca să pară sistemul complet;
 - AI ca dependență pentru funcții care pot fi robuste fără el.
 
+„Configuration over hardcoding” nu justifică un meta-framework construit fără
+cazuri reale. Se adaugă configurația necesară pentru reguli reale, nu o limbă de
+programare generică în baza de date.
+
 ---
 
 ## 29. Regula înainte de orice feature nou
@@ -1080,6 +1281,7 @@ Nu adăugăm fără nevoie reală:
 5. Ce alte vederi trebuie să-l reflecte?
 6. Are efect financiar, temporal sau de reminder?
 7. Există deja același adevăr în altă parte?
+8. Ce parte este invariantă de cod și ce parte este configurație schimbătoare?
 
 Dacă răspunsurile nu sunt clare, nu se construiește încă un modul izolat.
 
@@ -1113,6 +1315,19 @@ Istoria tehnică nu se copiază aici.
 - Journal este o capabilitate personală de bază și intră în Faza 1.
 - Daily Focus face parte din Home.
 - `PLAN.md` este document viu și sursa de adevăr pentru produsul țintă.
+- Configuration over hardcoding: codul oferă motorul și invariabilele; structura
+  și regulile schimbătoare ale utilizatorului trăiesc ca date/configurație unde
+  pot fi exprimate sigur.
+- Platformele de delivery sunt records configurabile, cu propriile earning
+  cycles, payout schedules, cash-out behaviour și fees; Uber/Deliveroo/Just Eat
+  nu sunt cazuri hardcodate.
+- Delivery separă `earned`, `held by platform` și `received`; platform-held
+  balance nu este un bank account controlat. Această semantică nu decide singură
+  momentul fiscal HMRC.
+- Reserves separă suma required de suma actually funded și leagă funding-ul de
+  bani reali aflați într-un cont/pot controlat.
+- Regulile și ratele schimbătoare sunt effective-dated/versionate și nu rescriu
+  automat trecutul.
 
 ### Decizii încă deschise
 
@@ -1123,6 +1338,8 @@ Agentul nu le decide singur fără un caz real sau instrucțiune explicită:
 - nivelul exact de automatizare la clasificarea Inbox-ului;
 - integrarea cu health/device APIs;
 - storage provider și UX final pentru documente;
+- schema/ledgerul exact pentru platform settlement, cash-out fees și reserve
+  allocations, atât timp cât semantica confirmată mai sus este păstrată;
 - orice formulă financiară sau fiscală care depinde de reguli externe
   schimbătoare și nu este încă implementată/versionată.
 
