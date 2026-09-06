@@ -45,15 +45,22 @@ După preflight, implicit se citesc doar:
 - `docs/STAREA.md`;
 - fișierele de cod direct relevante pentru task.
 
-Nu se citesc automat toate issue-urile, tot planul, jurnalul sau auditurile.
+Nu se citesc automat toate issue-urile, tot planul, trackerul de progres,
+jurnalul sau auditurile.
 
 Se citesc suplimentar numai când taskul o cere:
 
 - secțiunea relevantă din `docs/PLAN.md` pentru produs/arhitectură;
+- faza relevantă și totalul din `docs/PROGRESS.md` când taskul implementează,
+  modifică sau verifică un criteriu urmărit;
 - `docs/MIGRATII.md` pentru schimbări de bază;
 - un issue dacă proprietarul îl indică sau taskul vine explicit din el;
 - `docs/JURNAL.md` / audituri numai când trebuie aflat de ce s-a luat o decizie
   veche sau investigat un incident.
+
+Nu citi integral `docs/PROGRESS.md` din reflex. Pentru un task normal citește
+faza relevantă și totalul; întregul tracker este necesar numai la recalculări
+globale sau când proprietarul cere explicit asta.
 
 **`docs/JURNAL.md` nu se citește niciodată integral din reflex.** Caută mai
 întâi după subiectul, data sau termenul relevant (`search`/`grep`), apoi citește
@@ -160,6 +167,13 @@ nu deschide PR ca alternativă implicită. Hook-ul pre-push trebuie lăsat activ
 
 Înainte de push verifică branch-ul (`main`) și rulează poarta descrisă mai jos.
 
+**Economia de push-uri este obligatorie.** Când codul, `STAREA.md`,
+`PROGRESS.md` sau alte actualizări de bookkeeping aparțin aceluiași task
+verificat, ele se grupează în același commit/push ori de câte ori este practic.
+Nu face push separat doar pentru tracker/documentație dacă poate fi inclusă
+corect în push-ul taskului. Implicit urmărește un singur push autorizat pentru
+un task finalizat, nu o succesiune de push-uri mici.
+
 ### Deploy
 
 Push nu înseamnă automat permisiune pentru un deploy manual separat. Un deploy
@@ -223,6 +237,8 @@ Fiecare adevăr are un singur loc principal:
 
 - `docs/PLAN.md` — ce produs construim și legile arhitecturii;
 - `docs/STAREA.md` — ce există și ce lipsește **acum**;
+- `docs/PROGRESS.md` — trackerul executabil al criteriilor din PLAN și procentul
+  mecanic curent; nu redefinește produsul;
 - `docs/MIGRATII.md` — ce migrații sunt declarate ca aplicate pe live și orice
   drift cunoscut;
 - `docs/TESTE.md` — definițiile testelor manuale;
@@ -246,6 +262,23 @@ sau lucruri deja vizibile în `git log`.
 Actualizează `STAREA.md` când se schimbă o capabilitate reală, un blocaj sau un
 fapt de stare pe care următoarea sesiune trebuie să-l știe. Fără poveste și fără
 copii din git log.
+
+### Regula pentru PROGRESS
+
+`docs/PROGRESS.md` nu este opțional când un task schimbă acoperirea produsului.
+După o implementare verificată care schimbă un criteriu urmărit, actualizează
+statusul afectat și recalculează scorul fazei și totalul **înainte să declari
+taskul gata**.
+
+Dacă `PLAN.md` primește un criteriu nou, trackerul primește criteriul în faza
+potrivită înainte ca bookkeeping-ul acelui task să fie considerat închis.
+`PARTIAL` și `DONE` se bazează pe realitatea verificată, nu pe intenție sau pe
+existența unui singur ecran.
+
+Pentru economie de context, citește și modifică numai faza relevantă și zona de
+total atunci când este suficient. Actualizarea `PROGRESS.md` se grupează în
+același commit/push cu implementarea care a produs schimbarea, dacă nu există un
+motiv explicit să fie separată.
 
 ## 8. Legi tehnice care rămân valabile
 
