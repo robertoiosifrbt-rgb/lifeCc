@@ -105,6 +105,20 @@ Fă taskul cerut, nu „lucrul de lângă el”.
 - Dacă descoperi o problemă separată care nu blochează taskul, menționeaz-o
   scurt; nu schimba obiectivul ca s-o repari.
 
+### Când un task este mare
+
+Dacă proprietarul cere un plan, o arhitectură sau mai multe livrabile într-un
+singur task, **nu alege singur o singură felie și nu declara taskul terminat**.
+
+- O felie terminată este „felia terminată”, nu „taskul terminat”.
+- Înainte să spui `gata`, compară cererea inițială cu ce există efectiv în diff
+  și în `docs/STAREA.md`.
+- Dacă mai există părți cerute neimplementate, continuă sau spune explicit ce
+  rămâne; nu transforma progresul parțial în completion.
+- Dacă taskul este prea mare pentru o singură sesiune, păstrează obiectivul
+  părinte și spune clar unde te-ai oprit. Nu redefinești taskul ca fiind doar
+  prima subproblemă aleasă de tine.
+
 ### Branch-ul de lucru
 
 **Se lucrează și se comite numai pe `main`.** Nu pe `claude/...`, feature
@@ -156,6 +170,16 @@ manual se face numai dacă este cerut explicit.
 Nu modifica baza live din proprie inițiativă. Pentru schimbări de schemă scrie
 migrația în repo. Dacă aplicarea pe live este manuală, proprietarul decide când
 se rulează.
+
+**O schimbare care depinde de SQL live nu este „gata pe aplicație” doar pentru
+că migrația există în repo.** La finalul taskului:
+
+- spune explicit numele migrației;
+- spune dacă este sau nu confirmată ca aplicată pe live;
+- dacă nu este aplicată, dă proprietarului SQL-ul exact sau comanda exactă
+  necesară;
+- nu afirma că feature-ul este complet funcțional pe live până când pasul de
+  bază necesar nu este confirmat.
 
 Nu pretinde că un SQL este atomic doar fiindcă este o migrație: verifică
 fișierul. `BEGIN`/`COMMIT` există numai dacă sunt scrise efectiv.
