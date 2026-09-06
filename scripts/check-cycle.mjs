@@ -106,6 +106,12 @@ async function signIn(page) {
 /** The row carrying our title, wherever it is on screen. */
 const row = (page) => page.locator('.row', { hasText: TITLE })
 
+/** Calendar sits one step inside Plan now, not on the bar: the Plan tab, then the Calendar door. */
+async function openCalendar(page) {
+  await page.click('.shell-nav-button >> text=Plan')
+  await page.click('.plan-calendar')
+}
+
 /** The group heading a row sits under, for a nicer failure message. */
 async function assertVisible(page, what) {
   await row(page)
@@ -168,7 +174,7 @@ try {
   })
 
   await step('it shows up in the Calendar, on tomorrow, under Planned', async () => {
-    await page.click('.shell-nav-button >> text=Calendar')
+    await openCalendar(page)
 
     // The mark on the grid is what sends you to that day at all. Without it,
     // a day holding something is indistinguishable from an empty one.
@@ -247,7 +253,7 @@ try {
     const laptop = await browser.newContext({ viewport: { width: 390, height: 844 } })
     const other = await laptop.newPage()
     await signIn(other)
-    await other.click('.shell-nav-button >> text=Calendar')
+    await openCalendar(other)
     await assertVisible(other, 'on the second device')
     await laptop.close()
   })
@@ -255,7 +261,7 @@ try {
   await step('you refresh, and it is there', async () => {
     await page.reload({ waitUntil: 'networkidle' })
     await page.waitForSelector('.shell', { timeout: 20000 })
-    await page.click('.shell-nav-button >> text=Calendar')
+    await openCalendar(page)
     await assertVisible(page, 'after a refresh')
   })
 } catch (error) {
