@@ -60,9 +60,10 @@ construi încă modulele viitoare.
 - `TODO` — `Things` nu mai este termen principal de UI;
 - `TODO` — HMRC este expus semantic sub Money / Tax;
 - `PARTIAL` — Area / Project / Goal / Entity sunt definite clar în produs; UI-ul încă nu le exprimă complet;
-- `TODO` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere.
+- `TODO` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere;
+- `TODO` — Journal MVP: quick entry, text liber, dată+oră, editare, timeline/search și legături opționale conform PLAN.
 
-**Scor fază: 0.5 / 5 = 10%**
+**Scor fază: 0.5 / 6 = 8%**
 
 ### Criterii suplimentare
 
@@ -188,9 +189,9 @@ construi încă modulele viitoare.
 
 # Progres total curent
 
-Criterii urmărite: **44**
+Criterii urmărite: **45**
 
-Puncte curente: **8 / 44**
+Puncte curente: **8 / 45**
 
 **Progres mecanic: 18%**
 
