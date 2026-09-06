@@ -1,0 +1,19 @@
+#!/bin/sh
+
+node scripts/branch-guard.mjs push "$1" || exit 1
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  # Allow deleting old non-main branches when explicitly requested.
+  case "$local_sha" in
+    0000000000000000000000000000000000000000) continue ;;
+  esac
+
+  if [ "$remote_ref" != "refs/heads/main" ]; then
+    echo "BLOCKED: this repo only pushes refs/heads/main. Requested: $remote_ref" >&2
+    echo "Move the work to local main first; do not push a session branch." >&2
+    exit 1
+  fi
+done
+
+exit 0
