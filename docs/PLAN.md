@@ -239,6 +239,7 @@ Trebuie să răspundă la întrebarea: **„Ce cere atenție acum?”**
 - deadlines apropiate;
 - reminders;
 - Inbox neprocesat;
+- Quick Journal pentru scriere imediată;
 - Next Actions;
 - Waiting;
 - bani care ies curând;
@@ -978,13 +979,15 @@ Ordinea trebuie păstrată ca să nu mai apară module fără hartă mentală.
 
 ### FAZA 1 — Reorganizarea produsului
 
-Fără avalanșă de feature-uri noi.
+Fără avalanșă de feature-uri noi. **Excepția explicită este Journal MVP**, care
+este cerință de bază și trebuie implementat de la început.
 
 - stabilim experiența `Home / Plan / Areas / Money`;
 - eliminăm `Things` ca termen principal de UI;
 - HMRC intră semantic în Money / Tax;
 - clarificăm peste tot Area vs Project vs Goal vs Entity;
-- păstrăm datele existente și le reexpunem coerent.
+- păstrăm datele existente și le reexpunem coerent;
+- implementăm Journal MVP conform secțiunii 33.
 
 ### FAZA 2 — Areas reale
 
@@ -1107,6 +1110,7 @@ Istoria tehnică nu se copiază aici.
   serioasă, nu doar habits minimale.
 - Reminders sunt un serviciu comun, nu un modul separat.
 - Inbox este intrarea universală.
+- Journal este o capabilitate personală de bază și intră în Faza 1.
 - Daily Focus face parte din Home.
 - `PLAN.md` este document viu și sursa de adevăr pentru produsul țintă.
 
@@ -1150,6 +1154,40 @@ actualizează secțiunea relevantă a planului.
 **Projects** spun ce încerci să termini.  
 **Goals** spun unde vrei să ajungi.  
 **Reminders** readuc lucrurile în atenție.  
+**Journal** păstrează ce vrei să notezi și să regăsești în timp.  
 **Home** le adună pe toate și spune ce contează acum.
 
 Asta este coloana vertebrală a Life Control Centre.
+
+---
+
+## 33. Journal — jurnal personal
+
+Journal este o capabilitate de bază a Life CC și trebuie să existe **din Faza 1**,
+nu ca extensie târzie. Este jurnalul personal din aplicație și este complet
+separat de `docs/JURNAL.md`, care rămâne document tehnic al repo-ului.
+
+### MVP obligatoriu
+
+- creare foarte rapidă a unei intrări din Home / quick action;
+- text liber; titlul este opțional;
+- data și ora jurnalizată se completează automat la creare;
+- utilizatorul poate schimba data și ora pentru o intrare retrospectivă;
+- momentul jurnalizat rămâne distinct semantic de `created_at` și `updated_at`;
+- intrările pot fi editate ulterior;
+- timeline cronologic;
+- căutare în jurnal;
+- legături opționale cu Area, Project, Goal, Person, Company, Vehicle sau alte
+  Entity relevante;
+- o intrare poate exista și fără nicio legătură;
+- textul din Journal nu devine automat task, event sau goal doar fiindcă a fost
+  scris acolo;
+- datele Journal urmează aceeași cale `UI → repository → Supabase`, aceeași
+  regulă de ownership, sync și export ca restul Life CC.
+
+Journal nu trebuie să devină obligatoriu un al cincilea concept de navigație
+principală. Cerința este să fie **mereu ușor de accesat pentru scriere** și să
+existe o experiență clară pentru regăsirea intrărilor.
+
+Mood tracking, AI summaries, tags sofisticate, voice transcription sau alte
+extensii nu fac parte din MVP decât dacă sunt aprobate ulterior explicit.
