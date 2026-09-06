@@ -7,8 +7,13 @@
 // typed, not yet what is saved. The live summary reads the draft; Save draft
 // and Complete Workday are the only two places that turn it into a write, and
 // both write only the fields that actually changed.
+//
+// This file is the draft itself and the one preview built from it. What to
+// write (`draftPatches.ts`) and what is wrong with it (`draftValidate.ts`)
+// are their own files — the same split the structure checker already asks
+// every other 300-line file in this codebase to make.
 
-import type { Item, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
+import type { Item, Platform, Shift } from '../repository/items'
 import { PLATFORMS } from '../repository/items'
 import { penceOf, readingOf } from './money'
 
@@ -26,6 +31,14 @@ export type Draft = {
   other_cost: string
   earnings: Record<Platform, string>
   breaks: Record<string, string>
+  /**
+   * Sessions marked to go, not yet gone.
+   *
+   * Removing a session is a real delete, same as dropping a platform's
+   * earning — it belongs in the draft rather than firing on the click, so a
+   * mis-tapped × does not delete anything until Save draft actually runs.
+   */
+  removedSessions: string[]
 }
 
 export type ParsedField =
@@ -34,8 +47,6 @@ export type ParsedField =
 
 /** A break is always a whole number when it parses — never unknown. */
 export type ParsedBreak = { ok: true; value: number } | { ok: false; error: string }
-
-export type ValidationError = { field: string; message: string }
 
 function moneyText(value: number | null): string {
   return value === null ? '' : value.toFixed(2)
@@ -70,6 +81,7 @@ export function draftFrom(item: Item, shift: Shift): Draft {
     other_cost: moneyText(shift.other_cost),
     earnings,
     breaks,
+    removedSessions: [],
   }
 }
 
@@ -105,25 +117,36 @@ function orNull(field: ParsedField): number | null {
   return field.ok ? field.value : null
 }
 
+/** The cost basis a preview should use — never a second take-home formula,
+ *  only ever a different pair of numbers fed into the one that exists. */
+export type CostBasis = { fuel_per_km: number | null; vehicle_per_km: number | null }
+
 /**
  * What the live summary reads: the saved shift, with every field the draft
  * changed swapped in. An invalid keystroke is not shown as a value — it falls
  * back to unknown rather than freezing on the last good number, the same rule
  * as everywhere else in the app: unknown is never zero and never a guess.
  *
- * The same `takeHome`, `kilometres` and `minutesWorked` the persisted shift
- * uses read this. There is no second formula for "while you are typing".
+ * `costBasis` is the caller's job to pick: the Area's current automatic rate
+ * while still a Draft (so changing the Area, or the fuel data behind it,
+ * shows up immediately — never a stale rate pinned under a different Area),
+ * or the shift's own pinned, frozen rate once Completed. Either way this
+ * function only ever swaps numbers into the same `Shift` shape; the same
+ * `takeHome`, `kilometres` and `minutesWorked` the persisted shift uses read
+ * the result. There is no second formula for "while you are typing".
  */
-export function previewShiftOf(shift: Shift, draft: Draft): Shift {
+export function previewShiftOf(shift: Shift, draft: Draft, costBasis: CostBasis): Shift {
   const earnings = PLATFORMS.flatMap((platform) => {
     const parsed = parseMoney(draft.earnings[platform])
     if (!parsed.ok || parsed.value === null) return []
     return [{ platform, amount: parsed.value }]
   })
-  const sessions = shift.sessions.map((session) => {
-    const parsed = parseBreak(draft.breaks[session.id] ?? '')
-    return { ...session, break_minutes: parsed.ok ? parsed.value : session.break_minutes }
-  })
+  const sessions = shift.sessions
+    .filter((session) => !draft.removedSessions.includes(session.id))
+    .map((session) => {
+      const parsed = parseBreak(draft.breaks[session.id] ?? '')
+      return { ...session, break_minutes: parsed.ok ? parsed.value : session.break_minutes }
+    })
   return {
     ...shift,
     odo_start: orNull(parseReading(draft.odo_start)),
@@ -134,145 +157,9 @@ export function previewShiftOf(shift: Shift, draft: Draft): Shift {
     parking: orNull(parseMoney(draft.parking)),
     tolls: orNull(parseMoney(draft.tolls)),
     other_cost: orNull(parseMoney(draft.other_cost)),
+    rate_fuel_per_km: costBasis.fuel_per_km,
+    rate_vehicle_per_km: costBasis.vehicle_per_km,
     earnings,
     sessions,
   }
-}
-
-/**
- * Everything wrong with the draft as it stands, checked before either Save
- * draft or Complete Workday is let through.
- *
- * Unknown values are never flagged — a blank field is a thing not yet said,
- * not an error. Only what was actually typed, and typed wrongly, stops a
- * save: a reading that runs backwards, personal kilometres beyond the day,
- * or a break longer than the session that holds it.
- */
-export function validateDraft(shift: Shift, draft: Draft): ValidationError[] {
-  const errors: ValidationError[] = []
-
-  if (draft.title.trim() === '') {
-    errors.push({ field: 'title', message: 'A workday needs a title.' })
-  }
-
-  const fields: [string, { ok: boolean; error?: string }][] = [
-    ['odo_start', parseReading(draft.odo_start)],
-    ['odo_end', parseReading(draft.odo_end)],
-    ['personal_km', parseReading(draft.personal_km)],
-    ['tips', parseMoney(draft.tips)],
-    ['bonuses', parseMoney(draft.bonuses)],
-    ['parking', parseMoney(draft.parking)],
-    ['tolls', parseMoney(draft.tolls)],
-    ['other_cost', parseMoney(draft.other_cost)],
-  ]
-  for (const platform of PLATFORMS) {
-    fields.push([`earning:${platform}`, parseMoney(draft.earnings[platform])])
-  }
-  for (const session of shift.sessions) {
-    fields.push([`break:${session.id}`, parseBreak(draft.breaks[session.id] ?? '')])
-  }
-  for (const [field, parsed] of fields) {
-    if (!parsed.ok && parsed.error !== undefined) errors.push({ field, message: parsed.error })
-  }
-
-  const start = parseReading(draft.odo_start)
-  const end = parseReading(draft.odo_end)
-  const personal = parseReading(draft.personal_km)
-  if (start.ok && end.ok && start.value !== null && end.value !== null && end.value < start.value) {
-    errors.push({ field: 'odo_end', message: 'The end reading cannot be below the start.' })
-  }
-  if (
-    start.ok && end.ok && personal.ok &&
-    start.value !== null && end.value !== null && personal.value !== null &&
-    personal.value > end.value - start.value
-  ) {
-    errors.push({
-      field: 'personal_km',
-      message: 'Personal kilometres cannot be more than the distance driven.',
-    })
-  }
-
-  for (const session of shift.sessions) {
-    if (session.ended_at === null) continue
-    const parsed = parseBreak(draft.breaks[session.id] ?? '')
-    if (!parsed.ok) continue
-    const spanMinutes = (Date.parse(session.ended_at) - Date.parse(session.started_at)) / 60000
-    if (parsed.value > spanMinutes) {
-      errors.push({
-        field: `break:${session.id}`,
-        message: 'A break cannot be longer than the session it sits in.',
-      })
-    }
-  }
-
-  return errors
-}
-
-/** The item's own fields — title, date, Area — changed and worth writing. */
-export function itemPatchOf(item: Item, draft: Draft): Patch {
-  const patch: Patch = {}
-  const title = draft.title.trim()
-  if (title !== '' && title !== item.title) patch.title = title
-  const due = draft.due === '' ? null : draft.due
-  if (due !== item.due) patch.due = due
-  const area_id = draft.area_id === '' ? null : draft.area_id
-  if (area_id !== item.area_id) patch.area_id = area_id
-  return patch
-}
-
-/** The shift's own numbers, changed and worth writing — never a bad parse. */
-export function shiftPatchOf(shift: Shift, draft: Draft): ShiftPatch {
-  const patch: ShiftPatch = {}
-  const maybe = (key: keyof ShiftPatch, parsed: ParsedField, current: number | null) => {
-    if (parsed.ok && parsed.value !== current) patch[key] = parsed.value
-  }
-  maybe('odo_start', parseReading(draft.odo_start), shift.odo_start)
-  maybe('odo_end', parseReading(draft.odo_end), shift.odo_end)
-  maybe('personal_km', parseReading(draft.personal_km), shift.personal_km)
-  maybe('tips', parseMoney(draft.tips), shift.tips)
-  maybe('bonuses', parseMoney(draft.bonuses), shift.bonuses)
-  maybe('parking', parseMoney(draft.parking), shift.parking)
-  maybe('tolls', parseMoney(draft.tolls), shift.tolls)
-  maybe('other_cost', parseMoney(draft.other_cost), shift.other_cost)
-  return patch
-}
-
-/** The platforms whose typed amount changed, each ready for its own write. */
-export function earningsPatchOf(
-  shift: Shift,
-  draft: Draft,
-): { platform: Platform; amount: number }[] {
-  const changed: { platform: Platform; amount: number }[] = []
-  for (const platform of PLATFORMS) {
-    const parsed = parseMoney(draft.earnings[platform])
-    if (!parsed.ok || parsed.value === null) continue
-    const already = shift.earnings.find((earning) => earning.platform === platform)?.amount
-    if (parsed.value !== already) changed.push({ platform, amount: parsed.value })
-  }
-  return changed
-}
-
-/** The sessions whose typed break changed, each ready for its own write. */
-export function breaksPatchOf(
-  shift: Shift,
-  draft: Draft,
-): { sessionId: string; minutes: number }[] {
-  const changed: { sessionId: string; minutes: number }[] = []
-  for (const session of shift.sessions) {
-    const parsed = parseBreak(draft.breaks[session.id] ?? '')
-    if (parsed.ok && parsed.value !== session.break_minutes) {
-      changed.push({ sessionId: session.id, minutes: parsed.value })
-    }
-  }
-  return changed
-}
-
-/** Whether anything typed differs from what is saved. */
-export function isDirty(item: Item, shift: Shift, draft: Draft): boolean {
-  return (
-    Object.keys(itemPatchOf(item, draft)).length > 0 ||
-    Object.keys(shiftPatchOf(shift, draft)).length > 0 ||
-    earningsPatchOf(shift, draft).length > 0 ||
-    breaksPatchOf(shift, draft).length > 0
-  )
 }

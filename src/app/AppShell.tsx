@@ -7,7 +7,6 @@ import type { ScreenContext } from '../items/context'
 import { useItems } from '../items/useItems'
 import { ExpenseSheet } from '../spend/ExpenseSheet'
 import { ShiftSheet } from '../shifts/ShiftSheet'
-import { sliceOfYear } from '../repository/items'
 import type { Session } from '../repository/auth'
 import { useToday } from './today'
 import { MoreSheet } from './MoreSheet'
@@ -120,24 +119,21 @@ export function AppShell({ session }: Props) {
           shift={data.shifts.find((s) => s.item_id === openItem.id) ?? null}
           areas={data.areas}
           items={data.items}
+          shifts={data.shifts}
           expenses={data.expenses}
           costs={data.costs}
+          taxYears={data.taxYears}
+          today={today}
           onClockOn={() => data.clockOn(openItem.id)}
           onClockOff={(sessionId) => data.clockOff(sessionId)}
           onDropSession={(sessionId) => data.dropSession(sessionId)}
           onSaveShiftParts={(patch) => data.saveShiftParts(openItem.id, patch)}
           onSetPaid={(platform, amount) => data.setPaid(openItem.id, platform, amount)}
+          onRemoveEarning={(platform) => data.removeEarning(openItem.id, platform)}
           onSetBreak={(sessionId, minutes) => data.setBreak(sessionId, minutes)}
           onUpdateItem={(patch) => data.update(openItem, patch)}
           onDelete={() => data.discard(openItem)}
           onSaveVehicleCost={(area_id, fuel, vehicle) => data.saveCosts(area_id, fuel, vehicle)}
-          slice={sliceOfYear({
-            items: data.items,
-            shifts: data.shifts,
-            expenses: data.expenses,
-            taxYears: data.taxYears,
-            from: openItem.due ?? today,
-          })}
           onClose={closeItem}
         />
       )}

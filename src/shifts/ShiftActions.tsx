@@ -1,5 +1,5 @@
 import { STOP_SESSION_FIRST } from '../repository/items'
-import type { ValidationError } from './draft'
+import type { ValidationError } from './draftValidate'
 
 type Props = {
   completed: boolean

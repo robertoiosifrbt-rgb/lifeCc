@@ -1,14 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import {
-  costsFor,
-  fuelRateForArea,
-  isOut,
-  kilometres,
-  minutesWorked,
-  reserveFor,
-  takeHome,
-} from '../repository/items'
+import { isOut } from '../repository/items'
 import type {
   Area,
   Expense,
@@ -18,21 +10,16 @@ import type {
   RunningCosts,
   Shift,
   ShiftPatch,
-  Slice,
+  TaxYearRow,
 } from '../repository/items'
 import { Sheet } from '../ui/Sheet'
 import { DrivingCostBasis } from './DrivingCostBasis'
-import {
-  breaksPatchOf,
-  draftFrom,
-  earningsPatchOf,
-  isDirty,
-  itemPatchOf,
-  previewShiftOf,
-  shiftPatchOf,
-  validateDraft,
-} from './draft'
+import { draftFrom } from './draft'
 import type { Draft } from './draft'
+import { isDirty } from './draftPatches'
+import { validateDraft } from './draftValidate'
+import { areaIdOf, costBasisOf, liveSummaryOf, sliceFor } from './liveSummary'
+import { saveWorkday } from './saveWorkday'
 import { ShiftActions } from './ShiftActions'
 import { ShiftEarnings } from './ShiftEarnings'
 import { ShiftHeader } from './ShiftHeader'
@@ -48,13 +35,19 @@ type Props = {
   shift: Shift | null
   areas: Area[]
   items: Item[]
+  shifts: Shift[]
   expenses: Expense[]
   costs: RunningCosts[]
+  taxYears: TaxYearRow[]
+  /** For the tax slice when the draft carries no date at all. */
+  today: string
   onClockOn: () => Promise<void>
   onClockOff: (sessionId: string) => Promise<void>
   onDropSession: (sessionId: string) => Promise<void>
   onSaveShiftParts: (patch: ShiftPatch) => Promise<void>
   onSetPaid: (platform: Platform, amount: number) => Promise<void>
+  /** Taking a platform's earning back — never a fake zero over it. */
+  onRemoveEarning: (platform: Platform) => Promise<void>
   onSetBreak: (sessionId: string, minutes: number) => Promise<void>
   onUpdateItem: (patch: Patch) => Promise<void>
   onDelete: () => Promise<void>
@@ -63,8 +56,6 @@ type Props = {
     fuel_per_km: number,
     vehicle_per_km: number,
   ) => Promise<void>
-  /** Where this shift's day sits in its tax year, for working out the reserve. */
-  slice: Slice
   onClose: () => void
 }
 
@@ -110,36 +101,18 @@ export function ShiftSheet(props: Props) {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  /** Writes every field that changed, then settles the draft on the result. */
-  async function saveAll(): Promise<{ item: Item; shift: Shift }> {
-    const itemPatch = itemPatchOf(item, draft)
-    const shiftPatch = shiftPatchOf(shift, draft)
-    const earningsPatch = earningsPatchOf(shift, draft)
-    const breaksPatch = breaksPatchOf(shift, draft)
-
-    if (Object.keys(shiftPatch).length > 0) await props.onSaveShiftParts(shiftPatch)
-    for (const { platform, amount } of earningsPatch) await props.onSetPaid(platform, amount)
-    for (const { sessionId, minutes } of breaksPatch) await props.onSetBreak(sessionId, minutes)
-    if (Object.keys(itemPatch).length > 0) await props.onUpdateItem(itemPatch)
-
-    const nextItem: Item = { ...item, ...itemPatch }
-    const nextShift: Shift = {
-      ...shift,
-      ...shiftPatch,
-      earnings: shift.earnings
-        .filter((earning) => !earningsPatch.some((changed) => changed.platform === earning.platform))
-        .concat(earningsPatch),
-      sessions: shift.sessions.map((session) => {
-        const changed = breaksPatch.find((entry) => entry.sessionId === session.id)
-        return changed === undefined ? session : { ...session, break_minutes: changed.minutes }
-      }),
-    }
-    return { item: nextItem, shift: nextShift }
+  const writers = {
+    onUpdateItem: props.onUpdateItem,
+    onSaveShiftParts: props.onSaveShiftParts,
+    onSetPaid: props.onSetPaid,
+    onRemoveEarning: props.onRemoveEarning,
+    onSetBreak: props.onSetBreak,
+    onDropSession: props.onDropSession,
   }
 
   function onSaveDraft() {
     void guarded(async () => {
-      const settled = await saveAll()
+      const settled = await saveWorkday(item, shift, draft, writers)
       setDraft(draftFrom(settled.item, settled.shift))
     })
   }
@@ -147,14 +120,17 @@ export function ShiftSheet(props: Props) {
   function onComplete() {
     if (blockedByOpenSession) return
     void guarded(async () => {
-      await saveAll()
+      await saveWorkday(item, shift, draft, writers, { forceShiftTouch: true })
       await props.onUpdateItem({ state: 'done' })
     })
   }
 
   function onDelete() {
     if (blockedByOpenSession) return
-    void guarded(() => props.onDelete())
+    void guarded(async () => {
+      await props.onDelete()
+      onClose()
+    })
   }
 
   function requestClose() {
@@ -165,19 +141,21 @@ export function ShiftSheet(props: Props) {
     onClose()
   }
 
-  const preview = previewShiftOf(shift, draft)
-  const worked = minutesWorked(preview)
-  const km = kilometres(preview)
-  const sum = takeHome(preview, (profitPence) =>
-    props.slice.figures === null || props.slice.income === null
-      ? null
-      : reserveFor(props.slice.figures, props.slice.income, props.slice.beforePence, profitPence),
+  // The two expensive parts — each a scan over the whole account — only
+  // redone when what they actually depend on changes: the Area (and the
+  // fuel/vehicle data behind it), and the date. Typing a tip or an odometer
+  // reading recomputes neither.
+  const areaId = areaIdOf(item, draft, completed)
+  const { fuelRate, runningCosts, costBasis } = useMemo(
+    () => costBasisOf({ shift, completed, areaId, items: props.items, expenses: props.expenses, costs: props.costs }),
+    [shift, completed, areaId, props.items, props.expenses, props.costs],
   )
-
-  const areaId = completed ? item.area_id : draft.area_id === '' ? null : draft.area_id
-  const fuelRate = fuelRateForArea(props.items, props.expenses, areaId)
+  const slice = useMemo(
+    () => sliceFor({ item, due: draft.due, items: props.items, shifts: props.shifts, expenses: props.expenses, taxYears: props.taxYears, today: props.today }),
+    [item, draft.due, props.items, props.shifts, props.expenses, props.taxYears, props.today],
+  )
+  const { sum, worked, km } = liveSummaryOf(shift, draft, costBasis, slice)
   const fuelPerKm = fuelRate.perKm
-  const runningCosts = costsFor(props.costs, areaId)
 
   return (
     <Sheet title={`Workday · ${item.due ?? 'undated'}`} onClose={requestClose}>
@@ -220,12 +198,19 @@ export function ShiftSheet(props: Props) {
         busy={busy}
         readOnly={completed}
         breaks={draft.breaks}
+        removedSessions={draft.removedSessions}
         onChangeBreak={(sessionId, typed) =>
           setDraft((current) => ({ ...current, breaks: { ...current.breaks, [sessionId]: typed } }))
         }
+        onRemoveSession={(sessionId) =>
+          setDraft((current) =>
+            current.removedSessions.includes(sessionId)
+              ? current
+              : { ...current, removedSessions: [...current.removedSessions, sessionId] },
+          )
+        }
         onClockOn={props.onClockOn}
         onClockOff={props.onClockOff}
-        onDropSession={props.onDropSession}
         onRun={run}
       />
 
@@ -262,6 +247,7 @@ export function ShiftSheet(props: Props) {
 
       {areaId !== null && (
         <DrivingCostBasis
+          key={areaId}
           fuelRate={fuelRate}
           costs={runningCosts}
           busy={busy}

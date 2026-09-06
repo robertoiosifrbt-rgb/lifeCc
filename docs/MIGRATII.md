@@ -60,6 +60,14 @@ nu este drift de schemă și nu schimbă ce face migrația.
 `20260906060000_shift_invariants` **nu** este aplicată live și nu apare în
 tabelul de mai sus. Vezi `docs/STAREA.md` pentru motivul blocajului.
 
+`20260906070000_pin_while_draft` **nu** este aplicată live și nu apare în
+tabelul de mai sus. Rescrie `pin_shift_rates()` (funcție deja existentă din
+`20260905100000_reserves`/`20260905160000_one_answer`) ca să repinuiască rata
+de cost a unui Workday încă Draft la fiecare scriere, urmărind Aria curentă,
+în loc s-o lase înghețată din prima scriere — comportamentul pentru un Workday
+Completed rămâne exact cel de dinainte. Vezi `docs/STAREA.md`, secțiunea
+Delivery/Work, pentru motivul complet.
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat

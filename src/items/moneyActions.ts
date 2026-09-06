@@ -15,6 +15,7 @@ import {
   endSession as endShiftSession,
   NotCached,
   recordExpense,
+  removeEarning as removeShiftEarning,
   removeExpense,
   removeSession as removeShiftSession,
   runStartDeliveryWork,
@@ -68,6 +69,8 @@ export type MoneyActions = {
   dropSession: (sessionId: string) => Promise<void>
   setBreak: (sessionId: string, minutes: number) => Promise<void>
   setPaid: (item_id: string, platform: Platform, amount: number) => Promise<void>
+  /** Taking a platform's earning back — not writing a fake zero over it. */
+  removeEarning: (item_id: string, platform: Platform) => Promise<void>
 }
 
 export function moneyActions(owner: string, write: Write): MoneyActions {
@@ -129,5 +132,7 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
   setBreak: (sessionId, minutes) => write(() => setSessionBreak(owner, sessionId, minutes)),
   setPaid: (item_id, platform, amount) =>
     write(() => setEarning(owner, item_id, platform, amount)),
+  removeEarning: (item_id, platform) =>
+    write(() => removeShiftEarning(owner, item_id, platform)),
   }
 }

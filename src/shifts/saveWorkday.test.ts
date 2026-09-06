@@ -1,0 +1,162 @@
+import { describe, expect, it, vi } from 'vitest'
+
+import type { Item } from '../repository/item'
+import type { Shift } from '../repository/shift'
+import { draftFrom } from './draft'
+import type { WorkdayWriters } from './saveWorkday'
+import { saveWorkday } from './saveWorkday'
+
+function item(over: Partial<Item> = {}): Item {
+  return {
+    id: 'i1',
+    owner: 'me',
+    kind: 'shift',
+    state: 'active',
+    title: 'Shift',
+    due: '2026-09-05',
+    done_at: null,
+    area_id: 'area-1',
+    waiting_since: null,
+    version: 1,
+    created_at: '2026-09-05T00:00:00Z',
+    updated_at: '2026-09-05T00:00:00Z',
+    deleted_at: null,
+    ...over,
+  }
+}
+
+function shift(over: Partial<Shift> = {}): Shift {
+  return {
+    item_id: 'i1',
+    owner: 'me',
+    odo_start: null,
+    odo_end: null,
+    tips: null,
+    personal_km: null,
+    bonuses: null,
+    parking: null,
+    tolls: null,
+    other_cost: null,
+    rate_fuel_per_km: null,
+    rate_vehicle_per_km: null,
+    sessions: [],
+    earnings: [],
+    ...over,
+  }
+}
+
+function writers(order: string[]): WorkdayWriters {
+  return {
+    onUpdateItem: vi.fn(() => {
+      order.push('item')
+      return Promise.resolve()
+    }),
+    onSaveShiftParts: vi.fn(() => {
+      order.push('shift')
+      return Promise.resolve()
+    }),
+    onSetPaid: vi.fn(() => {
+      order.push('earning')
+      return Promise.resolve()
+    }),
+    onRemoveEarning: vi.fn(() => {
+      order.push('remove-earning')
+      return Promise.resolve()
+    }),
+    onSetBreak: vi.fn(() => {
+      order.push('break')
+      return Promise.resolve()
+    }),
+    onDropSession: vi.fn(() => {
+      order.push('drop-session')
+      return Promise.resolve()
+    }),
+  }
+}
+
+describe('saveWorkday — write order', () => {
+  it('writes the item before the shift, so a changed Area lands before the pin trigger reads it', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const draft = { ...draftFrom(anchor, day), area_id: 'area-2', tips: '5' }
+    await saveWorkday(anchor, day, draft, writers(order))
+    expect(order.indexOf('item')).toBeLessThan(order.indexOf('shift'))
+  })
+
+  it('writes nothing when the draft has not changed', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const w = writers(order)
+    await saveWorkday(anchor, day, draftFrom(anchor, day), w)
+    expect(order).toEqual([])
+    expect(w.onSaveShiftParts).not.toHaveBeenCalled()
+  })
+
+  it('does not touch the shift row when only the item changed, unless forced', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const draft = { ...draftFrom(anchor, day), title: 'Renamed' }
+    const w = writers(order)
+    await saveWorkday(anchor, day, draft, w)
+    expect(order).toEqual(['item'])
+    expect(w.onSaveShiftParts).not.toHaveBeenCalled()
+  })
+
+  it('forces an empty upsert on the shift row when asked, even with nothing operational typed', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const w = writers(order)
+    await saveWorkday(anchor, day, draftFrom(anchor, day), w, { forceShiftTouch: true })
+    expect(w.onSaveShiftParts).toHaveBeenCalledExactlyOnceWith({})
+  })
+
+  it('does not force a second write when the shift already changed this round', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const draft = { ...draftFrom(anchor, day), tips: '5' }
+    const w = writers(order)
+    await saveWorkday(anchor, day, draft, w, { forceShiftTouch: true })
+    expect(w.onSaveShiftParts).toHaveBeenCalledTimes(1)
+    expect(w.onSaveShiftParts).toHaveBeenCalledWith({ tips: 5 })
+  })
+
+  it('removes a cleared earning rather than writing a fake zero over it', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift({ earnings: [{ platform: 'uber_eats', amount: 10 }] })
+    const base = draftFrom(anchor, day)
+    const draft = { ...base, earnings: { ...base.earnings, uber_eats: '' } }
+    const w = writers(order)
+    await saveWorkday(anchor, day, draft, w)
+    expect(w.onRemoveEarning).toHaveBeenCalledExactlyOnceWith('uber_eats')
+    expect(w.onSetPaid).not.toHaveBeenCalled()
+  })
+
+  it('drops a session marked for removal, and never writes a break for it', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
+    const day = shift({ sessions: [session] })
+    const draft = { ...draftFrom(anchor, day), removedSessions: ['s1'] }
+    const w = writers(order)
+    const settled = await saveWorkday(anchor, day, draft, w)
+    expect(w.onDropSession).toHaveBeenCalledExactlyOnceWith('s1')
+    expect(w.onSetBreak).not.toHaveBeenCalled()
+    expect(settled.shift.sessions).toEqual([])
+  })
+
+  it('settles a result whose fields already reflect what was just written', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const draft = { ...draftFrom(anchor, day), tips: '5', title: 'Renamed' }
+    const settled = await saveWorkday(anchor, day, draft, writers(order))
+    expect(settled.item.title).toBe('Renamed')
+    expect(settled.shift.tips).toBe(5)
+  })
+})

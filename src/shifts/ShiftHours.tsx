@@ -7,10 +7,13 @@ type Props = {
   busy: boolean
   readOnly: boolean
   breaks: Record<string, string>
+  /** Sessions marked to go this round — hidden here, gone once Save draft runs. */
+  removedSessions: string[]
   onChangeBreak: (sessionId: string, typed: string) => void
+  /** Marks a session for removal in the draft — not a write on its own. */
+  onRemoveSession: (sessionId: string) => void
   onClockOn: () => Promise<void>
   onClockOff: (sessionId: string) => Promise<void>
-  onDropSession: (sessionId: string) => Promise<void>
   onRun: (body: () => Promise<void>) => void
 }
 
@@ -20,20 +23,29 @@ type Props = {
  *
  * Start and Stop write immediately — they are real events, not a form field —
  * so they are the one part of this sheet that is never held back for Save
- * draft. The break is not: it is typed like everything else and only saved
- * when the draft is.
+ * draft. Everything else here, break included, is typed like the rest of the
+ * form and only takes effect when the draft is saved — removing a session
+ * included: the × marks it gone in the draft, Save draft is what deletes it.
+ *
+ * Start/Stop still read the shift's real, unfiltered sessions — a session
+ * marked for removal but not yet saved must not be able to make Complete
+ * Workday or Delete Workday think the day is not out any more; only an
+ * actual Stop, or an actual Save draft that has run the removal, does that.
  */
 export function ShiftHours(props: Props) {
   const { shift, busy, readOnly } = props
   const run = props.onRun
   const out = isOut(shift)
   const open = shift.sessions.find((session) => session.ended_at === null)
+  const visible = shift.sessions.filter(
+    (session) => !props.removedSessions.includes(session.id),
+  )
 
   return (
     <section className="shift-block">
       <h3 className="shift-heading">Hours</h3>
       <ul className="shift-sessions">
-        {shift.sessions.map((session) => (
+        {visible.map((session) => (
           <li key={session.id} className="shift-session">
             <span className="shift-when">
               {clock(session.started_at)} —{' '}
@@ -59,7 +71,7 @@ export function ShiftHours(props: Props) {
                 className="shift-drop"
                 disabled={busy}
                 aria-label={`Remove the session that started at ${clock(session.started_at)}`}
-                onClick={() => run(() => props.onDropSession(session.id))}
+                onClick={() => props.onRemoveSession(session.id)}
               >
                 ×
               </button>

@@ -71,7 +71,15 @@ export {
   PLATFORMS,
   STOP_SESSION_FIRST,
 } from './shift'
-export { endSession, removeSession, saveShift, setEarning, shiftsOf, startSession } from './shifts'
+export {
+  endSession,
+  removeEarning,
+  removeSession,
+  saveShift,
+  setEarning,
+  shiftsOf,
+  startSession,
+} from './shifts'
 export { runSessionRecovery, startSessionSafely } from './shifts'
 export type { SessionRecoveryEffects } from './shifts'
 export { runStartDeliveryWork } from './delivery'

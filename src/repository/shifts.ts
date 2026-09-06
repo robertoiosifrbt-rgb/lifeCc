@@ -235,3 +235,21 @@ export async function setEarning(
   await supabaseShiftWriter(owner).setEarning({ item_id, platform, amount })
   return syncShifts(owner)
 }
+
+/**
+ * A platform's earning, taken back — not set to zero.
+ *
+ * A platform that paid nothing and a platform nobody has said anything about
+ * are different claims; the row itself is the only honest way to tell them
+ * apart, so clearing a typed amount removes the row outright rather than
+ * writing a zero that would read as "checked, and it was nothing".
+ */
+export async function removeEarning(
+  owner: string,
+  item_id: string,
+  platform: Platform,
+): Promise<Shift[]> {
+  await requireAccount(owner)
+  await supabaseShiftWriter(owner).removeEarning(item_id, platform)
+  return syncShifts(owner)
+}

@@ -182,6 +182,14 @@ export function supabaseShiftWriter(owner: string) {
       if (response.error !== null) fail('Writing what a platform paid', response.error)
       return response.data as unknown
     },
+    async removeEarning(item_id: string, platform: string) {
+      const response = await on('shift_earnings')
+        .delete()
+        .eq('item_id', item_id)
+        .eq('platform', platform)
+        .eq('owner', owner)
+      if (response.error !== null) fail('Removing what a platform paid', response.error)
+    },
   }
 }
 

@@ -305,13 +305,28 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
   Nimic nu se scrie pe server până la „Save draft” sau „Complete workday”.
   Dacă sheet-ul e închis cu modificări nesalvate, apare o confirmare explicită
   înainte să fie pierdute.
+- Cât timp e Draft, costul folosit de preview este rata curentă a Ariei
+  arătate în formular (automat pentru fuel, configurat pentru vehicle),
+  niciodată rata veche pinuită pe rândul `shifts` — schimbarea Ariei în draft
+  nu poate arăta o rată calculată pentru ea în timp ce totalul încă socotește
+  cu rata Ariei vechi. Odată Completed, exact rata pinuită a turei rămâne
+  folosită, înghețată, indiferent ce se schimbă ulterior în configurarea
+  Ariei.
+- Slice-ul de tax/NI folosit de preview urmărește data din draft, nu data
+  încă persistată — mutarea datei recalculează imediat Tax/NI/Roughly yours.
+  Profitul propriu al turei editate este exclus din „ce a făcut anul înainte
+  de asta” (`before`), ca să nu se numere de două ori când data ei traversează
+  un prag din an.
 - „Start”/„Stop” rămân singurele acțiuni imediate (scriu direct sesiunea);
-  totul altceva e Save draft/Complete workday.
+  totul altceva e Save draft/Complete workday — inclusiv ștergerea unei
+  sesiuni greșite (×), care marchează sesiunea pentru ștergere în draft și o
+  șterge abia la Save draft/Complete workday, nu la click.
 - „Stop” închide numai sesiunea curentă. „Complete workday” e o acțiune
   separată și explicită, blocată cu mesaj clar („Stop the active session
   first.”) dacă există o sesiune deschisă — la fel și „Delete workday”
-  (soft-delete pe ancoră, ca oriunde în Life Core). Nicio oră de final nu e
-  inventată — vine numai din sesiunea reală, închisă prin Stop.
+  (soft-delete pe ancoră, ca oriunde în Life Core, și închide sheet-ul numai
+  la succes). Nicio oră de final nu e inventată — vine numai din sesiunea
+  reală, închisă prin Stop.
 - Data unui Workday se editează ca `due` pe aceeași ancoră (nu se creează un
   al doilea shift) — mutarea pe altă zi îl scoate/introduce corect din
   Overdue/ziua respectivă, prin filtrele generice deja existente.
@@ -320,10 +335,32 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
   `fuelRate`/`fillsOf`), afișat „Automatic · £x.xxxx/km” sau „Not enough
   full-tank data yet” — niciodată £0 ca și cum ar fi un cost real. „Vehicle
   £/km” rămâne o configurare a Ariei (`running_costs`), mutată într-o acțiune
-  secundară „Configure vehicle cost”, nu mai apare ca input banal al turei
-  zilnice. Rata pinuită pe shift (`rate_fuel_per_km`/`rate_vehicle_per_km`,
-  déjà existentă în schemă) rămâne singura sursă pentru costul persistat —
-  neschimbată de acest task.
+  secundară „Configure vehicle cost”, care se resetează corect la valoarea
+  Ariei curente când Aria draft-ului se schimbă (remount pe cheia Ariei),
+  nu mai apare ca input banal al turei zilnice.
+- Un câștig salvat pe o platformă poate fi șters efectiv (nu doar golit
+  vizual): golirea casetei și Save draft șterge rândul `shift_earnings`
+  corespunzător, nu scrie un £0 fals — „necunoscut” rămâne diferit de „zero”.
+
+### Migrație nouă: pinuirea ratei în timp ce e Draft
+
+`pin_shift_rates()` (déjà existentă, din `20260905100000_reserves` +
+`20260905160000_one_answer`) pinuia rata o singură dată, numai dacă coloana
+era încă `null`. Corect pentru o tură Completed, dar greșit pentru o tură
+Draft a cărei Arie se corectează: ziua n-a fost niciodată lucrată sub rata
+Ariei vechi, deci păstrarea acelei rate nu e istorie, e o greșeală scrisă
+prima.
+
+`supabase/migrations/20260906070000_pin_while_draft.sql` **rescrie aceeași
+funcție** (`create or replace`, ca și migrația anterioară) ca să aibă două
+reguli: Draft — repinuiește mereu la rata curentă a Ariei (sau null, dacă
+tura n-are Arie); Completed — comportamentul vechi, neschimbat, rata rămâne
+înghețată orice s-ar întâmpla ulterior în `running_costs`. Testat manual,
+comportamental, pe un Postgres local efemer (nu Supabase, nicio conexiune
+live) — cele patru scenarii (pinuire inițială, repinuire la schimbarea
+Ariei, îngheț după Completed, null fără Arie) s-au comportat exact așa.
+
+**Nu este aplicată live** și nu apare încă în `docs/MIGRATII.md` ca aplicată.
 
 Migrația `20260906060000_shift_invariants` rămâne neaplicată live, exact ca
 înainte (vezi mai jos) — acest task nu a atins-o și nu depinde de ea: UI-ul
