@@ -119,6 +119,10 @@ function about(id: string, from_id: string, to_id: string) {
   return { id, owner: 'me', from_id, to_id, kind: 'about' as const, created_at: '2026-09-01T00:00:00Z' }
 }
 
+function uses(id: string, from_id: string, to_id: string) {
+  return { id, owner: 'me', from_id, to_id, kind: 'uses' as const, created_at: '2026-09-01T00:00:00Z' }
+}
+
 function fuelExpense(item_id: string, odo: number, pounds: number) {
   return {
     item_id,
@@ -153,7 +157,7 @@ function completeWorkdayProps(overrides: Partial<Parameters<typeof ShiftSheet>[0
     shifts: [day],
     expenses: [fuelExpense('f1', 1000, 0), fuelExpense('f2', 1100, 10)],
     things: [vehicleEntity],
-    links: [about('l1', 'i1', 'v1'), about('l2', 'f1', 'v1'), about('l3', 'f2', 'v1')],
+    links: [uses('l1', 'i1', 'v1'), about('l2', 'f1', 'v1'), about('l3', 'f2', 'v1')],
     vehicleCostRates: [
       {
         vehicle_item_id: 'v1',
@@ -210,7 +214,7 @@ describe('ShiftSheet — the Vehicle used is deferred to Save draft, like every 
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(onLink).toHaveBeenCalledExactlyOnceWith('v1', 'about')
+    expect(onLink).toHaveBeenCalledExactlyOnceWith('v1', 'uses')
   })
 
   it('Discard writes nothing — picking a Vehicle and discarding never links it', () => {

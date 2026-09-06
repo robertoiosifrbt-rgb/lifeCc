@@ -48,7 +48,7 @@ export function vehicleIdOf(
   links: readonly Link[],
   entities: readonly Entity[],
 ): VehicleLink {
-  if (completed) return vehicleLinkOf(links, entities, item.id)
+  if (completed) return vehicleLinkOf(links, entities, item.id, 'uses')
   return draft.vehicle_item_id === ''
     ? { kind: 'none' }
     : { kind: 'one', vehicleItemId: draft.vehicle_item_id, linkId: '' }

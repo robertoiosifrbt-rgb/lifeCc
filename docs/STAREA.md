@@ -364,7 +364,7 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
 - **Vehicul folosit**, pe Workday: un `<select>` propriu, separat de Arie.
   Alegerea lui este acum **deferred la Save draft**, exact ca orice alt câmp
   al turei — nu mai scrie imediat. Save draft leagă/înlocuiește/șterge
-  legătura `about` de la item-ul turei către `Item`/`Entity` de tip Vehicle
+  legătura `uses` de la item-ul turei către `Item`/`Entity` de tip Vehicle
   (același mecanism `links`, fără model paralel) numai dacă draftul chiar a
   schimbat alegerea; Discard nu scrie nimic. O ambiguitate deja persistată
   (2+ legături) nu este niciodată „rezolvată” automat ca efect secundar al
@@ -374,8 +374,9 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
   neambiguu” — Complete Workday e blocat cu mesaj explicit.
 - „Fuel £/km” nu mai e input manual în Workday: se citește automat din
   calculul full-tank-to-full-tank existent (`fuelRateForVehicle`, peste
-  `fuelRate`/`fillsOf`), urmărind fill-up-urile legate (tot prin `about`) de
-  **Vehiculul folosit**, niciodată de Aria turei — două vehicule din aceeași
+  `fuelRate`/`fillsOf`), urmărind fill-up-urile legate (prin `about`, către
+  Vehicul — kind distinct de `uses`, vezi mai jos) de **Vehiculul folosit**,
+  niciodată de Aria turei — două vehicule din aceeași
   Arie nu-și amestecă niciodată lanțul de fuel, iar un vehicul folosit în mai
   multe Arii își păstrează un singur lanț corect. Afișat „Automatic ·
   £x.xxxx/km” sau „Not enough full-tank data yet” — niciodată £0 ca și cum ar

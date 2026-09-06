@@ -29,7 +29,7 @@ export function ExpenseSheet({ item, expense, areas, items, links, things, onRem
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const vehicleLink = vehicleLinkOf(links, things, item.id)
+  const vehicleLink = vehicleLinkOf(links, things, item.id, 'about')
   const vehicleName = (() => {
     if (vehicleLink.kind === 'none') return '—'
     if (vehicleLink.kind === 'ambiguous') return 'Multiple Vehicles linked'

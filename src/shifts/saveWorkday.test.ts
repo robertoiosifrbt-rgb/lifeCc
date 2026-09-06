@@ -67,8 +67,8 @@ function vehicle(itemId: string): Entity {
   }
 }
 
-function about(id: string, from_id: string, to_id: string): Link {
-  return { id, owner: 'me', from_id, to_id, kind: 'about', created_at: '2026-09-01T00:00:00Z' }
+function uses(id: string, from_id: string, to_id: string): Link {
+  return { id, owner: 'me', from_id, to_id, kind: 'uses', created_at: '2026-09-01T00:00:00Z' }
 }
 
 function writers(order: string[]): WorkdayWriters {
@@ -238,7 +238,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const draft = { ...draftFrom(anchor, day, [], []), vehicle_item_id: 'v1' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, [], [], w)
-    expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v1', 'about')
+    expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v1', 'uses')
     expect(w.onUnlink).not.toHaveBeenCalled()
     expect(order.indexOf('link')).toBeLessThan(order.length)
   })
@@ -247,20 +247,20 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const order: string[] = []
     const anchor = item()
     const day = shift()
-    const links = [about('l1', 'i1', 'v1')]
+    const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1'), vehicle('v2')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: 'v2' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, links, entities, w)
     expect(w.onUnlink).toHaveBeenCalledExactlyOnceWith('l1')
-    expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v2', 'about')
+    expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v2', 'uses')
   })
 
   it('clears an existing Vehicle link when the draft is cleared back to none', async () => {
     const order: string[] = []
     const anchor = item()
     const day = shift()
-    const links = [about('l1', 'i1', 'v1')]
+    const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: '' }
     const w = writers(order)
@@ -273,7 +273,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const order: string[] = []
     const anchor = item()
     const day = shift()
-    const links = [about('l1', 'i1', 'v1')]
+    const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1')]
     const draft = draftFrom(anchor, day, links, entities)
     const w = writers(order)
@@ -286,7 +286,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const order: string[] = []
     const anchor = item()
     const day = shift()
-    const links = [about('l1', 'i1', 'v1'), about('l2', 'i1', 'v2')]
+    const links = [uses('l1', 'i1', 'v1'), uses('l2', 'i1', 'v2')]
     const entities = [vehicle('v1'), vehicle('v2')]
     // The draft never touched the Vehicle field — it seeds blank because the
     // persisted state is ambiguous — but did change the title.

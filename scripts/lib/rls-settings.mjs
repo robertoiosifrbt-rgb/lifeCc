@@ -129,8 +129,9 @@ export const CASES = [
       t.asA(async () => {
         // Both rates are Vehicle-keyed since `pin_while_draft`/D1 — never
         // Area-keyed `running_costs`. A shift pins from whatever Vehicle its
-        // own `about` link resolves to, so the link has to exist before the
-        // first write to `shifts` fires `pin_shift_rates()`.
+        // own `uses` link resolves to (never the looser `about`, which a fuel
+        // Expense or an unrelated mention could also carry), so the link has
+        // to exist before the first write to `shifts` fires `pin_shift_rates()`.
         const vehicleItem = await t.q(
           "insert into public.items (title, kind, state) values ('Car', 'entity', 'active') returning id",
         )
@@ -150,7 +151,7 @@ export const CASES = [
           "insert into public.items (title, kind, state, due) values ('Shift', 'shift', 'active', current_date) returning id",
         )
         const id = anchor.rows[0].id
-        await t.q("insert into public.links (from_id, to_id, kind) values ($1, $2, 'about')", [
+        await t.q("insert into public.links (from_id, to_id, kind) values ($1, $2, 'uses')", [
           id,
           vehicleId,
         ])
@@ -206,7 +207,7 @@ export const CASES = [
         await t.q('insert into public.vehicle_fuel_rates (vehicle_item_id, fuel_per_km) values ($1, 0.116)', [
           vehicleId,
         ])
-        await t.q("insert into public.links (from_id, to_id, kind) values ($1, $2, 'about')", [
+        await t.q("insert into public.links (from_id, to_id, kind) values ($1, $2, 'uses')", [
           id,
           vehicleId,
         ])

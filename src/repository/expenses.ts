@@ -138,7 +138,7 @@ export async function refreshVehicleFuelRate(owner: string, vehicleItemId: strin
 export async function removeExpense(owner: string, item: Item, now: Date): Promise<void> {
   await requireAccount(owner)
   const [links, entities] = await Promise.all([linksOf(owner), thingsOf(owner)])
-  const own = vehicleLinkOf(links, entities, item.id)
+  const own = vehicleLinkOf(links, entities, item.id, 'about')
   await supabaseExpenseWriter(owner).remove(item.id)
   const writer = supabaseWriter<Patch>(ITEMS, owner)
   const gone = await softDelete(writer, item, now, localToday(now))

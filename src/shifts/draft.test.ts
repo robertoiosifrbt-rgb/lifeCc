@@ -71,7 +71,7 @@ describe('draftFrom', () => {
 
   it('seeds the Vehicle from whatever is unambiguously linked right now', () => {
     const links = [
-      { id: 'l1', owner: 'me', from_id: 'i1', to_id: 'v1', kind: 'about' as const, created_at: '2026-09-01T00:00:00Z' },
+      { id: 'l1', owner: 'me', from_id: 'i1', to_id: 'v1', kind: 'uses' as const, created_at: '2026-09-01T00:00:00Z' },
     ]
     const entities = [{
       item_id: 'v1', owner: 'me', entity_kind: 'vehicle' as const,

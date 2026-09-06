@@ -74,7 +74,7 @@ export async function saveWorkday(
   // changed Area already has to land on the anchor first.
   if (vehiclePatch !== null) {
     for (const linkId of vehiclePatch.toUnlink) await writers.onUnlink(linkId)
-    if (vehiclePatch.toLinkVehicleId !== null) await writers.onLink(vehiclePatch.toLinkVehicleId, 'about')
+    if (vehiclePatch.toLinkVehicleId !== null) await writers.onLink(vehiclePatch.toLinkVehicleId, 'uses')
   }
 
   if (Object.keys(shiftPatch).length > 0) {

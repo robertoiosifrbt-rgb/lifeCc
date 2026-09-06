@@ -8,11 +8,17 @@
 import { asRecord, requiredMoment, requiredText } from './row'
 
 /**
- * The two kinds, both taken from the sentence that asked for the table:
- * the renewal is `about` the car and the company, the £740 `pays` the renewal.
- * A third kind arrives with a third kind of arrow.
+ * Three kinds, each taken from the sentence that asked for the table: the
+ * renewal is `about` the car and the company, the £740 `pays` the renewal,
+ * the Workday `uses` the car it was actually driven in.
+ *
+ * `uses` exists apart from `about` on purpose: `about` stays a loose, generic
+ * mention (a fuel Expense about a Vehicle, a renewal about a Vehicle and a
+ * Company), while `uses` is the one arrow a Workday's own cost basis is
+ * allowed to resolve "the Vehicle" from. Reusing `about` for both would let
+ * an unrelated mention resolve as if it were the Vehicle actually driven.
  */
-export const LINK_KINDS = ['about', 'pays'] as const
+export const LINK_KINDS = ['about', 'pays', 'uses'] as const
 export type LinkKind = (typeof LINK_KINDS)[number]
 
 /**
@@ -24,6 +30,7 @@ export type LinkKind = (typeof LINK_KINDS)[number]
 export const LINK_NAMES: Record<LinkKind, { from: string; to: string }> = {
   about: { from: 'About', to: 'Mentioned by' },
   pays: { from: 'Pays for', to: 'Paid by' },
+  uses: { from: 'Uses', to: 'Used by' },
 }
 
 export type Link = {

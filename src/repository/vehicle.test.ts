@@ -52,6 +52,10 @@ function about(id: string, from_id: string, to_id: string): Link {
   return { id, owner: 'me', from_id, to_id, kind: 'about', created_at: '2026-01-01T00:00:00Z' }
 }
 
+function uses(id: string, from_id: string, to_id: string): Link {
+  return { id, owner: 'me', from_id, to_id, kind: 'uses', created_at: '2026-01-01T00:00:00Z' }
+}
+
 function fuel(over: Partial<Expense> = {}): Expense {
   return {
     item_id: 'e1',
@@ -70,33 +74,39 @@ function fuel(over: Partial<Expense> = {}): Expense {
 
 describe('vehicleLinkOf', () => {
   it('none when nothing is linked', () => {
-    expect(vehicleLinkOf([], [], 'w1')).toEqual({ kind: 'none' })
+    expect(vehicleLinkOf([], [], 'w1', 'uses')).toEqual({ kind: 'none' })
   })
 
   it('one when exactly one Vehicle is linked', () => {
-    const links = [about('l1', 'w1', 'v1')]
+    const links = [uses('l1', 'w1', 'v1')]
     const entities = [vehicle('v1')]
-    expect(vehicleLinkOf(links, entities, 'w1')).toEqual({ kind: 'one', vehicleItemId: 'v1', linkId: 'l1' })
+    expect(vehicleLinkOf(links, entities, 'w1', 'uses')).toEqual({ kind: 'one', vehicleItemId: 'v1', linkId: 'l1' })
   })
 
   it('ambiguous when two different Vehicles are linked', () => {
-    const links = [about('l1', 'w1', 'v1'), about('l2', 'w1', 'v2')]
+    const links = [uses('l1', 'w1', 'v1'), uses('l2', 'w1', 'v2')]
     const entities = [vehicle('v1'), vehicle('v2')]
-    expect(vehicleLinkOf(links, entities, 'w1')).toEqual({ kind: 'ambiguous' })
+    expect(vehicleLinkOf(links, entities, 'w1', 'uses')).toEqual({ kind: 'ambiguous' })
   })
 
   it('ignores links to a non-Vehicle entity, and links belonging to another item', () => {
-    const links = [about('l1', 'w1', 'company-1'), about('l2', 'other-item', 'v1')]
+    const links = [uses('l1', 'w1', 'company-1'), uses('l2', 'other-item', 'v1')]
     const entities = [vehicle('v1')]
-    expect(vehicleLinkOf(links, entities, 'w1')).toEqual({ kind: 'none' })
+    expect(vehicleLinkOf(links, entities, 'w1', 'uses')).toEqual({ kind: 'none' })
+  })
+
+  it('ignores a link of a different kind, even to a real Vehicle', () => {
+    const links = [about('l1', 'w1', 'v1')]
+    const entities = [vehicle('v1')]
+    expect(vehicleLinkOf(links, entities, 'w1', 'uses')).toEqual({ kind: 'none' })
   })
 })
 
 describe('vehicleLinkIdsOf', () => {
   it('lists every Vehicle link an item carries, for replacing them all', () => {
-    const links = [about('l1', 'w1', 'v1'), about('l2', 'w1', 'v2')]
+    const links = [uses('l1', 'w1', 'v1'), uses('l2', 'w1', 'v2')]
     const entities = [vehicle('v1'), vehicle('v2')]
-    expect(vehicleLinkIdsOf(links, entities, 'w1')).toEqual(['l1', 'l2'])
+    expect(vehicleLinkIdsOf(links, entities, 'w1', 'uses')).toEqual(['l1', 'l2'])
   })
 })
 

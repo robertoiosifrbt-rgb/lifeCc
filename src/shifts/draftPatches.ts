@@ -42,7 +42,7 @@ export function vehicleLinkPatchOf(
   itemId: string,
   draft: Draft,
 ): VehicleLinkPatch | null {
-  const current = vehicleLinkIdsOf(links, entities, itemId)
+  const current = vehicleLinkIdsOf(links, entities, itemId, 'uses')
   const wanted = draft.vehicle_item_id === '' ? null : draft.vehicle_item_id
 
   if (wanted !== null) {

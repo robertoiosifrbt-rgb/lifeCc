@@ -84,7 +84,7 @@ export function draftFrom(
   for (const session of shift.sessions) {
     breaks[session.id] = session.break_minutes === 0 ? '' : String(session.break_minutes)
   }
-  const vehicle = vehicleLinkOf(links, entities, item.id)
+  const vehicle = vehicleLinkOf(links, entities, item.id, 'uses')
   return {
     title: item.title,
     due: item.due ?? '',
