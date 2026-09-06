@@ -18,7 +18,8 @@ procente de progres sau explicații despre cum s-a ajuns aici.
 - HMRC, expus acum ca `Tax` sub Money;
 - Things (Person/Company/Vehicle/Property), etichetat clar în header ca
   „People, Companies, Vehicles & Property" și accesibil de acolo, nu din
-  navigația principală.
+  navigația principală;
+- Journal — jurnal personal, MVP complet conform PLAN (secțiunea 33).
 
 Landing-ul actual rămâne fostul `Today`, la ruta `/today`; el este acum
 etichetat `Home` în navigație și își păstrează toate funcțiile (Inbox, Today,
@@ -60,6 +61,34 @@ Tipurile de Entity implementate acum sunt:
 
 Legăturile sunt item ↔ item și tipurile implementate acum sunt `about` și
 `pays`.
+
+### Journal
+
+Jurnalul personal există complet, capăt la capăt: UI → repository →
+Supabase → sync/cache → export, cu migrație și RLS proprii.
+
+Ancora este un item nou, `kind='journal'`, permanent `active`, fără
+due/done/waiting — exclus explicit din Today, Tasks, Waiting și Calendar.
+Textul, titlul opțional și `journaled_at` (dată+oră) stau într-un tabel de
+extensie propriu, `journal_entries`, cheiat pe `item_id`, la fel ca la
+entities/expenses.
+
+- creare foarte rapidă din Home (`Journal`, lângă Start a shift/Money out),
+  direct la un composer focalizat la `/journal` (ecran intern, antet
+  „Home · Journal", tab-ul Home rămâne aprins — nu e al cincilea tab);
+- titlul introdus de utilizator e opțional; când lipsește, ancora primește un
+  titlu derivat din prima linie a textului — detaliu intern, invizibil în UI;
+- `journaled_at` se completează automat la creare și e editabil pentru o
+  intrare retrospectivă; distinct semantic de `created_at`/`updated_at`;
+- intrările sunt editabile ulterior, redeschizând din timeline;
+- timeline cronologic (cea mai recentă intrare jurnalizată prima, nu cea mai
+  recent creată) și căutare în titlu + text;
+- o intrare poate exista fără nicio legătură; opțional poate primi o Arie (la
+  creare) și legături `about`/`pays` către orice alt item (Person/Company/
+  Vehicle/Property inclusiv), prin `links`-ul existent — fără mecanism nou;
+- „Download everything" include acum textul jurnalului întreg (titlu, body,
+  `journaled_at`), nu doar ancora — `exportFile`/`exportAll` citesc și
+  `journal_entries`, alături de `items`, în același fișier.
 
 ### Vehicle
 

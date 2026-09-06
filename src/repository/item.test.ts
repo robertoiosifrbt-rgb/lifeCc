@@ -72,6 +72,54 @@ describe('fromRow', () => {
   })
 })
 
+// items_journal_active_only, mirrored: a journal anchor from the server or
+// the cache must already match what the database itself now refuses to
+// hold, the same reason fromRow checks state/kind coherence and a nonblank
+// title. A row failing here is a row the database could never have written.
+describe('fromRow, the journal shape', () => {
+  const JOURNAL_ROW = {
+    ...GOOD_ROW,
+    kind: 'journal',
+    state: 'active',
+    due: null,
+    done_at: null,
+    waiting_since: null,
+  }
+
+  it('accepts a valid journal anchor', () => {
+    const parsed = fromRow(JOURNAL_ROW)
+    expect(parsed.kind).toBe('journal')
+    expect(parsed.state).toBe('active')
+    expect(parsed.due).toBeNull()
+    expect(parsed.done_at).toBeNull()
+    expect(parsed.waiting_since).toBeNull()
+  })
+
+  it('refuses a journal item that is not active', () => {
+    expect(() => fromRow({ ...JOURNAL_ROW, state: 'done' })).toThrow(
+      'due date, a done_at, a waiting_since, or a state other than active',
+    )
+  })
+
+  it('refuses a journal item carrying a due date', () => {
+    expect(() => fromRow({ ...JOURNAL_ROW, due: '2026-09-05' })).toThrow(
+      'due date, a done_at, a waiting_since, or a state other than active',
+    )
+  })
+
+  it('refuses a journal item carrying a done_at', () => {
+    expect(() => fromRow({ ...JOURNAL_ROW, done_at: '2026-09-05' })).toThrow(
+      'due date, a done_at, a waiting_since, or a state other than active',
+    )
+  })
+
+  it('refuses a journal item carrying a waiting_since', () => {
+    expect(() => fromRow({ ...JOURNAL_ROW, waiting_since: '2026-09-05' })).toThrow(
+      'due date, a done_at, a waiting_since, or a state other than active',
+    )
+  })
+})
+
 describe('localToday', () => {
   it('gives the day from the device clock, not from UTC', () => {
     // 1 September, 23:30, in the local time of the machine running the test.

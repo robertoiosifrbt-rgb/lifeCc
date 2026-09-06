@@ -1,9 +1,11 @@
-// Where the core's two tables sit in the cache.
+// Where the core's two tables sit in the cache, and the factory behind them.
 //
-// Apart from store.ts for the same reason settings-store.ts is: neither is a
-// snapshot of a synced table. Both are replaced whole, with no cursor, because
-// both ride the anchors they hang off — a changed entity or a new arrow
-// arrives as a bumped version on an item, and the item delta carries that.
+// Apart from store.ts for the same reason settings-store.ts is: none of these
+// are a snapshot of a synced table. All are replaced whole, with no cursor,
+// because all ride the anchor they hang off — a changed entity, a new arrow
+// or an edited journal entry arrives as a bumped version on an item, and the
+// item delta carries that. journal-store.ts reuses the same factory for the
+// same reason: the difference is what a row means, not how it is kept.
 
 import type { Entity } from './entity'
 import { entityFromRow } from './entity'
@@ -21,7 +23,7 @@ const { ENTITIES, LINKS } = STORES
  * links is what a row means, not how it is kept — the same reason storeFor
  * exists for items and areas.
  */
-function wholeStore<T extends { owner: string }>(
+export function wholeStore<T extends { owner: string }>(
   name: string,
   parse: (row: unknown) => T,
   describe: (row: T) => string,

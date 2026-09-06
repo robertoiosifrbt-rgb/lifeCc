@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react'
 
+import type { Item } from '../repository/item'
 import { AreaScreen } from '../screens/area/AreaScreen'
 import { AreasScreen } from '../screens/areas/AreasScreen'
 import { HmrcScreen } from '../screens/hmrc/HmrcScreen'
 import { CalendarScreen } from '../screens/calendar/CalendarScreen'
+import { JournalScreen } from '../screens/journal/JournalScreen'
 import { MoneyScreen } from '../screens/money/MoneyScreen'
 import { PlanScreen } from '../screens/plan/PlanScreen'
 import { ThingsScreen } from '../screens/things/ThingsScreen'
@@ -43,9 +45,9 @@ export const SCREENS: readonly Screen[] = [
 /**
  * Screens you reach from inside another one, not from the bar.
  *
- * An area is entered from the tree, Calendar from Plan, Tax from Money, and
- * People/Vehicles from the header — each needs a URL and a route, but no
- * label of its own to go with them.
+ * An area is entered from the tree, Calendar from Plan, Tax from Money,
+ * Journal from Home, and People/Vehicles from the header — each needs a URL
+ * and a route, but no label of its own to go with them.
  */
 export const INSIDE: readonly Screen[] = [
   { path: '/areas/:id', label: '', element: <AreaScreen /> },
@@ -54,6 +56,9 @@ export const INSIDE: readonly Screen[] = [
   // not a screen of its own next to the bar.
   { path: '/hmrc', label: 'Tax', element: <HmrcScreen />, parent: '/money' },
   { path: '/things', label: '', element: <ThingsScreen /> },
+  // Journal is reached from Home, not from a fifth bar slot: the mental map
+  // stays Home / Plan / Areas / Money.
+  { path: '/journal', label: 'Journal', element: <JournalScreen />, parent: '/today' },
 ]
 
 /** Where you land from `/` and from any URL that does not exist. */
@@ -84,4 +89,24 @@ export function tabInfoFor(pathname: string): TabInfo | undefined {
   const parent = SCREENS.find((screen) => screen.path === exact.parent)
   const title = parent === undefined ? exact.label : `${parent.label} · ${exact.label}`
   return { title, tabPath: exact.parent }
+}
+
+/**
+ * Whether opening this item means going to the Journal composer, rather than
+ * the generic item sheet.
+ *
+ * A journal anchor is permanently active with no due, done_at or
+ * waiting_since — the database refuses all three now — so the sheet's due
+ * date, Waiting toggle, Mark done and Delete would either do nothing or be
+ * refused outright. Journal has its own composer for exactly this content;
+ * the sheet must never be the door to it, however the item was reached
+ * (today's list, an area's page, anywhere else that calls openItem).
+ */
+export function opensInJournal(item: Pick<Item, 'kind'>): boolean {
+  return item.kind === 'journal'
+}
+
+/** Where opening a journal item leads: its own entry, in the composer. */
+export function journalEntryPath(itemId: string): string {
+  return `/journal?entry=${itemId}`
 }

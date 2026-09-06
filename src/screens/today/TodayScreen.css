@@ -74,6 +74,15 @@
   border-radius: var(--radius-s);
 }
 
+/* A link wearing the same clothes as the buttons beside it: centred text and
+   no underline, the way a.head-button already does next to .head-button. */
+a.today-shift {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .today-shift:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

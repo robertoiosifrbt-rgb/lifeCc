@@ -19,6 +19,16 @@ const byCreated = (a: Item, b: Item) => a.created_at.localeCompare(b.created_at)
 const byDue = (a: Item, b: Item) =>
   (a.due ?? '').localeCompare(b.due ?? '') || byCreated(a, b)
 
+/**
+ * Neither a thing (entity) nor a journal entry — both exist whether or not
+ * you do anything about them, and neither is ever a next action. A car
+ * counted as a task would sit in "undated" for ever; a journal entry counted
+ * the same way would sit right beside it, under a heading that means work.
+ */
+function isTaskable(item: Item): boolean {
+  return item.kind !== 'entity' && item.kind !== 'journal'
+}
+
 export type TodayGroups = {
   /** Things captured, that you do not yet know the shape of. */
   inbox: Item[]
@@ -41,12 +51,9 @@ export type TodayGroups = {
 export function forToday(items: readonly Item[], today: string): TodayGroups {
   const relevant = alive(items).filter(
     (item) =>
-      // A thing is not a next action. Your car is permanently 'active' and
-      // permanently undated, so without this line every car, landlord and
-      // insurer sits in Today's undated list for good — under a heading that
-      // means "things to do". Law 6 is still satisfied: a thing is found on
-      // the Things screen, which is where it lives.
-      item.kind !== 'entity' &&
+      // Law 6 is still satisfied: a thing is found on the Things screen and a
+      // journal entry on the Journal screen, which is where each lives.
+      isTaskable(item) &&
       (item.state === 'inbox' ||
         (item.state === 'active' && (item.due === null || item.due <= today))),
   )
@@ -86,9 +93,7 @@ export type TaskGroups = {
  * until the day it became due.
  */
 export function forTasks(items: readonly Item[], today: string): TaskGroups {
-  const relevant = alive(items).filter(
-    (item) => item.kind !== 'entity' && item.state === 'active',
-  )
+  const relevant = alive(items).filter((item) => isTaskable(item) && item.state === 'active')
 
   return {
     overdue: relevant.filter((item) => item.due !== null && item.due < today).sort(byDue),
@@ -102,11 +107,14 @@ export function forTasks(items: readonly Item[], today: string): TaskGroups {
  * Active items stuck on somebody else's answer, oldest wait first.
  *
  * The same field Today's summary already reads, `waiting_since` — not a
- * fourth state of the item cycle, just one more date like `due`.
+ * fourth state of the item cycle, just one more date like `due`. A thing or
+ * a journal entry never carries one in practice; `isTaskable` makes that
+ * explicit here too, the same as in forToday, forTasks and forCalendar,
+ * rather than leaving it to depend on a row nobody ever writes that way.
  */
 export function forWaiting(items: readonly Item[]): Item[] {
   return alive(items)
-    .filter((item) => item.state === 'active' && item.waiting_since !== null)
+    .filter((item) => isTaskable(item) && item.state === 'active' && item.waiting_since !== null)
     .sort((a, b) => (a.waiting_since as string).localeCompare(b.waiting_since as string))
 }
 
@@ -129,6 +137,10 @@ export type CalendarDay = {
  *
  * A task with no date, finished, shows up on Wednesday — that is why done_at
  * exists, so that nothing finished disappears from every screen.
+ *
+ * A thing or a journal entry never carries a due or a done_at in practice, so
+ * this filter changes nothing either has ever shown here — it only makes
+ * that guarantee explicit rather than accidental.
  */
 export function forCalendar(items: readonly Item[]): CalendarDay[] {
   const days = new Map<string, CalendarDay>()
@@ -141,7 +153,7 @@ export function forCalendar(items: readonly Item[]): CalendarDay[] {
     return fresh
   }
 
-  for (const item of alive(items)) {
+  for (const item of alive(items).filter(isTaskable)) {
     const sameDay = item.due !== null && item.due === item.done_at
     if (item.due !== null && !sameDay) dayOf(item.due).planned.push(item)
     if (item.done_at !== null) dayOf(item.done_at).done.push(item)

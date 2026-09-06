@@ -262,3 +262,25 @@ export function supabaseExpenseWriter(owner: string) {
     },
   }
 }
+
+/** Every journal entry of this account, whole: it rides its anchor. */
+export async function supabaseJournal(): Promise<unknown[]> {
+  const response = await supabase().from('journal_entries').select(ALL)
+  if (response.error !== null) fail('Fetching the journal', response.error)
+  return response.data as unknown[]
+}
+
+/** The journal's one write: made and edited alike, both are the whole row. */
+export function supabaseJournalWriter() {
+  return {
+    async save(values: Record<string, unknown>) {
+      const response = await supabase()
+        .from('journal_entries')
+        .upsert(values, { onConflict: 'item_id' })
+        .select(ALL)
+        .single()
+      if (response.error !== null) fail('Writing the journal entry', response.error)
+      return response.data as unknown
+    },
+  }
+}

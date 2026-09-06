@@ -61,9 +61,9 @@ construi încă modulele viitoare.
 - `DONE` — HMRC este expus semantic sub Money / Tax;
 - `PARTIAL` — Area / Project / Goal / Entity sunt definite clar în produs; UI-ul încă nu le exprimă complet;
 - `DONE` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere;
-- `TODO` — Journal MVP: quick entry, text liber, dată+oră, editare, timeline/search și legături opționale conform PLAN.
+- `DONE` — Journal MVP: quick entry din Home, text liber, titlu opțional, `journaled_at` editabil separat de created_at/updated_at, editare ulterioară, timeline cronologic, căutare, legături opționale (Area + links existente), fără a deveni un al cincilea tab — end-to-end UI → repository → Supabase → sync/cache → export, cu migrație, RLS și teste.
 
-**Scor fază: 4.5 / 6 = 75%**
+**Scor fază: 5.5 / 6 = 92%**
 
 ### Criterii suplimentare
 
@@ -193,11 +193,11 @@ construi încă modulele viitoare.
 
 Criterii urmărite: **50**
 
-Puncte curente: **12 / 50**
+Puncte curente: **13 / 50**
 
-**Progres mecanic: 24%**
+**Progres mecanic: 26%**
 
-**Rămas mecanic: 76%**
+**Rămas mecanic: 74%**
 
 Acest procent nu este estimare de timp. Fundația tehnică deja existentă poate
 face unele criterii viitoare mult mai rapide decât sugerează numărul brut.

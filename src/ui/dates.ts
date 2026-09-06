@@ -147,3 +147,41 @@ export function weekdayIndex(day: string): number {
   const sunday = new Date(Date.UTC(year, month - 1, date, 12)).getUTCDay()
   return (sunday + 6) % 7
 }
+
+/**
+ * A moment, as an `<input type="datetime-local">` wants it: the device's own
+ * wall clock, not UTC. A phone in Bucharest journalling "now" must show its
+ * own 22:14, not London's 20:14 — the input has no timezone of its own, so
+ * whichever one is used to fill it is the one the person reads back.
+ */
+export function localDateTimeInput(at: Date): string {
+  const y = at.getFullYear()
+  const m = pad(at.getMonth() + 1)
+  const d = pad(at.getDate())
+  const h = pad(at.getHours())
+  const min = pad(at.getMinutes())
+  return `${y}-${m}-${d}T${h}:${min}`
+}
+
+/**
+ * The moment a datetime-local value names, read on this device's own clock,
+ * as an ISO string the database can store.
+ *
+ * `new Date(y, m, d, h, min)` reads its arguments in the device's timezone,
+ * which is exactly what undoes localDateTimeInput: the same wall-clock
+ * reading goes in that came out.
+ */
+export function momentFromLocalInput(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+  if (match === null) throw new Error(`Not a local date and time: ${value}`)
+  const [, y, mo, d, h, mi] = match
+  const at = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi))
+  return at.toISOString()
+}
+
+/** "20 August, 14:32" — a journalled moment, on the device's own clock. */
+export function formatMoment(moment: string, today: string): string {
+  const at = new Date(moment)
+  if (Number.isNaN(at.getTime())) throw new Error(`Not a moment: ${moment}`)
+  return `${formatDay(localToday(at), today)}, ${pad(at.getHours())}:${pad(at.getMinutes())}`
+}

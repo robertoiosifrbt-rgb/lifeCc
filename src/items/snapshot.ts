@@ -9,6 +9,7 @@ import {
   all,
   areasOf,
   expensesOf,
+  journalEntriesOf,
   linksOf,
   runningCostsOf,
   taxYearsOf,
@@ -20,6 +21,7 @@ import type {
   Entity,
   Expense,
   Item,
+  JournalEntry,
   Link,
   RunningCosts,
   Shift,
@@ -35,6 +37,7 @@ export type Snapshot = {
   taxYears: TaxYearRow[]
   things: Entity[]
   links: Link[]
+  journal: JournalEntry[]
 }
 
 /**
@@ -45,7 +48,7 @@ export type Snapshot = {
  * pointing at nothing, or a cost of nothing where there is a cost.
  */
 export async function readSnapshot(owner: string): Promise<Snapshot> {
-  const [items, areas, shifts, expenses, costs, taxYears, things, links] =
+  const [items, areas, shifts, expenses, costs, taxYears, things, links, journal] =
     await Promise.all([
       all(owner),
       areasOf(owner),
@@ -55,6 +58,7 @@ export async function readSnapshot(owner: string): Promise<Snapshot> {
       taxYearsOf(owner),
       thingsOf(owner),
       linksOf(owner),
+      journalEntriesOf(owner),
     ])
-  return { items, areas, shifts, expenses, costs, taxYears, things, links }
+  return { items, areas, shifts, expenses, costs, taxYears, things, links, journal }
 }

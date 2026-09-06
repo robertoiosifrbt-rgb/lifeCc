@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { SpendSheet } from '../../spend/SpendSheet'
 
@@ -143,6 +144,11 @@ export function TodayScreen() {
         >
           Money out
         </button>
+        {/* Straight to the composer, focused, in one tap — not a sheet with
+            fields to skim past first. */}
+        <Link className="today-shift" to="/journal">
+          Journal
+        </Link>
       </div>
 
       {spending && (

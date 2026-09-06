@@ -32,7 +32,7 @@ const DB_NAME = 'life-control-centre'
 // says which table it belongs to. The old cursors are dropped rather than
 // converted — a missing cursor costs one full snapshot, and a converted one
 // that is wrong costs rows that never arrive.
-const DB_VERSION = 8
+const DB_VERSION = 9
 const ITEMS = 'items'
 const AREAS = 'areas'
 // The core's two: the things an item can point at, and the arrows themselves.
@@ -50,6 +50,9 @@ const COSTS = 'running_costs'
 // One row per tax year, because the figures change every April and last
 // year's bill must not move when this year's are set.
 const TAX_YEARS = 'tax_years'
+// The personal journal. No cursor either, for the same reason as entities: it
+// rides the anchor that carries the news it changed.
+const JOURNAL = 'journal_entries'
 const CURSORS = 'cursors'
 
 export function request<T>(req: IDBRequest<T>): Promise<T> {
@@ -67,7 +70,7 @@ export function completed(tx: IDBTransaction): Promise<void> {
   })
 }
 
-export const STORES = { COSTS, ENTITIES, EXPENSES, LINKS, TAX_YEARS }
+export const STORES = { COSTS, ENTITIES, EXPENSES, JOURNAL, LINKS, TAX_YEARS }
 
 let db: Promise<IDBDatabase> | null = null
 
@@ -115,6 +118,10 @@ export function open(): Promise<IDBDatabase> {
       if (!opened.objectStoreNames.contains(LINKS)) {
         const arrows = opened.createObjectStore(LINKS, { keyPath: 'id' })
         arrows.createIndex('owner', 'owner', { unique: false })
+      }
+      if (!opened.objectStoreNames.contains(JOURNAL)) {
+        const journal = opened.createObjectStore(JOURNAL, { keyPath: 'item_id' })
+        journal.createIndex('owner', 'owner', { unique: false })
       }
       if (opened.objectStoreNames.contains(CURSORS)) {
         opened.deleteObjectStore(CURSORS)

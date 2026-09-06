@@ -14,7 +14,7 @@ export type State = 'inbox' | 'active' | 'done'
 // A thing — a car, a company, a person — is a kind too, and the only one that
 // is not something that happened or something to do. It exists whether or not
 // you touch it, which is why it has no date and why Today leaves it out.
-export type Kind = 'task' | 'letter' | 'shift' | 'expense' | 'entity'
+export type Kind = 'task' | 'letter' | 'shift' | 'expense' | 'entity' | 'journal'
 
 export type Item = Row & {
   kind: Kind | null
@@ -52,7 +52,7 @@ export type Patch = Partial<
 >
 
 const STATES: readonly string[] = ['inbox', 'active', 'done']
-const KINDS: readonly string[] = ['task', 'letter', 'shift', 'expense', 'entity']
+const KINDS: readonly string[] = ['task', 'letter', 'shift', 'expense', 'entity', 'journal']
 
 /**
  * A row that came from the server, checked.
@@ -87,16 +87,34 @@ export function fromRow(row: unknown): Item {
   const title = requiredText(raw, 'title')
   if (title.trim() === '') throw new Error('Title of nothing but spaces')
 
+  const due = optionalDay(raw, 'due')
+  const done_at = optionalDay(raw, 'done_at')
+  const waiting_since = optionalDay(raw, 'waiting_since')
+
+  // items_journal_active_only, mirrored: a journal anchor is permanently
+  // active and carries none of due, done_at or waiting_since — it exists
+  // whether or not you do anything about it, the same shape an entity
+  // already has. A row saying otherwise did not come from the database as
+  // it stands.
+  if (
+    kind === 'journal' &&
+    (state !== 'active' || due !== null || done_at !== null || waiting_since !== null)
+  ) {
+    throw new Error(
+      'A journal item carrying a due date, a done_at, a waiting_since, or a state other than active',
+    )
+  }
+
   return {
     id: requiredText(raw, 'id'),
     owner: requiredText(raw, 'owner'),
     kind: kind as Kind | null,
     state: state as State,
     title,
-    due: optionalDay(raw, 'due'),
-    done_at: optionalDay(raw, 'done_at'),
+    due,
+    done_at,
     area_id: optionalText(raw, 'area_id'),
-    waiting_since: optionalDay(raw, 'waiting_since'),
+    waiting_since,
     ...stampsOf(raw),
   }
 }

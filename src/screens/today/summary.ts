@@ -72,13 +72,21 @@ export function summarise(input: {
     (item) =>
       item.state === 'active' &&
       item.kind !== 'entity' &&
+      item.kind !== 'journal' &&
       item.due !== null &&
       item.due < today,
   )
 
   const coming: Coming[] = []
   for (const item of alive) {
-    if (item.state !== 'active' || item.kind === 'entity' || item.due === null) continue
+    if (
+      item.state !== 'active' ||
+      item.kind === 'entity' ||
+      item.kind === 'journal' ||
+      item.due === null
+    ) {
+      continue
+    }
     const inDays = daysBetween(today, item.due)
     if (inDays >= 0 && inDays <= SOON_DAYS) {
       coming.push({ title: item.title, day: item.due, inDays })

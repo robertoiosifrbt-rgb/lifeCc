@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { CaptureSheet } from '../items/CaptureSheet'
 import { ItemSheet } from '../items/ItemSheet'
@@ -12,13 +12,14 @@ import { signOut } from '../repository/auth'
 import type { Session } from '../repository/auth'
 import { useToday } from './today'
 import { ShellHeader } from './ShellHeader'
-import { SCREENS, tabInfoFor } from './screens'
+import { journalEntryPath, opensInJournal, SCREENS, tabInfoFor } from './screens'
 import './AppShell.css'
 
 type Props = { session: Session }
 
 export function AppShell({ session }: Props) {
   const location = useLocation()
+  const navigate = useNavigate()
   const tab = tabInfoFor(location.pathname)
   const data = useItems(session.userId)
 
@@ -46,7 +47,16 @@ export function AppShell({ session }: Props) {
 
   const context: ScreenContext = {
     data,
-    openItem: (item) => setOpenId(item.id),
+    // A journal entry has no sheet of its own to open into: it goes to its
+    // composer instead, wherever openItem was called from — today's list, an
+    // area's page, anywhere.
+    openItem: (item) => {
+      if (opensInJournal(item)) {
+        void navigate(journalEntryPath(item.id))
+        return
+      }
+      setOpenId(item.id)
+    },
     today,
   }
 
@@ -153,7 +163,12 @@ export function AppShell({ session }: Props) {
 
       {openItem !== null &&
         openItem.kind !== 'shift' &&
-        openItem.kind !== 'expense' && (
+        openItem.kind !== 'expense' &&
+        // Defensive: openItem above already routes a journal entry to its
+        // composer instead of setting openId, so this should never be true.
+        // If some future caller sets openId directly on a journal item
+        // anyway, the sheet still must not be the one that opens for it.
+        !opensInJournal(openItem) && (
         <ItemSheet
           item={openItem}
           today={today}

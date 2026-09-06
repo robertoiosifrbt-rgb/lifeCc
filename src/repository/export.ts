@@ -3,6 +3,7 @@
 
 import { localToday } from './item'
 import type { Item } from './item'
+import type { JournalEntry } from './journal-entry'
 
 export type ExportFile = {
   name: string
@@ -15,10 +16,18 @@ export type ExportFile = {
  *
  * It includes the deleted rows and the point it is synced through: a file that
  * did not say how fresh it is would promise more than it knows.
+ *
+ * The journal rides beside `items`, not folded into it: an entry's body,
+ * title and journaled_at live in their own table, exactly like a shift's
+ * numbers or an expense's amount — and unlike those, the journal has no
+ * other place a person can read its text back from. Leaving it out here
+ * would mean "Download everything" downloaded everything except the one
+ * thing Journal is actually for.
  */
 export function exportFile(
   user: string,
   items: readonly Item[],
+  journal: readonly JournalEntry[],
   cursor: string | null,
   now: Date,
 ): ExportFile {
@@ -30,6 +39,7 @@ export function exportFile(
       exportedAt: now.toISOString(),
       syncedThrough: cursor,
       items,
+      journal,
     },
     null,
     2,

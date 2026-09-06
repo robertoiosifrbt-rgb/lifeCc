@@ -229,3 +229,36 @@ describe('things stay out of Today', () => {
     expect(groups.undated.map((one) => one.id)).toEqual(['chore'])
   })
 })
+
+describe('a journal entry stays out of Today, Tasks, Waiting and the Calendar', () => {
+  it('never enters any of forToday’s four groups, undated included', () => {
+    const entry = item('note', { kind: 'journal', state: 'active', due: null })
+    const groups = forToday([entry], TODAY)
+    expect(groups).toEqual({ inbox: [], today: [], overdue: [], undated: [] })
+  })
+
+  it('never enters forTasks, even with a due date somehow set on it', () => {
+    // A journal anchor never carries a due in practice — this proves the
+    // exclusion does not quietly depend on that being true.
+    const entry = item('note', { kind: 'journal', state: 'active', due: TODAY })
+    const groups = forTasks([entry], TODAY)
+    expect(groups).toEqual({ overdue: [], today: [], upcoming: [], undated: [] })
+  })
+
+  it('never turns up in the Calendar, even with a due date somehow set on it', () => {
+    const entry = item('note', { kind: 'journal', state: 'active', due: '2026-09-07' })
+    expect(forCalendar([entry])).toEqual([])
+  })
+
+  it('never turns up in Waiting, even with a waiting_since somehow set on it', () => {
+    // A journal anchor never carries waiting_since in practice — this proves
+    // the exclusion does not quietly depend on that being true, the same
+    // reasoning as the due-date cases above.
+    const entry = item('note', {
+      kind: 'journal',
+      state: 'active',
+      waiting_since: '2026-08-20',
+    })
+    expect(forWaiting([entry])).toEqual([])
+  })
+})

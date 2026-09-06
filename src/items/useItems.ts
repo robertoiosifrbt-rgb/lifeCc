@@ -16,6 +16,8 @@ import {
 } from '../repository/items'
 import { coreActions } from './coreActions'
 import type { CoreActions } from './coreActions'
+import { journalActions } from './journalActions'
+import type { JournalActions } from './journalActions'
 import { moneyActions } from './moneyActions'
 import type { MoneyActions } from './moneyActions'
 import { readSnapshot } from './snapshot'
@@ -24,6 +26,7 @@ import type {
   Area,
   Entity,
   Item,
+  JournalEntry,
   Link,
   Patch,
   Expense,
@@ -52,7 +55,8 @@ export type Unsaved = { item: Item; patch: Patch; reason: string }
 // The money writes are declared once, where they are written. Repeating them
 // here is how a handle ends up promising something the hook does not return.
 export type ItemsHandle = MoneyActions &
-  CoreActions & {
+  CoreActions &
+  JournalActions & {
   items: Item[]
   areas: Area[]
   shifts: Shift[]
@@ -61,6 +65,7 @@ export type ItemsHandle = MoneyActions &
   taxYears: TaxYearRow[]
   things: Entity[]
   links: Link[]
+  journal: JournalEntry[]
   loading: boolean
   sync: SyncState
   unsaved: Unsaved[]
@@ -95,6 +100,7 @@ export function useItems(owner: string): ItemsHandle {
   const [taxYears, setTaxYears] = useState<TaxYearRow[]>([])
   const [things, setThings] = useState<Entity[]>([])
   const [links, setLinks] = useState<Link[]>([])
+  const [journal, setJournal] = useState<JournalEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [sync, setSync] = useState<SyncState>({ kind: 'never' })
   const [unsaved, setUnsaved] = useState<Unsaved[]>([])
@@ -109,6 +115,7 @@ export function useItems(owner: string): ItemsHandle {
     setTaxYears(snapshot.taxYears)
     setThings(snapshot.things)
     setLinks(snapshot.links)
+    setJournal(snapshot.journal)
   }, [])
 
   const reload = useCallback(async () => {
@@ -210,6 +217,7 @@ export function useItems(owner: string): ItemsHandle {
     taxYears,
     things,
     links,
+    journal,
     loading,
     sync,
     unsaved,
@@ -255,6 +263,9 @@ export function useItems(owner: string): ItemsHandle {
     // The core writes go through the same `write` as everything else: an arrow
     // that did not get drawn is still a write the caller has to hear about.
     ...coreActions(owner, write),
+
+    // Same for the journal: an entry that did not save is still unsaved.
+    ...journalActions(owner, write),
 
     addArea: (name, parent_id) => write(() => createArea(owner, name, parent_id)),
 

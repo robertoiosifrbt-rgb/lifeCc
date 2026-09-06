@@ -13,6 +13,8 @@ import { supabaseSource, supabaseWriter } from './source'
 import { syncSettings } from './settings-api'
 import { syncCore } from './core'
 import { syncExpenses } from './expenses'
+import { syncJournalEntries } from './journal-entries'
+import { journalStore } from './journal-store'
 import { syncShifts } from './shifts'
 import { areaStore, store } from './store'
 import { sync } from './sync'
@@ -129,13 +131,15 @@ export async function syncAccount(owner: string): Promise<SyncResult> {
   const shifts = await syncShifts(owner)
   const spent = await syncExpenses(owner)
   // The core last, and whole. Entities and links carry no cursor either: both
-  // ride the anchors that have just arrived above.
+  // ride the anchors that have just arrived above. The journal rides its own
+  // anchors the same way, so it goes here too, not with the other two.
   await syncCore(owner)
+  const journal = await syncJournalEntries(owner)
   return {
     // A full snapshot of either table is a full sync: something was rebuilt
     // from nothing, and that is what the word has to keep meaning.
     kind: areas.kind === 'full' || items.kind === 'full' ? 'full' : 'delta',
-    fetched: areas.fetched + items.fetched + shifts.length + spent.length,
+    fetched: areas.fetched + items.fetched + shifts.length + spent.length + journal.length,
     cursor: items.cursor,
   }
 }
@@ -196,11 +200,12 @@ export async function discard(owner: string, item: Item, now: Date): Promise<Ite
 /** "Download everything": the entire snapshot, as a file. */
 export async function exportAll(owner: string, now: Date): Promise<ExportFile> {
   await requireAccount(owner)
-  const [items, cursor] = await Promise.all([
+  const [items, cursor, journal] = await Promise.all([
     store.readAll(owner),
     store.cursor(owner),
+    journalStore.readAll(owner),
   ])
-  return exportFile(owner, items, cursor, now)
+  return exportFile(owner, items, journal, cursor, now)
 }
 
 /**
@@ -265,3 +270,6 @@ export {
   thingsOf,
   unlink,
 } from './core'
+export type { JournalEntry, JournalPatch } from './journal-entry'
+export { findRequestedEntry, searchJournal, timelineOf } from './journal-entry'
+export { createJournalEntry, journalEntriesOf, saveJournalEntry } from './journal-entries'

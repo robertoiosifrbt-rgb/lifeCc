@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import {
   dayOf,
   formatDay,
+  formatMoment,
   formatMonth,
   formatWeekday,
+  localDateTimeInput,
   minusDays,
+  momentFromLocalInput,
   monthDays,
   monthOf,
   plusDays,
@@ -118,5 +121,37 @@ describe('weekdayIndex', () => {
     // 31 August 2026 is a Monday, 6 September a Sunday.
     expect(weekdayIndex('2026-08-31')).toBe(0)
     expect(weekdayIndex('2026-09-06')).toBe(6)
+  })
+})
+
+describe('localDateTimeInput', () => {
+  it('reads the device clock, not UTC', () => {
+    expect(localDateTimeInput(new Date(2026, 8, 4, 14, 32))).toBe('2026-09-04T14:32')
+  })
+
+  it('pads a single-digit month, day, hour and minute', () => {
+    expect(localDateTimeInput(new Date(2026, 0, 5, 9, 3))).toBe('2026-01-05T09:03')
+  })
+})
+
+describe('momentFromLocalInput', () => {
+  it('reads a datetime-local value on the device clock, round-tripping the input', () => {
+    const at = new Date(2026, 8, 4, 14, 32)
+    expect(momentFromLocalInput(localDateTimeInput(at))).toBe(at.toISOString())
+  })
+
+  it('refuses anything that is not a local date and time', () => {
+    expect(() => momentFromLocalInput('2026-09-04')).toThrow('Not a local date and time')
+    expect(() => momentFromLocalInput('not a moment')).toThrow('Not a local date and time')
+  })
+})
+
+describe('formatMoment', () => {
+  it('writes the day and the time, without the year inside the current one', () => {
+    expect(formatMoment('2026-08-20T14:32:00+00:00', TODAY)).toBe('20 August, 14:32')
+  })
+
+  it('refuses anything that is not a moment', () => {
+    expect(() => formatMoment('not a moment', TODAY)).toThrow('Not a moment')
   })
 })

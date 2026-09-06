@@ -96,6 +96,18 @@ describe('the top of the day', () => {
     expect(summary.coming).toEqual([])
   })
 
+  it('never counts a journal entry as a thing to do', () => {
+    // A journal anchor never carries a due in practice; this proves the
+    // exclusion does not quietly depend on that being true.
+    const summary = summarise({
+      items: [item('note', { kind: 'journal', due: '2020-01-01' })],
+      things: [],
+      today: TODAY,
+    })
+    expect(summary.overdue).toEqual([])
+    expect(summary.coming).toEqual([])
+  })
+
   it('ignores what has been deleted', () => {
     const summary = summarise({
       items: [item('gone', { due: '2026-09-01', deleted_at: '2026-09-02T10:00:00+00:00' })],

@@ -1,0 +1,142 @@
+/* Imported by exactly one .tsx in this directory: JournalScreen.tsx */
+
+.journal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.journal-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.journal-editing {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.journal-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.journal-label {
+  color: var(--text-dim);
+  font-size: var(--text-s);
+  font-weight: 550;
+}
+
+.journal-input,
+.journal-textarea {
+  min-height: var(--tap);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--text-m);
+  color: var(--text);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.journal-textarea {
+  resize: vertical;
+}
+
+.journal-area-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.journal-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.journal-save,
+.journal-cancel {
+  flex: 1;
+  min-height: var(--tap);
+  font: inherit;
+  font-size: var(--text-m);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+.journal-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.journal-save:disabled {
+  opacity: 0.5;
+}
+
+.journal-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-s);
+}
+
+.journal-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.journal-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3);
+  text-align: left;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.journal-row-when {
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.journal-row-title {
+  font-size: var(--text-m);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.journal-row-snippet {
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
