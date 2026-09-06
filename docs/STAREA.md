@@ -263,6 +263,10 @@ Vehicle are deja suport pentru:
 
 Deci afirmațiile vechi „nu există modul pentru mașină” nu mai sunt adevărate.
 
+Un Vehicle poate fi acum și „folosit” de un Workday, sau ținta unui fuel
+expense — prin `links` de tip `about`, nu printr-un câmp nou pe `shifts`/
+`expenses`. Vezi secțiunea Delivery/Work mai jos pentru cum se leagă exact.
+
 ### Delivery / Work
 
 Există domeniul de livrări cu:
@@ -305,18 +309,22 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
   Nimic nu se scrie pe server până la „Save draft” sau „Complete workday”.
   Dacă sheet-ul e închis cu modificări nesalvate, apare o confirmare explicită
   înainte să fie pierdute.
-- Cât timp e Draft, costul folosit de preview este rata curentă a Ariei
-  arătate în formular (automat pentru fuel, configurat pentru vehicle),
-  niciodată rata veche pinuită pe rândul `shifts` — schimbarea Ariei în draft
-  nu poate arăta o rată calculată pentru ea în timp ce totalul încă socotește
-  cu rata Ariei vechi. Odată Completed, exact rata pinuită a turei rămâne
-  folosită, înghețată, indiferent ce se schimbă ulterior în configurarea
-  Ariei.
+- Cât timp e Draft, costul folosit de preview este: fuel — rata curentă a
+  **Vehiculului legat** de Workday (`fuelRateForVehicle`, peste
+  `fuelRate`/`fillsOf`), niciodată rata Ariei; vehicle wear — rata curentă
+  configurată pe **Aria** arătată în formular (`running_costs`, neschimbat).
+  Niciodată rata veche pinuită pe rândul `shifts`. Odată Completed,
+  `DrivingCostBasis` arată **numai** rata pinuită a turei (etichetată
+  „Pinned”, cu „Not recorded” pentru o valoare pinuită `null`) — nu mai arată
+  rata curentă a Ariei/Vehiculului, care ar putea deja fi alta.
 - Slice-ul de tax/NI folosit de preview urmărește data din draft, nu data
   încă persistată — mutarea datei recalculează imediat Tax/NI/Roughly yours.
   Profitul propriu al turei editate este exclus din „ce a făcut anul înainte
   de asta” (`before`), ca să nu se numere de două ori când data ei traversează
-  un prag din an.
+  un prag din an. O dată goală **nu** mai înseamnă „azi” pentru acest calcul —
+  `sliceFor` întoarce direct un slice necunoscut, iar mesajul arătat e „Add a
+  workday date to calculate Tax and NI.”, distinct de mesajul pentru anul
+  fiscal nesetat.
 - „Start”/„Stop” rămân singurele acțiuni imediate (scriu direct sesiunea);
   totul altceva e Save draft/Complete workday — inclusiv ștergerea unei
   sesiuni greșite (×), care marchează sesiunea pentru ștergere în draft și o
@@ -339,37 +347,65 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
 - Validarea pentru Complete Workday e separată de validarea pentru Save
   draft. Save draft rămâne permisiv — un Draft incomplet se salvează exact
   cum e tastat. Complete Workday cere în plus: dată nevidă, cel puțin o
-  sesiune de lucru încheiată, ambele citiri de odometru, rata automată de
-  fuel cunoscută și rata vehicle configurată — verificate separat
-  (`validateCompletion`), afișate distinct în sheet. Anul fiscal (HMRC) nu e
-  cerut pentru Complete — un an nesetat rămâne vizibil doar ca „missing” pe
-  rezumat, nu blochează finalizarea zilei.
+  sesiune de lucru încheiată, ambele citiri de odometru, un **Vehicul folosit
+  neambiguu**, rata automată de fuel cunoscută, rata vehicle configurată și
+  **cel puțin un câștig efectiv** (platformă, tip sau bonus > 0 — un draft
+  complet gol de câștiguri, sau cu £0 explicit peste tot, nu poate fi
+  Completed) — toate verificate separat (`validateCompletion`), afișate
+  distinct în sheet. Anul fiscal (HMRC) nu e cerut pentru Complete — un an
+  nesetat rămâne vizibil doar ca „missing” pe rezumat, nu blochează
+  finalizarea zilei.
 - Data unui Workday se editează ca `due` pe aceeași ancoră (nu se creează un
   al doilea shift) — mutarea pe altă zi îl scoate/introduce corect din
   Overdue/ziua respectivă, prin filtrele generice deja existente.
+- **Vehicul folosit**, pe Workday: un `<select>` propriu, separat de Arie,
+  care scrie imediat (nu prin draft) o legătură `about` de la item-ul turei
+  către un `Item`/`Entity` de tip Vehicle — același mecanism `links` deja
+  folosit pentru „reînnoirea e about mașina”, fără model paralel. Nicio
+  legătură, sau mai mult de una simultan, înseamnă „niciun Vehicul
+  neambiguu” — Complete Workday e blocat cu mesaj explicit, iar alegerea unui
+  Vehicul din listă înlocuiește orice legături vechi cu una singură.
 - „Fuel £/km” nu mai e input manual în Workday: se citește automat din
-  calculul full-tank-to-full-tank existent (`fuelRateForArea`, peste
-  `fuelRate`/`fillsOf`), afișat „Automatic · £x.xxxx/km” sau „Not enough
-  full-tank data yet” — niciodată £0 ca și cum ar fi un cost real. „Vehicle
-  £/km” rămâne o configurare a Ariei (`running_costs`), mutată într-o acțiune
-  secundară „Configure vehicle cost”, care se resetează corect la valoarea
-  Ariei curente când Aria draft-ului se schimbă (remount pe cheia Ariei),
-  nu mai apare ca input banal al turei zilnice.
+  calculul full-tank-to-full-tank existent (`fuelRateForVehicle`, peste
+  `fuelRate`/`fillsOf`), urmărind fill-up-urile legate (tot prin `about`) de
+  **Vehiculul folosit**, niciodată de Aria turei — două vehicule din aceeași
+  Arie nu-și amestecă niciodată lanțul de fuel, iar un vehicul folosit în mai
+  multe Arii își păstrează un singur lanț corect. Afișat „Automatic ·
+  £x.xxxx/km” sau „Not enough full-tank data yet” — niciodată £0 ca și cum ar
+  fi un cost real. Un fuel expense fără Vehicul legat (sau cu unul ambiguu)
+  rămâne în afara oricărui calcul — nu e reasignat automat niciunui vehicul,
+  nici măcar istoricul deja scris. „Vehicle £/km” rămâne o configurare a
+  Ariei (`running_costs`, neschimbat de acest task), mutată într-o acțiune
+  secundară „Configure vehicle cost”, care citește mereu valoarea curentă la
+  deschidere (nu doar la schimbarea Ariei) și blochează Complete Workday cât
+  timp scrierea ei e în curs.
+- Rezumatul turei (Made/Roughly yours/etc.) distinge acum de ce lipsește
+  costul pe km: fuel necunoscut, cost vehicul neconfigurat, sau amândouă —
+  trei mesaje diferite, niciodată „scrie fuel” când fuel e deja cunoscut.
 - Un câștig salvat pe o platformă poate fi șters efectiv (nu doar golit
   vizual): golirea casetei și Save draft șterge rândul `shift_earnings`
   corespunzător, nu scrie un £0 fals — „necunoscut” rămâne diferit de „zero”.
+
+Schema minimă nouă pe care se bazează Vehiculul folosit — Entity de tip
+`vehicle` + `links` de tip `about` — există deja live, din
+`20260905180000_entities_and_links`; nimic din ce descrie acest task nu cere
+o migrație nouă pentru asta. Singura migrație nouă e cea de mai jos, pentru
+rata de fuel pinuită pe Vehicul.
 
 Repo-ul poate acum randa componente React în teste. `jsdom` este devDependency
 (vitest rămâne pe `environment: 'node'` global, ca să nu încetinească restul
 suitei; fișierele care chiar randează pun `// @vitest-environment jsdom` în
 capul fișierului). Nu s-a adăugat `@testing-library/react` — un helper mic,
 `src/shifts/domTestHelpers.ts`, montează prin `react-dom/client` direct.
-Exemple: `ShiftHours.test.tsx`, `DrivingCostBasis.test.tsx`,
-`ShiftActions.test.tsx`, `ShiftSheet.test.tsx` (acesta din urmă randează
-sheet-ul întreg pentru Delete succes/eșec/blocat, cu `MemoryRouter` în jur —
-`ShiftSummary` leagă spre `/hmrc`).
+Exemple: `ShiftHours.test.tsx`, `DrivingCostBasis.test.tsx` (inclusiv afișarea
+„pinned” la Completed, și deschiderea editorului mereu cu valoarea curentă),
+`ShiftActions.test.tsx`, `ShiftSummary.test.tsx` (mesajele distincte pentru
+dată lipsă/an nesetat/fuel necunoscut/vehicle cost neconfigurat),
+`ShiftSheet.test.tsx` (Delete succes/eșec/blocat, Complete blocat fără Vehicul
+neambiguu, Complete blocat cât timp o salvare de vehicle cost e în curs), cu
+`MemoryRouter` în jur — `ShiftSummary` leagă spre `/hmrc`.
 
-### Migrație nouă: pinuirea ratei în timp ce e Draft
+### Migrație nouă: pinuirea ratei în timp ce e Draft, și rata de fuel pe Vehicul
 
 `pin_shift_rates()` (déjà existentă, din `20260905100000_reserves` +
 `20260905160000_one_answer`) pinuia rata o singură dată, numai dacă coloana
@@ -380,19 +416,43 @@ prima.
 
 `supabase/migrations/20260906070000_pin_while_draft.sql` **rescrie aceeași
 funcție** (`create or replace`, ca și migrația anterioară) ca să aibă două
-reguli: Draft — repinuiește mereu la rata curentă a Ariei (sau null, dacă
-tura n-are Arie); Completed — comportamentul vechi, neschimbat, rata rămâne
-înghețată orice s-ar întâmpla ulterior în `running_costs`. Testat manual,
-comportamental, pe un Postgres local efemer (nu Supabase, nicio conexiune
-live) — cele patru scenarii (pinuire inițială, repinuire la schimbarea
-Ariei, îngheț după Completed, null fără Arie) s-au comportat exact așa.
+reguli: Draft — repinuiește mereu la rata curentă; Completed — comportamentul
+vechi, neschimbat, rata rămâne înghețată orice s-ar întâmpla ulterior în
+`running_costs`/`vehicle_fuel_rates`.
+
+Un al doilea audit a găsit greșit ce conta drept „rata curentă” pentru fuel:
+prima versiune a acestei migrații (nu a fost niciodată live) citea fuel tot
+din `running_costs`, adică tot după Arie — exact ipoteza greșită „Aria =
+Vehiculul”. Fișierul a fost **rescris pe loc** (fiind neaplicată încă, nu e
+nimic live de păstrat): adaugă tabelul nou `vehicle_fuel_rates` (o rată de
+fuel per Vehicul, cache-ul trigger-ului — nimic din cod nu-l mai citește
+înapoi, ecranul recalculează mereu direct din expenses), și rescrie
+`pin_shift_rates()` să rezolve Vehiculul legat de tura respectivă printr-un
+join `links`⋈`entities` cu verificare explicită de unicitate (exact 1 →
+folosit; 0 sau ≥2 → `null`, niciodată o alegere ghicită), pinuind fuel de
+acolo. `rate_vehicle_per_km` (uzura) rămâne exact ca înainte — citit din
+`running_costs` după Arie, neatins de această schimbare.
+
+Testat manual, comportamental, pe un Postgres local efemer (nu Supabase,
+nicio conexiune live): Vehicul neambiguu → fuel din Vehicul, uzură din Arie;
+niciun Vehicul legat → fuel `null`, uzură neschimbată; două Vehicule legate
+(ambiguu) → fuel `null`; Completed → ambele rate înghețate, neatinse chiar
+și după ce configurarea curentă a Ariei/Vehiculului se schimbă sau legătura
+e ștearsă; Arie nesetată → uzură `null`, fuel neschimbat (necuplat de Arie).
 
 **Nu este aplicată live** și nu apare încă în `docs/MIGRATII.md` ca aplicată.
 
-Migrația `20260906060000_shift_invariants` rămâne neaplicată live, exact ca
-înainte (vezi mai jos) — acest task nu a atins-o și nu depinde de ea: UI-ul
-nou tratează fail-safe orice tură cu sesiuni deschise ambigue (una sau mai
-multe), fără să pornească vreodată o sesiune nouă peste o stare neclară.
+**Dependență de `shift_invariants`, nu independență.** Codul Workday din acest
+task poate fi logic independent de invariantele din `20260906060000_shift_invariants`
+— UI-ul tratează fail-safe orice tură cu sesiuni deschise ambigue, fără să
+pornească vreodată o sesiune nouă peste o stare neclară. Dar ordinea standard
+de migrații pune `0600` înaintea lui `0700`, iar aplicarea secvențială normală
+nu poate ajunge la `0700` cât timp `0600` rămâne neaplicată — blocată de
+incidentul live cu 15 rânduri `shift_sessions` simultan deschise (vezi mai
+sus). Deci `0700` nu e „gata de producție” doar pentru că modelul de Vehicul
+din ea e acum corect; aplicarea ei, ca și repararea celor 15 sesiuni sau
+aplicarea lui `0600`, rămâne o decizie separată, explicită, a proprietarului
+— niciuna dintre ele nu s-a făcut aici.
 
 ### Command Centre — partea existentă
 

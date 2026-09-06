@@ -1,16 +1,27 @@
 import { treeOf } from '../repository/items'
-import type { Area } from '../repository/items'
+import type { Area, Vehicle, VehicleLink } from '../repository/items'
 
 type Props = {
   title: string
   due: string
   area_id: string
   areas: Area[]
+  vehicles: Vehicle[]
+  /** Whichever Vehicle this Workday's own item is linked to right now — none,
+   *  one, or ambiguous when more than one is linked. */
+  vehicle: VehicleLink
   completed: boolean
   busy: boolean
   onChangeTitle: (typed: string) => void
   onChangeDue: (typed: string) => void
   onChangeArea: (area_id: string) => void
+  onChangeVehicle: (vehicleItemId: string | null) => void
+}
+
+function vehicleNameOf(vehicles: Vehicle[], vehicle: VehicleLink): string {
+  if (vehicle.kind === 'none') return 'No Vehicle'
+  if (vehicle.kind === 'ambiguous') return 'Multiple Vehicles linked'
+  return vehicles.find((candidate) => candidate.itemId === vehicle.vehicleItemId)?.name ?? 'Unknown Vehicle'
 }
 
 /**
@@ -32,6 +43,7 @@ export function ShiftHeader(props: Props) {
         <p className="shift-header-title">{props.title}</p>
         <p className="shift-hint">{props.due === '' ? 'No date' : props.due}</p>
         <p className="shift-hint">{area === undefined ? 'No Area' : area.name}</p>
+        <p className="shift-hint">{vehicleNameOf(props.vehicles, props.vehicle)}</p>
       </section>
     )
   }
@@ -78,6 +90,32 @@ export function ShiftHeader(props: Props) {
           ))}
         </select>
       </label>
+      <label className="shift-field">
+        <span className="shift-label">Vehicle used</span>
+        <select
+          className="shift-input"
+          name="vehicle"
+          value={props.vehicle.kind === 'one' ? props.vehicle.vehicleItemId : ''}
+          disabled={busy}
+          onChange={(event) => props.onChangeVehicle(event.target.value === '' ? null : event.target.value)}
+        >
+          <option value="">—</option>
+          {props.vehicles.map((vehicle) => (
+            <option key={vehicle.itemId} value={vehicle.itemId}>
+              {vehicle.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {/* Never guessed between two candidates: picking a Vehicle here
+          replaces every link this Workday carries, so the ambiguity is
+          always solvable from this one control. */}
+      {props.vehicle.kind === 'ambiguous' && (
+        <p className="shift-missing">
+          More than one Vehicle is linked to this workday. Pick one above to
+          replace them.
+        </p>
+      )}
     </section>
   )
 }

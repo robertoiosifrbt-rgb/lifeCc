@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { Item } from '../repository/item'
 import type { Shift } from '../repository/shift'
+import type { VehicleLink } from '../repository/vehicle'
 import { draftFrom } from './draft'
 import { validateCompletion, validateDraft } from './draftValidate'
+
+const ONE_VEHICLE: VehicleLink = { kind: 'one', vehicleItemId: 'v1', linkId: 'l1' }
 
 function item(over: Partial<Item> = {}): Item {
   return {
@@ -94,12 +97,19 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
   const closedSession = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T12:00:00Z', break_minutes: 0 }
 
   function completeInput(over: Partial<Parameters<typeof validateCompletion>[0]> = {}) {
-    const day = shift({ odo_start: 100, odo_end: 150, sessions: [closedSession] })
+    const day = shift({
+      odo_start: 100,
+      odo_end: 150,
+      sessions: [closedSession],
+      earnings: [{ platform: 'uber_eats', amount: 50 }],
+    })
     return {
       draft: draftFrom(item(), day),
       shift: day,
+      vehicle: ONE_VEHICLE,
       fuelPerKm: 0.1,
       vehiclePerKm: 0.05,
+      grossPence: 5000,
       ...over,
     }
   }
@@ -124,8 +134,10 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
     const fields = validateCompletion({
       draft: draftFrom(item(), day),
       shift: day,
+      vehicle: ONE_VEHICLE,
       fuelPerKm: 0.1,
       vehiclePerKm: 0.05,
+      grossPence: 5000,
     }).map((e) => e.field)
     expect(fields).toContain('sessions')
   })
@@ -136,8 +148,10 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
     const fields = validateCompletion({
       draft: draftFrom(item(), day),
       shift: day,
+      vehicle: ONE_VEHICLE,
       fuelPerKm: 0.1,
       vehiclePerKm: 0.05,
+      grossPence: 5000,
     }).map((e) => e.field)
     expect(fields).toContain('sessions')
   })
@@ -161,7 +175,42 @@ describe('validateCompletion — what Complete Workday needs beyond a valid draf
 
   it('blocks Complete when the vehicle cost is not configured', () => {
     const fields = validateCompletion(completeInput({ vehiclePerKm: null })).map((e) => e.field)
-    expect(fields).toContain('vehicle')
+    expect(fields).toContain('vehicle-cost')
+  })
+
+  it('blocks Complete with no Vehicle used at all', () => {
+    const fields = validateCompletion(completeInput({ vehicle: { kind: 'none' } })).map((e) => e.field)
+    expect(fields).toContain('vehicle-used')
+  })
+
+  it('blocks Complete with an ambiguous Vehicle used', () => {
+    const fields = validateCompletion(completeInput({ vehicle: { kind: 'ambiguous' } })).map((e) => e.field)
+    expect(fields).toContain('vehicle-used')
+  })
+
+  it('blocks Complete with no earnings at all — a blank day, not a day that earned nothing', () => {
+    const fields = validateCompletion(completeInput({ grossPence: 0 })).map((e) => e.field)
+    expect(fields).toContain('earnings')
+  })
+
+  it('blocks Complete when every earning is an explicit zero — zero everywhere is not enough either', () => {
+    // grossPence is read from the same takeHome the summary uses: an
+    // explicit £0 typed in every box sums to the same zero a blank draft
+    // would, and validateCompletion draws no distinction between the two.
+    const fields = validateCompletion(completeInput({ grossPence: 0 })).map((e) => e.field)
+    expect(fields).toContain('earnings')
+  })
+
+  it('a platform earning alone is enough to allow Complete', () => {
+    expect(validateCompletion(completeInput({ grossPence: 100 }))).toEqual([])
+  })
+
+  it('tips alone are enough to allow Complete', () => {
+    expect(validateCompletion(completeInput({ grossPence: 500 }))).toEqual([])
+  })
+
+  it('a bonus alone is enough to allow Complete', () => {
+    expect(validateCompletion(completeInput({ grossPence: 250 }))).toEqual([])
   })
 
   it('does not block Complete for missing HMRC/year figures — those are not asked here at all', () => {

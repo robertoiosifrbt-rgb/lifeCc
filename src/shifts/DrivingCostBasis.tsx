@@ -3,14 +3,24 @@ import { useState } from 'react'
 import type { FuelRate, RunningCosts } from '../repository/items'
 import { rateOf } from './money'
 
+/** Exactly what a Completed workday was pinned to — never today's rate. */
+export type PinnedBasis = { fuel_per_km: number | null; vehicle_per_km: number | null }
+
 type Props = {
-  /** Worked out fresh from this area's full-tank fill-ups, not typed. */
+  /** Worked out fresh from the linked Vehicle's full-tank fill-ups, not typed. */
   fuelRate: FuelRate
   /** The area's current vehicle rate, or null if nobody has set it yet. */
   costs: RunningCosts | null
+  /** Set only once Completed: the shift's own frozen rates, shown instead of
+   *  `fuelRate`/`costs` — which stay live even after this workday is done. */
+  pinned: PinnedBasis | null
   busy: boolean
   readOnly: boolean
   onConfigureVehicle: (vehicle_per_km: number) => Promise<void>
+}
+
+function rateText(value: number | null): string {
+  return value === null ? 'Not recorded' : `Pinned · £${value.toFixed(4)}/km`
 }
 
 /**
@@ -19,20 +29,31 @@ type Props = {
  * way out the door.
  *
  * Fuel is never typed here. The repo already knows the full-tank-to-full-tank
- * price from the fuel expenses of this area — that is the one number this
+ * price from the linked Vehicle's fuel expenses — that is the one number this
  * shows, or it says plainly that there is not enough of it yet. A shift that
  * shows £0 for a rate nobody has set is a lie in the direction that costs
  * money, so it never does.
+ *
+ * Once Completed, `pinned` takes over entirely: the shift's own frozen rates,
+ * labelled as pinned, never the Area or Vehicle's rate as it stands today —
+ * changing either after the day is done must not make this screen and the
+ * summary above it disagree about what the day actually cost.
  */
 export function DrivingCostBasis(props: Props) {
   const [open, setOpen] = useState(false)
-  const [typed, setTyped] = useState(
-    props.costs === null ? '' : String(props.costs.vehicle_per_km),
-  )
+  const [typed, setTyped] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fuelKnown = props.fuelRate.perKm !== null
+
+  /** Always seeded from the latest props at the moment it opens — never a
+   *  value captured once and left stale by a newer rate arriving underneath
+   *  while the editor was closed, whether or not the Area itself changed. */
+  function openEditor() {
+    setTyped(props.costs === null ? '' : String(props.costs.vehicle_per_km))
+    setOpen(true)
+  }
 
   function onSave() {
     let rate: number | null
@@ -61,32 +82,39 @@ export function DrivingCostBasis(props: Props) {
       <div className="shift-paid">
         <span className="shift-platform">Fuel cost</span>
         <span className="shift-cost-value">
-          {fuelKnown
-            ? `Automatic · £${props.fuelRate.perKm?.toFixed(4)}/km`
-            : 'Not enough full-tank data yet'}
+          {props.pinned !== null
+            ? rateText(props.pinned.fuel_per_km)
+            : fuelKnown
+              ? `Automatic · £${props.fuelRate.perKm?.toFixed(4)}/km`
+              : 'Not enough full-tank data yet'}
         </span>
       </div>
 
       <div className="shift-paid">
         <span className="shift-platform">Vehicle cost</span>
         <span className="shift-cost-value">
-          {props.costs === null ? 'Not set' : `£${props.costs.vehicle_per_km.toFixed(4)}/km`}
+          {props.pinned !== null
+            ? rateText(props.pinned.vehicle_per_km)
+            : props.costs === null
+              ? 'Not set'
+              : `£${props.costs.vehicle_per_km.toFixed(4)}/km`}
         </span>
       </div>
 
       {!props.readOnly && !fuelKnown && (
         <p className="shift-missing">
-          Add full-tank fuel purchases for this Area before the vehicle cost
-          can be configured.
+          Add full-tank fuel purchases for the Vehicle used before the
+          vehicle cost can be configured.
         </p>
       )}
 
       {!props.readOnly && fuelKnown && !open && (
         <button
           type="button"
+          name="configure-vehicle-cost"
           className="shift-button"
           disabled={props.busy}
-          onClick={() => setOpen(true)}
+          onClick={openEditor}
         >
           Configure vehicle cost
         </button>
@@ -103,7 +131,13 @@ export function DrivingCostBasis(props: Props) {
             disabled={saving}
             onChange={(event) => setTyped(event.target.value)}
           />
-          <button type="button" className="shift-button" disabled={saving} onClick={onSave}>
+          <button
+            type="button"
+            name="save-vehicle-cost"
+            className="shift-button"
+            disabled={saving}
+            onClick={onSave}
+          >
             Save
           </button>
         </div>

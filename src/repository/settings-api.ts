@@ -6,7 +6,7 @@ import type { TaxYearPatch, TaxYearRow } from './hmrc-year'
 import { runningCostsFromRow } from './settings'
 import type { RunningCosts } from './settings'
 import { settingsStore } from './settings-store'
-import { supabaseSettings, supabaseSettingsWriter } from './source'
+import { supabaseSettings, supabaseSettingsWriter } from './settings-source'
 
 async function requireAccount(owner: string): Promise<void> {
   const session = await currentSession()

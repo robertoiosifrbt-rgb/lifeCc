@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { SpendSheet } from '../../spend/SpendSheet'
 
-import { currentYearMoney, forToday } from '../../repository/items'
+import { currentYearMoney, forToday, vehiclesOf } from '../../repository/items'
 import type { Item } from '../../repository/items'
 import { useScreen } from '../../items/context'
 import { ItemRow } from '../../ui/ItemRow'
@@ -133,6 +133,7 @@ export function TodayScreen() {
         <SpendSheet
           day={today}
           areas={data.areas}
+          vehicles={vehiclesOf(data.items, data.things)}
           suggestedArea={null}
           onSpend={(what) => data.spend(what)}
           onClose={() => setSpending(false)}

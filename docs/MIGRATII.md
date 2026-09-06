@@ -63,10 +63,24 @@ tabelul de mai sus. Vezi `docs/STAREA.md` pentru motivul blocajului.
 `20260906070000_pin_while_draft` **nu** este aplicată live și nu apare în
 tabelul de mai sus. Rescrie `pin_shift_rates()` (funcție deja existentă din
 `20260905100000_reserves`/`20260905160000_one_answer`) ca să repinuiască rata
-de cost a unui Workday încă Draft la fiecare scriere, urmărind Aria curentă,
-în loc s-o lase înghețată din prima scriere — comportamentul pentru un Workday
-Completed rămâne exact cel de dinainte. Vezi `docs/STAREA.md`, secțiunea
-Delivery/Work, pentru motivul complet.
+de cost a unui Workday încă Draft la fiecare scriere, în loc s-o lase înghețată
+din prima scriere — comportamentul pentru un Workday Completed rămâne exact cel
+de dinainte. Adaugă și tabelul `vehicle_fuel_rates`: rata de combustibil se
+citește acum după Vehiculul legat de Workday (via `links`/`entities`), nu după
+Aria lui — `rate_vehicle_per_km` (uzura) rămâne exact ca înainte, citită din
+`running_costs` după Arie. Vezi `docs/STAREA.md`, secțiunea Delivery/Work,
+pentru motivul complet.
+
+**Dependență operațională, nu doar ordine de fișiere.** Ordinea standard de
+migrații pune `0600` înaintea lui `0700`. `0600` este blocată de incidentul
+live cunoscut cu 15 rânduri `shift_sessions` simultan deschise (vezi
+`docs/STAREA.md`). Codul Workday din acest task poate fi logic independent de
+invariantele din `0600`, dar aplicarea secvențială normală a migrațiilor nu
+poate ajunge la `0700` cât timp `0600` rămâne neaplicată/blocată — deci `0700`
+nu este pregătită de producție doar pentru că există în repo și modelul de
+Vehicul din ea este acum corect. Aplicarea oricăreia dintre ele, repararea
+celor 15 sesiuni sau alegerea uneia reale rămân decizii separate, explicite,
+ale proprietarului — nu s-a făcut nimic din toate astea aici.
 
 ## Schimbări manuale declarate
 

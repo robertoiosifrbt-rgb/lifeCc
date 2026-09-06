@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { CATEGORIES, CATEGORY_NAMES, treeOf } from '../repository/items'
-import type { Area, Category } from '../repository/items'
+import type { Area, Category, Vehicle } from '../repository/items'
 import { penceOf, readingOf } from '../shifts/money'
 import { Sheet } from '../ui/Sheet'
 import './SpendSheet.css'
@@ -9,6 +9,7 @@ import './SpendSheet.css'
 type Props = {
   day: string
   areas: Area[]
+  vehicles: Vehicle[]
   /** Where the last shift was, so the common case needs no choosing. */
   suggestedArea: string | null
   onSpend: (what: {
@@ -20,6 +21,7 @@ type Props = {
     odo: number | null
     full_tank: boolean | null
     business_pct: number
+    vehicle_item_id: string | null
   }) => Promise<void>
   onClose: () => void
 }
@@ -43,12 +45,13 @@ function businessShare(typed: string): number {
   return share
 }
 
-export function SpendSheet({ day, areas, suggestedArea, onSpend, onClose }: Props) {
+export function SpendSheet({ day, areas, vehicles, suggestedArea, onSpend, onClose }: Props) {
   const [category, setCategory] = useState<Category>('fuel')
   const [amount, setAmount] = useState('')
   const [odo, setOdo] = useState('')
   const [full, setFull] = useState(true)
   const [area, setArea] = useState(suggestedArea ?? '')
+  const [vehicle, setVehicle] = useState('')
   // The whole of it, until you say otherwise. What is written against a line
   // of work was meant as a cost of it; the box is there for the year of car
   // insurance that also covers the shopping.
@@ -73,6 +76,7 @@ export function SpendSheet({ day, areas, suggestedArea, onSpend, onClose }: Prop
         odo: fuel ? readingOf(odo) : null,
         full_tank: fuel ? full : null,
         business_pct: businessShare(share),
+        vehicle_item_id: vehicle === '' ? null : vehicle,
       })
       onClose()
     } catch (reason) {
@@ -159,6 +163,24 @@ export function SpendSheet({ day, areas, suggestedArea, onSpend, onClose }: Prop
           {treeOf(areas).map(({ area: one, depth }) => (
             <option key={one.id} value={one.id}>
               {' '.repeat(depth * 2)}
+              {one.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="spend-field">
+        <span className="spend-label">Vehicle</span>
+        <select
+          className="spend-input"
+          name="vehicle"
+          value={vehicle}
+          disabled={busy}
+          onChange={(event) => setVehicle(event.target.value)}
+        >
+          <option value="">—</option>
+          {vehicles.map((one) => (
+            <option key={one.itemId} value={one.itemId}>
               {one.name}
             </option>
           ))}

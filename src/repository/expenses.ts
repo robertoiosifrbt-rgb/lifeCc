@@ -2,13 +2,13 @@
 // from writing one down: the fuel rate changes.
 
 import { currentSession } from './auth'
-import { expenseFromRow, fillsOf } from './expense'
+import { link, linksOf, thingsOf } from './core'
+import { expenseFromRow } from './expense'
 import type { Category, Expense } from './expense'
-import { fuelRate } from './fuel'
-import type { FuelRate } from './fuel'
+import { fuelRateForVehicle, vehicleLinkOf } from './vehicle'
 import { createDated, softDelete } from './write'
 import { supabaseExpenses, supabaseExpenseWriter, supabaseWriter } from './source'
-import { runningCostsOf, saveRunningCosts } from './settings-api'
+import { supabaseSettingsWriter } from './settings-source'
 import { expenseStore } from './settings-store'
 import { store } from './store'
 import { localToday } from './item'
@@ -56,6 +56,8 @@ export async function recordExpense(
     odo: number | null
     full_tank: boolean | null
     business_pct: number
+    /** Which Vehicle this was for, or null when it is left unknown. */
+    vehicle_item_id: string | null
   },
 ): Promise<Item> {
   await requireAccount(owner)
@@ -73,73 +75,46 @@ export async function recordExpense(
     full_tank: what.full_tank,
     business_pct: what.business_pct,
   })
+  // A Vehicle is never assigned by guessing — only when the person actually
+  // said which one this was for, at the moment of writing it down.
+  if (what.vehicle_item_id !== null) {
+    await link(owner, anchor.id, what.vehicle_item_id, 'about')
+  }
   // The cache first, and then the rate. Working the rate out before this line
   // reads a cache that does not hold the fill just written, so the rate would
   // always be one fill-up behind — right until the moment somebody checked it
   // against the pump and could not see why.
-  // The anchor into the cache before the rate is worked out: the fills of an
-  // area are found through their anchors, and one that is only on the server
-  // is one the sum cannot see.
   await store.upsert(owner, [anchor], null)
   await syncExpenses(owner)
-  await refreshFuelRate(owner, await store.readAll(owner), what.area_id)
+  if (what.category === 'fuel' && what.vehicle_item_id !== null) {
+    await refreshVehicleFuelRate(owner, what.vehicle_item_id)
+  }
   return anchor
 }
 
 /**
- * The fuel rate this area's fill-ups work out to, right now.
- *
- * The one function that reads the pump receipts of an area — the automatic
- * "what a kilometre costs" a shift shows, and the same sum `refreshFuelRate`
- * freezes onto a shift when it writes one. Two callers, one formula: a screen
- * showing its own guess at this would be a second answer to the question the
- * fill-ups already answer.
- */
-export function fuelRateForArea(
-  items: readonly Item[],
-  expenses: readonly Expense[],
-  area_id: string | null,
-): FuelRate {
-  if (area_id === null) return fuelRate([])
-  // Only this area's fill-ups. A second line of work is a second vehicle
-  // burning fuel at its own price, and one rate worked out from both bonnets
-  // is a number that describes neither.
-  const here = new Set(
-    items.filter((item) => item.area_id === area_id).map((item) => item.id),
-  )
-  const mine = expenses.filter(
-    (expense) => expense.category === 'fuel' && here.has(expense.item_id),
-  )
-  return fuelRate(fillsOf(mine))
-}
-
-/**
- * Works the fuel rate out again and writes it where the shifts can pin it.
+ * Works a Vehicle's fuel rate out again and writes it where a shift's pin
+ * trigger can read it.
  *
  * Derived, but stored, and on purpose: a shift freezes the rate it was worked
  * under, and the database does that freezing at the moment of writing. It
- * cannot run this sum inside a trigger, so the value it reads has to be
- * sitting there. One function works it out, and this is the only one that
- * writes it.
+ * cannot run the full-tank sum inside a trigger, so the value it reads has to
+ * be sitting there already — the same reason `running_costs.fuel_per_km` used
+ * to hold this for an Area. One function works it out, and this is the only
+ * one that writes it.
  */
-export async function refreshFuelRate(
-  owner: string,
-  items: readonly Item[],
-  area_id: string | null,
-): Promise<void> {
-  if (area_id === null) return
-
-  const rate = fuelRateForArea(items, await expensesOf(owner), area_id)
+export async function refreshVehicleFuelRate(owner: string, vehicleItemId: string): Promise<void> {
+  const [expenses, links, entities] = await Promise.all([
+    expensesOf(owner),
+    linksOf(owner),
+    thingsOf(owner),
+  ])
+  const rate = fuelRateForVehicle(expenses, links, entities, vehicleItemId)
   if (rate.perKm === null) return
-
-  const held = (await runningCostsOf(owner)).find((row) => row.area_id === area_id)
-  // The wear is the owner's to set, and there is no honest guess at it. Until
-  // he has said, the fuel rate waits: writing zero here would put a cost per
-  // kilometre on screen with half of it silently missing, which is the same
-  // lie as £0 of tax.
-  if (held === undefined) return
-
-  await saveRunningCosts(owner, area_id, rate.perKm, held.vehicle_per_km)
+  await supabaseSettingsWriter().saveVehicleFuelRate({
+    vehicle_item_id: vehicleItemId,
+    fuel_per_km: rate.perKm,
+  })
 }
 
 /**
@@ -155,10 +130,12 @@ export async function refreshFuelRate(
  */
 export async function removeExpense(owner: string, item: Item, now: Date): Promise<void> {
   await requireAccount(owner)
+  const [links, entities] = await Promise.all([linksOf(owner), thingsOf(owner)])
+  const own = vehicleLinkOf(links, entities, item.id)
   await supabaseExpenseWriter(owner).remove(item.id)
   const writer = supabaseWriter<Patch>(ITEMS, owner)
   const gone = await softDelete(writer, item, now, localToday(now))
   await store.upsert(owner, [gone], null)
   await syncExpenses(owner)
-  await refreshFuelRate(owner, await store.readAll(owner), item.area_id)
+  if (own.kind === 'one') await refreshVehicleFuelRate(owner, own.vehicleItemId)
 }

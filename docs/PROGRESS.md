@@ -73,7 +73,7 @@ construi încă modulele viitoare.
 
 ## FAZA 2 — Areas reale
 
-- `PARTIAL` — Work → Gig Work → Multi-App Delivery (Workday recuperat cu lifecycle clar Draft/Completed pe item.state existent, Save draft cu live preview, Complete/Delete workday blocate corect de o sesiune deschisă, fuel automat din full-tank data, vehicle rate mutat într-o configurare separată — dar platformele configurabile, earning cycle/payout/cash-out rămân TODO, vezi criteriul suplimentar de mai jos);
+- `PARTIAL` — Work → Gig Work → Multi-App Delivery (Workday recuperat cu lifecycle clar Draft/Completed pe item.state existent, Save draft cu live preview, Complete/Delete workday blocate corect de o sesiune deschisă, fuel automat legat de Vehiculul folosit — nu de Arie —, vehicle rate mutat într-o configurare separată pe Arie, Complete Workday cere acum un Vehicul neambiguu și cel puțin un câștig efectiv, Completed arată numai rata pinuită — dar platformele configurabile, earning cycle/payout/cash-out rămân TODO, vezi criteriul suplimentar de mai jos);
 - `TODO` — Work → Employment;
 - `TODO` — Work → Business → ACHU LTD;
 - `TODO` — Health;

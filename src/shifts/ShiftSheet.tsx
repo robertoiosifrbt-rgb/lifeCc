@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import { canCompleteWorkday, canDeleteWorkday, sessionMessageOf } from '../repository/items'
 import type {
   Area,
+  Entity,
   Expense,
   Item,
+  Link,
   Patch,
   Platform,
   RunningCosts,
@@ -17,8 +19,7 @@ import { DrivingCostBasis } from './DrivingCostBasis'
 import { draftFrom } from './draft'
 import type { Draft } from './draft'
 import { isDirty } from './draftPatches'
-import { validateCompletion, validateDraft } from './draftValidate'
-import { areaIdOf, costBasisOf, liveSummaryOf, sliceFor } from './liveSummary'
+import { validateDraft } from './draftValidate'
 import { saveWorkday } from './saveWorkday'
 import { ShiftActions } from './ShiftActions'
 import { ShiftEarnings } from './ShiftEarnings'
@@ -27,6 +28,8 @@ import { ShiftHours } from './ShiftHours'
 import { ShiftOdometer } from './ShiftOdometer'
 import { ShiftRoadCosts } from './ShiftRoadCosts'
 import { ShiftSummary } from './ShiftSummary'
+import { UnsavedChangesBanner } from './UnsavedChangesBanner'
+import { useWorkdayComputations } from './useWorkdayComputations'
 import { EMPTY_SHIFT } from './money'
 import './ShiftSheet.css'
 
@@ -39,8 +42,8 @@ type Props = {
   expenses: Expense[]
   costs: RunningCosts[]
   taxYears: TaxYearRow[]
-  /** For the tax slice when the draft carries no date at all. */
-  today: string
+  links: Link[]
+  things: Entity[]
   onClockOn: () => Promise<void>
   onClockOff: (sessionId: string) => Promise<void>
   onDropSession: (sessionId: string) => Promise<void>
@@ -56,6 +59,9 @@ type Props = {
     fuel_per_km: number,
     vehicle_per_km: number,
   ) => Promise<void>
+  /** Replaces whatever Vehicle is linked with this one, or none when null.
+   *  Immediate, not deferred to Save draft: an association, not a field. */
+  onSetVehicle: (vehicleItemId: string | null) => Promise<void>
   onClose: () => void
 }
 
@@ -76,6 +82,7 @@ export function ShiftSheet(props: Props) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(item, shift))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [savingVehicleCost, setSavingVehicleCost] = useState(false)
   const [confirmingClose, setConfirmingClose] = useState(false)
 
   const dirty = !completed && isDirty(item, shift, draft)
@@ -142,48 +149,37 @@ export function ShiftSheet(props: Props) {
     onClose()
   }
 
-  // The two expensive parts — each a scan over the whole account — only
-  // redone when what they actually depend on changes: the Area (and the
-  // fuel/vehicle data behind it), and the date. Typing a tip or an odometer
-  // reading recomputes neither.
-  const areaId = areaIdOf(item, draft, completed)
-  const { fuelRate, runningCosts, costBasis } = useMemo(
-    () => costBasisOf({ shift, completed, areaId, items: props.items, expenses: props.expenses, costs: props.costs }),
-    [shift, completed, areaId, props.items, props.expenses, props.costs],
-  )
-  const slice = useMemo(
-    () => sliceFor({ item, due: draft.due, items: props.items, shifts: props.shifts, expenses: props.expenses, taxYears: props.taxYears, today: props.today }),
-    [item, draft.due, props.items, props.shifts, props.expenses, props.taxYears, props.today],
-  )
-  const { sum, worked, km } = liveSummaryOf(shift, draft, costBasis, slice)
+  const {
+    vehicleLink,
+    vehicles,
+    areaId,
+    fuelRate,
+    runningCosts,
+    costBasis,
+    sum,
+    worked,
+    km,
+    pinnedBasis,
+    completionErrors,
+  } = useWorkdayComputations({
+    item,
+    shift,
+    draft,
+    completed,
+    items: props.items,
+    shifts: props.shifts,
+    expenses: props.expenses,
+    costs: props.costs,
+    taxYears: props.taxYears,
+    links: props.links,
+    things: props.things,
+  })
   const fuelPerKm = fuelRate.perKm
-  const completionErrors = completed
-    ? []
-    : validateCompletion({
-        draft,
-        shift,
-        fuelPerKm: costBasis.fuel_per_km,
-        vehiclePerKm: costBasis.vehicle_per_km,
-      })
 
   return (
     <Sheet title={`Workday · ${item.due ?? 'undated'}`} onClose={requestClose}>
       {confirmingClose && (
-        <div className="shift-unsaved" role="alert">
-          <p>You have unsaved changes. Close anyway?</p>
-          <div className="shift-actions">
-            <button
-              type="button"
-              className="shift-button"
-              onClick={() => setConfirmingClose(false)}
-            >
-              Keep editing
-            </button>
-            <button type="button" className="shift-button shift-danger" onClick={onClose}>
-              Discard changes
-            </button>
-          </div>
-        </div>
+        <UnsavedChangesBanner onKeepEditing={() => setConfirmingClose(false)} onDiscard={onClose} />
       )}
 
       <ShiftHeader
@@ -191,14 +187,24 @@ export function ShiftSheet(props: Props) {
         due={draft.due}
         area_id={draft.area_id}
         areas={props.areas}
+        vehicles={vehicles}
+        vehicle={vehicleLink}
         completed={completed}
         busy={busy}
         onChangeTitle={(typed) => set('title', typed)}
         onChangeDue={(typed) => set('due', typed)}
         onChangeArea={(area_id) => set('area_id', area_id)}
+        onChangeVehicle={(vehicleItemId) => run(() => props.onSetVehicle(vehicleItemId))}
       />
 
-      <ShiftSummary sum={sum} worked={worked} km={km} />
+      <ShiftSummary
+        sum={sum}
+        worked={worked}
+        km={km}
+        dateKnown={draft.due !== ''}
+        fuelUnknown={costBasis.fuel_per_km === null}
+        vehicleCostUnknown={costBasis.vehicle_per_km === null}
+      />
 
       {error !== null && <p className="shift-error">{error}</p>}
 
@@ -254,20 +260,22 @@ export function ShiftSheet(props: Props) {
         onChange={(key, typed) => set(key, typed)}
       />
 
-      {areaId !== null && (
+      {(areaId !== null || pinnedBasis !== null) && (
         <DrivingCostBasis
-          key={areaId}
           fuelRate={fuelRate}
           costs={runningCosts}
-          busy={busy}
+          pinned={pinnedBasis}
+          busy={busy || savingVehicleCost}
           readOnly={completed}
+          // Not routed through `guarded()`: that swallows a rejection into
+          // `error`, which would resolve this promise either way and close
+          // the editor even on failure. `savingVehicleCost` still blocks
+          // Complete the same as `busy` does everywhere else.
           onConfigureVehicle={(vehicle_per_km) => {
-            if (fuelPerKm === null) return Promise.resolve()
-            // The Area this writes is the one the draft is showing right now
-            // — not necessarily the persisted item's — so a rate typed after
-            // changing the Area, before Save draft, lands on the Area it was
-            // actually shown against.
+            if (fuelPerKm === null || areaId === null) return Promise.resolve()
+            setSavingVehicleCost(true)
             return props.onSaveVehicleCost(areaId, fuelPerKm, vehicle_per_km)
+              .finally(() => setSavingVehicleCost(false))
           }}
         />
       )}
@@ -275,7 +283,7 @@ export function ShiftSheet(props: Props) {
       <ShiftActions
         completed={completed}
         dirty={dirty}
-        busy={busy}
+        busy={busy || savingVehicleCost}
         blockedByOpenSession={blockedByOpenSession}
         sessionMessage={sessionMessage}
         errors={errors}

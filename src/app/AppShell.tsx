@@ -8,6 +8,7 @@ import { useItems } from '../items/useItems'
 import { ExpenseSheet } from '../spend/ExpenseSheet'
 import { ShiftSheet } from '../shifts/ShiftSheet'
 import type { Session } from '../repository/auth'
+import { vehicleLinkIdsOf } from '../repository/items'
 import { useToday } from './today'
 import { MoreSheet } from './MoreSheet'
 import { ShellHeader } from './ShellHeader'
@@ -123,7 +124,8 @@ export function AppShell({ session }: Props) {
           expenses={data.expenses}
           costs={data.costs}
           taxYears={data.taxYears}
-          today={today}
+          links={data.links}
+          things={data.things}
           onClockOn={() => data.clockOn(openItem.id)}
           onClockOff={(sessionId) => data.clockOff(sessionId)}
           onDropSession={(sessionId) => data.dropSession(sessionId)}
@@ -134,6 +136,11 @@ export function AppShell({ session }: Props) {
           onUpdateItem={(patch) => data.update(openItem, patch)}
           onDelete={() => data.discard(openItem)}
           onSaveVehicleCost={(area_id, fuel, vehicle) => data.saveCosts(area_id, fuel, vehicle)}
+          onSetVehicle={async (vehicleItemId) => {
+            const toRemove = vehicleLinkIdsOf(data.links, data.things, openItem.id)
+            for (const linkId of toRemove) await data.unlink(linkId)
+            if (vehicleItemId !== null) await data.link(openItem.id, vehicleItemId, 'about')
+          }}
           onClose={closeItem}
         />
       )}
@@ -143,6 +150,9 @@ export function AppShell({ session }: Props) {
           item={openItem}
           expense={data.expenses.find((e) => e.item_id === openItem.id) ?? null}
           areas={data.areas}
+          items={data.items}
+          links={data.links}
+          things={data.things}
           onRemove={() => data.unspend(openItem)}
           onClose={closeItem}
         />

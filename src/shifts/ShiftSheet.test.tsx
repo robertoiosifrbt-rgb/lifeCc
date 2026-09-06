@@ -57,7 +57,8 @@ function baseProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
     expenses: [],
     costs: [],
     taxYears: [],
-    today: '2026-09-05',
+    links: [],
+    things: [],
     onClockOn: () => Promise.resolve(),
     onClockOff: () => Promise.resolve(),
     onDropSession: () => Promise.resolve(),
@@ -68,6 +69,7 @@ function baseProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
     onUpdateItem: () => Promise.resolve(),
     onDelete: () => Promise.resolve(),
     onSaveVehicleCost: () => Promise.resolve(),
+    onSetVehicle: () => Promise.resolve(),
     onClose: () => {},
     ...overrides,
   }
@@ -100,6 +102,139 @@ async function clickDelete() {
     await Promise.resolve()
   })
 }
+
+const vehicleEntity = {
+  item_id: 'v1',
+  owner: 'me',
+  entity_kind: 'vehicle' as const,
+  registration: null,
+  make: null,
+  model: null,
+  fuel: null,
+  odo: null,
+  mot_due: null,
+  road_tax_due: null,
+  insurance_due: null,
+  service_due: null,
+  oil_changed_at: null,
+  oil_due_at: null,
+}
+
+function about(id: string, from_id: string, to_id: string) {
+  return { id, owner: 'me', from_id, to_id, kind: 'about' as const, created_at: '2026-09-01T00:00:00Z' }
+}
+
+function fuelExpense(item_id: string, odo: number, pounds: number) {
+  return {
+    item_id,
+    owner: 'me',
+    amount: pounds,
+    category: 'fuel' as const,
+    odo,
+    full_tank: true,
+    litres: null,
+    covers_from: null,
+    covers_to: null,
+    business_pct: 100,
+  }
+}
+
+/** A workday whose every Complete Workday requirement is already met, with
+ *  a real full-tank fuel chain and a configured vehicle cost — so the only
+ *  thing that can still disable Complete is `busy`. */
+function completeWorkdayProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
+  const closedSession = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T12:00:00Z', break_minutes: 0 }
+  const anchor = item({ area_id: 'area-1' })
+  const day = shift({
+    odo_start: 100,
+    odo_end: 150,
+    sessions: [closedSession],
+    earnings: [{ platform: 'uber_eats', amount: 50 }],
+  })
+  return baseProps({
+    item: anchor,
+    shift: day,
+    items: [anchor, item({ id: 'f1', kind: 'expense' }), item({ id: 'f2', kind: 'expense' })],
+    shifts: [day],
+    expenses: [fuelExpense('f1', 1000, 0), fuelExpense('f2', 1100, 10)],
+    things: [vehicleEntity],
+    links: [about('l1', 'i1', 'v1'), about('l2', 'f1', 'v1'), about('l3', 'f2', 'v1')],
+    costs: [
+      {
+        area_id: 'area-1',
+        owner: 'me',
+        fuel_per_km: 0.1,
+        vehicle_per_km: 0.05,
+        version: 1,
+        created_at: '2026-09-01T00:00:00Z',
+        updated_at: '2026-09-01T00:00:00Z',
+        deleted_at: null,
+      },
+    ],
+    ...overrides,
+  })
+}
+
+describe('ShiftSheet — the Vehicle used gates Complete Workday', () => {
+  it('Complete is disabled with no Vehicle linked, even though everything else qualifies', () => {
+    mounted = renderSheet(completeWorkdayProps({ links: [] }))
+    const complete = mounted.container.querySelector<HTMLButtonElement>('button[name="complete-workday"]')
+    expect(complete?.disabled).toBe(true)
+    expect(mounted.container.textContent).toContain('unambiguous Vehicle')
+  })
+
+  it('Complete is enabled once a Vehicle is linked and every other requirement is met', () => {
+    mounted = renderSheet(completeWorkdayProps())
+    const complete = mounted.container.querySelector<HTMLButtonElement>('button[name="complete-workday"]')
+    expect(complete?.disabled).toBe(false)
+  })
+})
+
+describe('ShiftSheet — a pending vehicle-cost configuration save blocks Complete Workday', () => {
+  it('Complete is disabled while the save is pending, and re-enabled once it resolves', async () => {
+    let resolveSave: (() => void) | null = null
+    const onSaveVehicleCost = vi.fn(
+      () => new Promise<void>((resolve) => { resolveSave = resolve }),
+    )
+    mounted = renderSheet(completeWorkdayProps({ onSaveVehicleCost }))
+
+    const completeBefore = mounted.container.querySelector<HTMLButtonElement>('button[name="complete-workday"]')
+    expect(completeBefore?.disabled).toBe(false)
+
+    act(() => {
+      mounted?.container.querySelector<HTMLButtonElement>('button[name="configure-vehicle-cost"]')?.click()
+    })
+    act(() => {
+      const input = mounted?.container.querySelector<HTMLInputElement>('input[name="vehicle_per_km"]')
+      if (input !== null && input !== undefined) {
+        // A plain `input.value = ...` does not make React's onChange fire —
+        // it tracks the native value setter itself, so the value has to go
+        // through that same setter for the dispatched event to be seen as a
+        // real change.
+        // eslint-disable-next-line @typescript-eslint/unbound-method -- rebound explicitly via .call below
+        const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+        setValue?.call(input, '0.06')
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    })
+    act(() => {
+      mounted?.container.querySelector<HTMLButtonElement>('button[name="save-vehicle-cost"]')?.click()
+    })
+
+    const completeWhilePending = mounted.container.querySelector<HTMLButtonElement>('button[name="complete-workday"]')
+    expect(completeWhilePending?.disabled).toBe(true)
+
+    await act(async () => {
+      resolveSave?.()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const completeAfter = mounted.container.querySelector<HTMLButtonElement>('button[name="complete-workday"]')
+    expect(completeAfter?.disabled).toBe(false)
+    expect(onSaveVehicleCost).toHaveBeenCalledWith('area-1', 0.1, 0.06)
+  })
+})
 
 describe('ShiftSheet — Delete workday', () => {
   it('closes the sheet after a successful delete', async () => {

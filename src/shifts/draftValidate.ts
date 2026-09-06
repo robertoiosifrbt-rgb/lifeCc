@@ -2,7 +2,7 @@
 // or Complete Workday is let through — split out of `draft.ts` at the
 // 300-line limit.
 
-import type { Shift } from '../repository/items'
+import type { Shift, VehicleLink } from '../repository/items'
 import { PLATFORMS } from '../repository/items'
 import type { Draft } from './draft'
 import { parseBreak, parseMoney, parseReading } from './draft'
@@ -86,19 +86,27 @@ export function validateDraft(shift: Shift, draft: Draft): ValidationError[] {
  * Save draft never checks any of this — an incomplete workday still saves,
  * exactly as typed so far. Complete is the one action that says a day is
  * finished, so it is the one that asks for a date, at least one session
- * that actually happened, both odometer readings, and a cost basis that is
- * actually known — not a guess, not a silent zero. HMRC's year figures are
+ * that actually happened, both odometer readings, an unambiguous Vehicle
+ * used, a cost basis that is actually known — not a guess, not a silent
+ * zero — and what the day actually earned. HMRC's year figures are
  * deliberately not asked here: `sum.missing` already says when tax cannot be
  * worked out, and that is a fact about the year's settings, not about
  * whether this day is done.
+ *
+ * `grossPence` is read from the same `takeHome` the Workday summary already
+ * shows, never worked out again here: a blank or an explicit £0 everywhere
+ * both come back as nothing earned, and neither is enough to say a day is
+ * done — a workday that earned nothing is not what "Complete" means.
  */
 export function validateCompletion(input: {
   draft: Draft
   shift: Shift
+  vehicle: VehicleLink
   fuelPerKm: number | null
   vehiclePerKm: number | null
+  grossPence: number
 }): ValidationError[] {
-  const { draft, shift, fuelPerKm, vehiclePerKm } = input
+  const { draft, shift, vehicle, fuelPerKm, vehiclePerKm, grossPence } = input
   const errors: ValidationError[] = []
 
   if (draft.due.trim() === '') {
@@ -125,11 +133,17 @@ export function validateCompletion(input: {
     errors.push({ field: 'odo_end', message: 'A completed workday needs an ending odometer reading.' })
   }
 
+  if (vehicle.kind !== 'one') {
+    errors.push({ field: 'vehicle-used', message: 'A completed workday needs an unambiguous Vehicle used.' })
+  }
   if (fuelPerKm === null) {
     errors.push({ field: 'fuel', message: 'The automatic fuel rate is not known yet.' })
   }
   if (vehiclePerKm === null) {
-    errors.push({ field: 'vehicle', message: 'The vehicle cost is not configured yet.' })
+    errors.push({ field: 'vehicle-cost', message: 'The vehicle cost is not configured yet.' })
+  }
+  if (grossPence <= 0) {
+    errors.push({ field: 'earnings', message: 'Add what this workday earned before completing it.' })
   }
 
   return errors

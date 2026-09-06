@@ -45,7 +45,7 @@ export type { Category, Expense } from './expense'
 export { CATEGORIES, CATEGORY_NAMES, fillsOf } from './expense'
 export { fuelRate } from './fuel'
 export type { Fill, FuelRate } from './fuel'
-export { expensesOf, fuelRateForArea, recordExpense, removeExpense } from './expenses'
+export { expensesOf, recordExpense, removeExpense } from './expenses'
 export type { RunningCosts } from './settings'
 export { costsFor, hasCosts } from './settings'
 export {
@@ -277,6 +277,8 @@ export {
 } from './entity'
 export type { Link, LinkKind, Neighbour } from './link'
 export { LINK_KINDS, LINK_NAMES, neighboursOf } from './link'
+export type { Vehicle, VehicleLink } from './vehicle'
+export { fuelRateForVehicle, vehicleLinkIdsOf, vehicleLinkOf, vehiclesOf } from './vehicle'
 export {
   link,
   linksOf,

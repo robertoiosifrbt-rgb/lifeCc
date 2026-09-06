@@ -7,6 +7,15 @@ type Props = {
   sum: TakeHome
   worked: number
   km: number | null
+  /** Whether the Draft carries a date at all — a blank one is never today's
+   *  in disguise, so Tax and NI need their own reason for being unknown. */
+  dateKnown: boolean
+  /** The automatic fuel rate is unknown — no full-tank data for the linked
+   *  Vehicle yet. Distinguished from `vehicleCostUnknown` so the hint never
+   *  tells the owner to add fuel data he has already given. */
+  fuelUnknown: boolean
+  /** The Area's vehicle cost has not been configured. */
+  vehicleCostUnknown: boolean
 }
 
 /**
@@ -17,7 +26,7 @@ type Props = {
  * the same `takeHome()` a persisted shift uses. There is no second formula
  * here for "while you are typing".
  */
-export function ShiftSummary({ sum, worked, km }: Props) {
+export function ShiftSummary({ sum, worked, km, dateKnown, fuelUnknown, vehicleCostUnknown }: Props) {
   return (
     <>
       <dl className="shift-totals">
@@ -67,17 +76,37 @@ export function ShiftSummary({ sum, worked, km }: Props) {
       </dl>
 
       {/* Never a silent zero: a missing rate is an unknown reserve, not a
-          reserve of nothing, and £0 tax is the lie that costs money. */}
-      {sum.missing.includes('rates') && (
+          reserve of nothing, and £0 tax is the lie that costs money. A blank
+          date and unset year figures are different missing reasons, so they
+          never share one message — a date typed in fixes the first and does
+          nothing about the second. */}
+      {sum.missing.includes('rates') && !dateKnown && (
+        <p className="shift-missing">Add a workday date to calculate Tax and NI.</p>
+      )}
+      {sum.missing.includes('rates') && dateKnown && (
         <p className="shift-missing">
           This year&rsquo;s figures are not set, so what this day owes is
           unknown — not nothing. Put them in on <Link to="/hmrc">HMRC</Link>.
         </p>
       )}
-      {sum.missing.includes('costs') && (
+      {/* Fuel unknown and vehicle cost unset are different gaps — telling
+          the owner to add fuel data he has already given helps nobody. */}
+      {sum.missing.includes('costs') && fuelUnknown && vehicleCostUnknown && (
         <p className="shift-missing">
-          No cost per kilometre yet. Write down two full tanks under Money out
-          and it works itself out.
+          No cost per kilometre yet. Write down two full tanks for the
+          Vehicle used under Money out, and configure the vehicle cost.
+        </p>
+      )}
+      {sum.missing.includes('costs') && fuelUnknown && !vehicleCostUnknown && (
+        <p className="shift-missing">
+          The automatic fuel rate is not known yet. Write down two full tanks
+          for the Vehicle used under Money out and it works itself out.
+        </p>
+      )}
+      {sum.missing.includes('costs') && !fuelUnknown && vehicleCostUnknown && (
+        <p className="shift-missing">
+          The vehicle cost is not configured yet. Open Driving cost basis and
+          configure it.
         </p>
       )}
       {sum.missing.includes('kilometres') && (

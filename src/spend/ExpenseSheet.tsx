@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-import { CATEGORY_NAMES, pathOf } from '../repository/items'
-import type { Area, Expense, Item } from '../repository/items'
+import { CATEGORY_NAMES, pathOf, vehicleLinkOf, vehiclesOf } from '../repository/items'
+import type { Area, Entity, Expense, Item, Link } from '../repository/items'
 import { pounds } from '../shifts/money'
 import { Sheet } from '../ui/Sheet'
 import './ExpenseSheet.css'
@@ -10,6 +10,9 @@ type Props = {
   item: Item
   expense: Expense | null
   areas: Area[]
+  items: Item[]
+  links: Link[]
+  things: Entity[]
   onRemove: () => Promise<void>
   onClose: () => void
 }
@@ -22,9 +25,16 @@ type Props = {
  * item sheet's questions are for things you still have to do, and asking them
  * here was the screen forgetting what it was looking at.
  */
-export function ExpenseSheet({ item, expense, areas, onRemove, onClose }: Props) {
+export function ExpenseSheet({ item, expense, areas, items, links, things, onRemove, onClose }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const vehicleLink = vehicleLinkOf(links, things, item.id)
+  const vehicleName = (() => {
+    if (vehicleLink.kind === 'none') return '—'
+    if (vehicleLink.kind === 'ambiguous') return 'Multiple Vehicles linked'
+    return vehiclesOf(items, things).find((v) => v.itemId === vehicleLink.vehicleItemId)?.name ?? 'Unknown Vehicle'
+  })()
 
   function remove() {
     setBusy(true)
@@ -62,6 +72,10 @@ export function ExpenseSheet({ item, expense, areas, onRemove, onClose }: Props)
           <div className="spent-row">
             <dt>Area</dt>
             <dd>{item.area_id === null ? '—' : pathOf(areas, item.area_id)}</dd>
+          </div>
+          <div className="spent-row">
+            <dt>Vehicle</dt>
+            <dd>{vehicleName}</dd>
           </div>
         </dl>
       )}

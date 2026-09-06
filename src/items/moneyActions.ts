@@ -46,6 +46,7 @@ export type MoneyActions = {
     odo: number | null
     full_tank: boolean | null
     business_pct: number
+    vehicle_item_id: string | null
   }) => Promise<void>
   unspend: (item: Item) => Promise<void>
   saveTaxYear: (year: TaxYearPatch) => Promise<void>
