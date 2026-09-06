@@ -208,34 +208,6 @@ export function isOut(shift: Shift): boolean {
 }
 
 /**
- * What Complete Workday and Delete Workday both say when they refuse.
- *
- * A shift is never finished or discarded while a session on it is still
- * running — Stop only ever closes the one session, never the day, so an open
- * session has to be closed first, in words, not by finishing it for you.
- * True for two or more open sessions the same as for one: `isOut` does not
- * count them, and neither does this.
- */
-export const STOP_SESSION_FIRST = 'Stop the active session first.'
-
-/**
- * Whether Complete Workday is allowed right now.
- *
- * Named on purpose, rather than left as a bare `!isOut(shift)` at the call
- * site: the acceptance criterion is "Complete Workday is blocked while a
- * session is open", and a function with that name is what a test can name
- * back.
- */
-export function canCompleteWorkday(shift: Shift): boolean {
-  return !isOut(shift)
-}
-
-/** Whether Delete Workday is allowed right now — the same rule as Complete. */
-export function canDeleteWorkday(shift: Shift): boolean {
-  return !isOut(shift)
-}
-
-/**
  * What the shift made: the platforms and the tips together.
  *
  * In pence, so the addition is exact. Money added as floating point drifts,

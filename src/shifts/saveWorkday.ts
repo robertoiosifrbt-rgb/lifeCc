@@ -11,6 +11,7 @@ import {
   earningsPatchOf,
   earningsToRemoveOf,
   itemPatchOf,
+  sessionsToRemoveOf,
   shiftPatchOf,
 } from './draftPatches'
 
@@ -54,7 +55,9 @@ export async function saveWorkday(
   const earningsPatch = earningsPatchOf(shift, draft)
   const earningsRemoved = earningsToRemoveOf(shift, draft)
   const breaksPatch = breaksPatchOf(shift, draft)
-  const sessionsRemoved = draft.removedSessions
+  // Defensive, not just the sheet's own promise: a still-open session named
+  // here would be malformed draft data, and it is never deleted regardless.
+  const sessionsRemoved = sessionsToRemoveOf(shift, draft)
 
   if (Object.keys(itemPatch).length > 0) await writers.onUpdateItem(itemPatch)
 

@@ -142,7 +142,11 @@ export function previewShiftOf(shift: Shift, draft: Draft, costBasis: CostBasis)
     return [{ platform, amount: parsed.value }]
   })
   const sessions = shift.sessions
-    .filter((session) => !draft.removedSessions.includes(session.id))
+    // Defensive, same as `sessionsToRemoveOf`: a still-open session named in
+    // `removedSessions` would be malformed draft data, and the preview must
+    // not hide it as if it were already gone — that is the one session Stop
+    // still needs to be seen and closed.
+    .filter((session) => !draft.removedSessions.includes(session.id) || session.ended_at === null)
     .map((session) => {
       const parsed = parseBreak(draft.breaks[session.id] ?? '')
       return { ...session, break_minutes: parsed.ok ? parsed.value : session.break_minutes }

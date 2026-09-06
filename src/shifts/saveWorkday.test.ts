@@ -138,10 +138,10 @@ describe('saveWorkday — write order', () => {
     expect(w.onSetPaid).not.toHaveBeenCalled()
   })
 
-  it('drops a session marked for removal, and never writes a break for it', async () => {
+  it('drops a closed session marked for removal, and never writes a break for it', async () => {
     const order: string[] = []
     const anchor = item()
-    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
+    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(anchor, day), removedSessions: ['s1'] }
     const w = writers(order)
@@ -149,6 +149,18 @@ describe('saveWorkday — write order', () => {
     expect(w.onDropSession).toHaveBeenCalledExactlyOnceWith('s1')
     expect(w.onSetBreak).not.toHaveBeenCalled()
     expect(settled.shift.sessions).toEqual([])
+  })
+
+  it('never physically deletes an open session, even from malformed Draft data', async () => {
+    const order: string[] = []
+    const anchor = item()
+    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
+    const day = shift({ sessions: [session] })
+    const draft = { ...draftFrom(anchor, day), removedSessions: ['s1'] }
+    const w = writers(order)
+    const settled = await saveWorkday(anchor, day, draft, w)
+    expect(w.onDropSession).not.toHaveBeenCalled()
+    expect(settled.shift.sessions).toEqual([session])
   })
 
   it('settles a result whose fields already reflect what was just written', async () => {

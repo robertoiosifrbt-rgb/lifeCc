@@ -82,15 +82,33 @@ export function breaksPatchOf(
   shift: Shift,
   draft: Draft,
 ): { sessionId: string; minutes: number }[] {
+  const removed = sessionsToRemoveOf(shift, draft)
   const changed: { sessionId: string; minutes: number }[] = []
   for (const session of shift.sessions) {
-    if (draft.removedSessions.includes(session.id)) continue
+    if (removed.includes(session.id)) continue
     const parsed = parseBreak(draft.breaks[session.id] ?? '')
     if (parsed.ok && parsed.value !== session.break_minutes) {
       changed.push({ sessionId: session.id, minutes: parsed.value })
     }
   }
   return changed
+}
+
+/**
+ * The sessions actually worth deleting: marked for removal in the draft, and
+ * already ended.
+ *
+ * The one place this is decided, deliberately narrower than "whatever the
+ * draft says": the sheet never offers a × on an open session in the first
+ * place, but a write must not trust that it was reached only through the
+ * sheet. A still-open session named in `removedSessions` — malformed draft
+ * data, not a real request — is silently dropped here rather than deleted; a
+ * real event still in progress is Stop's to end, never a delete's.
+ */
+export function sessionsToRemoveOf(shift: Shift, draft: Draft): string[] {
+  return draft.removedSessions.filter((id) =>
+    shift.sessions.some((session) => session.id === id && session.ended_at !== null),
+  )
 }
 
 /** Whether anything typed, cleared or marked for removal differs from what is saved. */
@@ -101,6 +119,6 @@ export function isDirty(item: Item, shift: Shift, draft: Draft): boolean {
     earningsPatchOf(shift, draft).length > 0 ||
     earningsToRemoveOf(shift, draft).length > 0 ||
     breaksPatchOf(shift, draft).length > 0 ||
-    draft.removedSessions.length > 0
+    sessionsToRemoveOf(shift, draft).length > 0
   )
 }

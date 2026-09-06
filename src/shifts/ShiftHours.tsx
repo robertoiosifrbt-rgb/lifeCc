@@ -1,4 +1,4 @@
-import { isOut } from '../repository/items'
+import { MULTIPLE_OPEN_SESSIONS, sessionControlsOf } from '../repository/items'
 import type { Shift } from '../repository/items'
 import { clock } from './money'
 
@@ -27,18 +27,25 @@ type Props = {
  * form and only takes effect when the draft is saved — removing a session
  * included: the × marks it gone in the draft, Save draft is what deletes it.
  *
- * Start/Stop still read the shift's real, unfiltered sessions — a session
- * marked for removal but not yet saved must not be able to make Complete
- * Workday or Delete Workday think the day is not out any more; only an
- * actual Stop, or an actual Save draft that has run the removal, does that.
+ * The × only ever appears on a session that has already ended. An open
+ * session is a real event still in progress — Stop is what ends it, not a
+ * delete — so removing one is never offered, not even as a draft-only mark.
+ *
+ * Start/Stop read `sessionControlsOf`, over the shift's real, unfiltered
+ * sessions: a session marked for removal but not yet saved must not be able
+ * to make this look more finished than it is, and two or more open sessions
+ * — the known live incident — must never let this pick one of them to guess
+ * is "the" session to stop.
  */
 export function ShiftHours(props: Props) {
   const { shift, busy, readOnly } = props
   const run = props.onRun
-  const out = isOut(shift)
-  const open = shift.sessions.find((session) => session.ended_at === null)
+  const controls = sessionControlsOf(shift)
+  // Defensive, same reasoning as the preview: a still-open session named in
+  // `removedSessions` would be malformed draft data, never hidden as if it
+  // were already gone.
   const visible = shift.sessions.filter(
-    (session) => !props.removedSessions.includes(session.id),
+    (session) => !props.removedSessions.includes(session.id) || session.ended_at === null,
   )
 
   return (
@@ -64,7 +71,7 @@ export function ShiftHours(props: Props) {
               />
               <span className="shift-break-unit">min</span>
             </label>
-            {!readOnly && (
+            {!readOnly && session.ended_at !== null && (
               <button
                 type="button"
                 name="drop-session"
@@ -80,28 +87,31 @@ export function ShiftHours(props: Props) {
         ))}
       </ul>
 
-      {!readOnly &&
-        (out && open !== undefined ? (
-          <button
-            type="button"
-            name="clock-off"
-            className="shift-clock shift-clock-off"
-            disabled={busy}
-            onClick={() => run(() => props.onClockOff(open.id))}
-          >
-            Stop
-          </button>
-        ) : (
-          <button
-            type="button"
-            name="clock-on"
-            className="shift-clock"
-            disabled={busy}
-            onClick={() => run(props.onClockOn)}
-          >
-            Start
-          </button>
-        ))}
+      {!readOnly && controls.kind === 'closed' && (
+        <button
+          type="button"
+          name="clock-on"
+          className="shift-clock"
+          disabled={busy}
+          onClick={() => run(props.onClockOn)}
+        >
+          Start
+        </button>
+      )}
+
+      {!readOnly && controls.kind === 'one-open' && (
+        <button
+          type="button"
+          name="clock-off"
+          className="shift-clock shift-clock-off"
+          disabled={busy}
+          onClick={() => run(() => props.onClockOff(controls.sessionId))}
+        >
+          Stop
+        </button>
+      )}
+
+      {controls.kind === 'ambiguous' && <p className="shift-error">{MULTIPLE_OPEN_SESSIONS}</p>}
     </section>
   )
 }

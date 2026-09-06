@@ -9,6 +9,7 @@ import {
   earningsToRemoveOf,
   isDirty,
   itemPatchOf,
+  sessionsToRemoveOf,
   shiftPatchOf,
 } from './draftPatches'
 
@@ -102,11 +103,44 @@ describe('isDirty / patches — Save draft only writes what changed', () => {
     expect(breaksPatchOf(day, changed)).toEqual([{ sessionId: 's1', minutes: 15 }])
   })
 
-  it('never writes a break for a session that is marked for removal', () => {
-    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
+  it('never writes a break for a closed session marked for removal', () => {
+    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(item(), day), breaks: { s1: '15' }, removedSessions: ['s1'] }
     expect(breaksPatchOf(day, draft)).toEqual([])
+  })
+
+  it('still writes a break for an open session even if malformed draft data marks it for removal', () => {
+    // An open session can never legitimately end up in removedSessions —
+    // the sheet never offers a × for one — but a write must not trust that.
+    // sessionsToRemoveOf rejects it, so it is not actually being removed,
+    // and its break edit must not be silently dropped along with it.
+    const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
+    const day = shift({ sessions: [session] })
+    const draft = { ...draftFrom(item(), day), breaks: { s1: '15' }, removedSessions: ['s1'] }
+    expect(breaksPatchOf(day, draft)).toEqual([{ sessionId: 's1', minutes: 15 }])
+  })
+
+  describe('sessionsToRemoveOf — an open session can never be Draft-removed', () => {
+    it('includes a closed session marked for removal', () => {
+      const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
+      const day = shift({ sessions: [session] })
+      const draft = { ...draftFrom(item(), day), removedSessions: ['s1'] }
+      expect(sessionsToRemoveOf(day, draft)).toEqual(['s1'])
+    })
+
+    it('rejects an open session even when malformed draft data names it', () => {
+      const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
+      const day = shift({ sessions: [session] })
+      const draft = { ...draftFrom(item(), day), removedSessions: ['s1'] }
+      expect(sessionsToRemoveOf(day, draft)).toEqual([])
+    })
+
+    it('ignores an id that does not name any real session on this shift', () => {
+      const day = shift()
+      const draft = { ...draftFrom(item(), day), removedSessions: ['nonexistent'] }
+      expect(sessionsToRemoveOf(day, draft)).toEqual([])
+    })
   })
 
   describe('earningsToRemoveOf — clearing a saved earning persists the removal', () => {

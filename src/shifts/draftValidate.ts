@@ -6,6 +6,7 @@ import type { Shift } from '../repository/items'
 import { PLATFORMS } from '../repository/items'
 import type { Draft } from './draft'
 import { parseBreak, parseMoney, parseReading } from './draft'
+import { sessionsToRemoveOf } from './draftPatches'
 
 export type ValidationError = { field: string; message: string }
 
@@ -37,7 +38,8 @@ export function validateDraft(shift: Shift, draft: Draft): ValidationError[] {
   for (const platform of PLATFORMS) {
     fields.push([`earning:${platform}`, parseMoney(draft.earnings[platform])])
   }
-  const remaining = shift.sessions.filter((session) => !draft.removedSessions.includes(session.id))
+  const removed = sessionsToRemoveOf(shift, draft)
+  const remaining = shift.sessions.filter((session) => !removed.includes(session.id))
   for (const session of remaining) {
     fields.push([`break:${session.id}`, parseBreak(draft.breaks[session.id] ?? '')])
   }
@@ -73,6 +75,61 @@ export function validateDraft(shift: Shift, draft: Draft): ValidationError[] {
         message: 'A break cannot be longer than the session it sits in.',
       })
     }
+  }
+
+  return errors
+}
+
+/**
+ * What Complete Workday needs beyond a valid draft.
+ *
+ * Save draft never checks any of this — an incomplete workday still saves,
+ * exactly as typed so far. Complete is the one action that says a day is
+ * finished, so it is the one that asks for a date, at least one session
+ * that actually happened, both odometer readings, and a cost basis that is
+ * actually known — not a guess, not a silent zero. HMRC's year figures are
+ * deliberately not asked here: `sum.missing` already says when tax cannot be
+ * worked out, and that is a fact about the year's settings, not about
+ * whether this day is done.
+ */
+export function validateCompletion(input: {
+  draft: Draft
+  shift: Shift
+  fuelPerKm: number | null
+  vehiclePerKm: number | null
+}): ValidationError[] {
+  const { draft, shift, fuelPerKm, vehiclePerKm } = input
+  const errors: ValidationError[] = []
+
+  if (draft.due.trim() === '') {
+    errors.push({ field: 'due', message: 'A completed workday needs a date.' })
+  }
+
+  const removed = sessionsToRemoveOf(shift, draft)
+  const closedSessions = shift.sessions.filter(
+    (session) => !removed.includes(session.id) && session.ended_at !== null,
+  )
+  if (closedSessions.length === 0) {
+    errors.push({
+      field: 'sessions',
+      message: 'A completed workday needs at least one finished work session.',
+    })
+  }
+
+  const start = parseReading(draft.odo_start)
+  if (!start.ok || start.value === null) {
+    errors.push({ field: 'odo_start', message: 'A completed workday needs a starting odometer reading.' })
+  }
+  const end = parseReading(draft.odo_end)
+  if (!end.ok || end.value === null) {
+    errors.push({ field: 'odo_end', message: 'A completed workday needs an ending odometer reading.' })
+  }
+
+  if (fuelPerKm === null) {
+    errors.push({ field: 'fuel', message: 'The automatic fuel rate is not known yet.' })
+  }
+  if (vehiclePerKm === null) {
+    errors.push({ field: 'vehicle', message: 'The vehicle cost is not configured yet.' })
   }
 
   return errors

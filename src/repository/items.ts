@@ -63,16 +63,22 @@ export type { DueDates, TaxYear } from './taxyear'
 export type { TakeHome } from './takehome'
 export { setSessionBreak } from './shifts'
 export {
-  canCompleteWorkday,
-  canDeleteWorkday,
   earnedPence,
   isOut,
   kilometres,
   minutesWorked,
   PLATFORM_NAMES,
   PLATFORMS,
-  STOP_SESSION_FIRST,
 } from './shift'
+export {
+  canCompleteWorkday,
+  canDeleteWorkday,
+  MULTIPLE_OPEN_SESSIONS,
+  sessionControlsOf,
+  sessionMessageOf,
+  STOP_SESSION_FIRST,
+} from './workdayGuards'
+export type { SessionControls } from './workdayGuards'
 export {
   endSession,
   removeEarning,

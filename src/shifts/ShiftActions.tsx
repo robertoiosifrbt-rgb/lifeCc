@@ -1,4 +1,3 @@
-import { STOP_SESSION_FIRST } from '../repository/items'
 import type { ValidationError } from './draftValidate'
 
 type Props = {
@@ -6,7 +5,16 @@ type Props = {
   dirty: boolean
   busy: boolean
   blockedByOpenSession: boolean
+  /** What to say about session state when it blocks Complete/Delete — one
+   *  open session ("Stop the active session first") or several ("data
+   *  repair"). Null when nothing about session state is blocking anything. */
+  sessionMessage: string | null
+  /** Draft-invalid data: blocks both Save draft and Complete Workday. */
   errors: ValidationError[]
+  /** What Complete Workday needs beyond a valid draft — date, at least one
+   *  finished session, odometer, a known cost basis. Save draft ignores
+   *  these entirely: an incomplete workday still saves. */
+  completionErrors: ValidationError[]
   onSaveDraft: () => void
   onComplete: () => void
   onDelete: () => void
@@ -14,8 +22,9 @@ type Props = {
 
 /** Save draft, Complete Workday, Delete Workday — the three ways out of the form. */
 export function ShiftActions(props: Props) {
-  const { completed, dirty, busy, blockedByOpenSession, errors } = props
+  const { completed, dirty, busy, blockedByOpenSession, errors, completionErrors } = props
   const invalid = errors.length > 0
+  const incomplete = completionErrors.length > 0
 
   return (
     <section className="shift-actions">
@@ -36,7 +45,7 @@ export function ShiftActions(props: Props) {
           type="button"
           name="complete-workday"
           className="shift-button shift-primary"
-          disabled={busy || invalid || blockedByOpenSession}
+          disabled={busy || invalid || incomplete || blockedByOpenSession}
           onClick={props.onComplete}
         >
           Complete workday
@@ -53,11 +62,19 @@ export function ShiftActions(props: Props) {
         Delete workday
       </button>
 
-      {blockedByOpenSession && <p className="shift-hint">{STOP_SESSION_FIRST}</p>}
+      {props.sessionMessage !== null && <p className="shift-hint">{props.sessionMessage}</p>}
 
       {invalid && (
         <ul className="shift-errors">
           {errors.map((error) => (
+            <li key={error.field}>{error.message}</li>
+          ))}
+        </ul>
+      )}
+
+      {!completed && incomplete && (
+        <ul className="shift-errors">
+          {completionErrors.map((error) => (
             <li key={error.field}>{error.message}</li>
           ))}
         </ul>

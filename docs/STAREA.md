@@ -320,13 +320,30 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
 - „Start”/„Stop” rămân singurele acțiuni imediate (scriu direct sesiunea);
   totul altceva e Save draft/Complete workday — inclusiv ștergerea unei
   sesiuni greșite (×), care marchează sesiunea pentru ștergere în draft și o
-  șterge abia la Save draft/Complete workday, nu la click.
-- „Stop” închide numai sesiunea curentă. „Complete workday” e o acțiune
-  separată și explicită, blocată cu mesaj clar („Stop the active session
-  first.”) dacă există o sesiune deschisă — la fel și „Delete workday”
-  (soft-delete pe ancoră, ca oriunde în Life Core, și închide sheet-ul numai
-  la succes). Nicio oră de final nu e inventată — vine numai din sesiunea
-  reală, închisă prin Stop.
+  șterge abia la Save draft/Complete workday, nu la click. × apare **numai**
+  pe o sesiune deja închisă (`ended_at` setat) — o sesiune deschisă nu poate
+  fi niciodată marcată pentru ștergere din draft, nici măcar din date de
+  draft malformate: `saveWorkday` refuză defensiv orice id de sesiune
+  deschisă găsit acolo, nu doar UI-ul.
+- „Stop” închide numai sesiunea curentă. Cu exact o sesiune deschisă, apare
+  „Stop” (nu „Start”), fără ×; cu **două sau mai multe** sesiuni deschise
+  simultan — incidentul cunoscut din live — nu apare nici „Start”, nici
+  „Stop”, nici ×, nici Complete, nici Delete: apare mesajul „Multiple active
+  sessions were found. This workday needs data repair before it can
+  continue.” Nimic nu alege automat „sesiunea reală” dintre ele.
+  „Complete workday” e o acțiune separată și explicită, blocată cu mesaj
+  clar („Stop the active session first.” pentru o sesiune, mesajul de mai sus
+  pentru ambiguitate) — la fel și „Delete workday” (soft-delete pe ancoră, ca
+  oriunde în Life Core, și închide sheet-ul numai la succes). Nicio oră de
+  final nu e inventată — vine numai din sesiunea reală, închisă prin Stop.
+- Validarea pentru Complete Workday e separată de validarea pentru Save
+  draft. Save draft rămâne permisiv — un Draft incomplet se salvează exact
+  cum e tastat. Complete Workday cere în plus: dată nevidă, cel puțin o
+  sesiune de lucru încheiată, ambele citiri de odometru, rata automată de
+  fuel cunoscută și rata vehicle configurată — verificate separat
+  (`validateCompletion`), afișate distinct în sheet. Anul fiscal (HMRC) nu e
+  cerut pentru Complete — un an nesetat rămâne vizibil doar ca „missing” pe
+  rezumat, nu blochează finalizarea zilei.
 - Data unui Workday se editează ca `due` pe aceeași ancoră (nu se creează un
   al doilea shift) — mutarea pe altă zi îl scoate/introduce corect din
   Overdue/ziua respectivă, prin filtrele generice deja existente.
@@ -341,6 +358,16 @@ recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectur
 - Un câștig salvat pe o platformă poate fi șters efectiv (nu doar golit
   vizual): golirea casetei și Save draft șterge rândul `shift_earnings`
   corespunzător, nu scrie un £0 fals — „necunoscut” rămâne diferit de „zero”.
+
+Repo-ul poate acum randa componente React în teste. `jsdom` este devDependency
+(vitest rămâne pe `environment: 'node'` global, ca să nu încetinească restul
+suitei; fișierele care chiar randează pun `// @vitest-environment jsdom` în
+capul fișierului). Nu s-a adăugat `@testing-library/react` — un helper mic,
+`src/shifts/domTestHelpers.ts`, montează prin `react-dom/client` direct.
+Exemple: `ShiftHours.test.tsx`, `DrivingCostBasis.test.tsx`,
+`ShiftActions.test.tsx`, `ShiftSheet.test.tsx` (acesta din urmă randează
+sheet-ul întreg pentru Delete succes/eșec/blocat, cu `MemoryRouter` în jur —
+`ShiftSummary` leagă spre `/hmrc`).
 
 ### Migrație nouă: pinuirea ratei în timp ce e Draft
 

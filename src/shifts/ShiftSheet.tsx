@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { canCompleteWorkday, canDeleteWorkday } from '../repository/items'
+import { canCompleteWorkday, canDeleteWorkday, sessionMessageOf } from '../repository/items'
 import type {
   Area,
   Expense,
@@ -17,7 +17,7 @@ import { DrivingCostBasis } from './DrivingCostBasis'
 import { draftFrom } from './draft'
 import type { Draft } from './draft'
 import { isDirty } from './draftPatches'
-import { validateDraft } from './draftValidate'
+import { validateCompletion, validateDraft } from './draftValidate'
 import { areaIdOf, costBasisOf, liveSummaryOf, sliceFor } from './liveSummary'
 import { saveWorkday } from './saveWorkday'
 import { ShiftActions } from './ShiftActions'
@@ -81,6 +81,7 @@ export function ShiftSheet(props: Props) {
   const dirty = !completed && isDirty(item, shift, draft)
   const errors = completed ? [] : validateDraft(shift, draft)
   const blockedByOpenSession = !canCompleteWorkday(shift) || !canDeleteWorkday(shift)
+  const sessionMessage = sessionMessageOf(shift)
 
   /** Runs a write, catching its own error rather than throwing past the caller. */
   function guarded(body: () => Promise<void>): Promise<void> {
@@ -156,6 +157,14 @@ export function ShiftSheet(props: Props) {
   )
   const { sum, worked, km } = liveSummaryOf(shift, draft, costBasis, slice)
   const fuelPerKm = fuelRate.perKm
+  const completionErrors = completed
+    ? []
+    : validateCompletion({
+        draft,
+        shift,
+        fuelPerKm: costBasis.fuel_per_km,
+        vehiclePerKm: costBasis.vehicle_per_km,
+      })
 
   return (
     <Sheet title={`Workday · ${item.due ?? 'undated'}`} onClose={requestClose}>
@@ -268,7 +277,9 @@ export function ShiftSheet(props: Props) {
         dirty={dirty}
         busy={busy}
         blockedByOpenSession={blockedByOpenSession}
+        sessionMessage={sessionMessage}
         errors={errors}
+        completionErrors={completionErrors}
         onSaveDraft={onSaveDraft}
         onComplete={onComplete}
         onDelete={onDelete}
