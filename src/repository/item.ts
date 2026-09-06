@@ -14,7 +14,7 @@ export type State = 'inbox' | 'active' | 'done'
 // A thing — a car, a company, a person — is a kind too, and the only one that
 // is not something that happened or something to do. It exists whether or not
 // you touch it, which is why it has no date and why Today leaves it out.
-export type Kind = 'task' | 'letter' | 'shift' | 'expense' | 'entity' | 'journal'
+export type Kind = 'task' | 'letter' | 'shift' | 'expense' | 'entity' | 'journal' | 'platform'
 
 export type Item = Row & {
   kind: Kind | null
@@ -52,7 +52,7 @@ export type Patch = Partial<
 >
 
 const STATES: readonly string[] = ['inbox', 'active', 'done']
-const KINDS: readonly string[] = ['task', 'letter', 'shift', 'expense', 'entity', 'journal']
+const KINDS: readonly string[] = ['task', 'letter', 'shift', 'expense', 'entity', 'journal', 'platform']
 
 /**
  * A row that came from the server, checked.

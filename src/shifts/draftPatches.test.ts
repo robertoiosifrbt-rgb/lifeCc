@@ -11,6 +11,8 @@ import {
   earningsToRemoveOf,
   isDirty,
   itemPatchOf,
+  platformEarningsPatchOf,
+  platformEarningsToRemoveOf,
   roadCostPatchOf,
   roadCostsToRemoveOf,
   sessionsToRemoveOf,
@@ -219,6 +221,28 @@ describe('isDirty / patches — Save draft only writes what changed', () => {
       const day = shift({ parking: 20 })
       const draft = { ...draftFrom(item(), day, [], []), parking: '' }
       expect(roadCostsToRemoveOf(day, draft, [], [])).toEqual([])
+    })
+  })
+
+  describe('platformEarningsPatchOf / platformEarningsToRemoveOf', () => {
+    it('a freshly typed configurable-Platform amount patches by its own item id', () => {
+      const day = shift()
+      const draft = { ...draftFrom(item(), day, [], []), platformEarnings: { p1: '15' } }
+      expect(platformEarningsPatchOf(day, draft)).toEqual([{ platform_item_id: 'p1', amount: 15 }])
+      expect(platformEarningsToRemoveOf(day, draft)).toEqual([])
+    })
+
+    it('nothing to write when the typed amount still matches what is saved', () => {
+      const day = shift({ earnings: [{ id: 'e1', platform: null, platform_item_id: 'p1', amount: 15 }] })
+      const draft = draftFrom(item(), day, [], [])
+      expect(platformEarningsPatchOf(day, draft)).toEqual([])
+    })
+
+    it('clearing a saved configurable-Platform amount removes it, blank not zero', () => {
+      const day = shift({ earnings: [{ id: 'e1', platform: null, platform_item_id: 'p1', amount: 15 }] })
+      const draft = { ...draftFrom(item(), day, [], []), platformEarnings: { p1: '' } }
+      expect(platformEarningsToRemoveOf(day, draft)).toEqual(['p1'])
+      expect(platformEarningsPatchOf(day, draft)).toEqual([])
     })
   })
 })

@@ -13,39 +13,18 @@ import { ShiftSheet } from './ShiftSheet'
 
 function item(over: Partial<Item> = {}): Item {
   return {
-    id: 'i1',
-    owner: 'me',
-    kind: 'shift',
-    state: 'active',
-    title: 'Shift',
-    due: '2026-09-05',
-    done_at: null,
-    area_id: null,
-    waiting_since: null,
-    version: 1,
-    created_at: '2026-09-05T00:00:00Z',
-    updated_at: '2026-09-05T00:00:00Z',
-    deleted_at: null,
+    id: 'i1', owner: 'me', kind: 'shift', state: 'active', title: 'Shift', due: '2026-09-05',
+    done_at: null, area_id: null, waiting_since: null, version: 1,
+    created_at: '2026-09-05T00:00:00Z', updated_at: '2026-09-05T00:00:00Z', deleted_at: null,
     ...over,
   }
 }
 
 function shift(over: Partial<Shift> = {}): Shift {
   return {
-    item_id: 'i1',
-    owner: 'me',
-    odo_start: null,
-    odo_end: null,
-    tips: null,
-    personal_km: null,
-    bonuses: null,
-    parking: null,
-    tolls: null,
-    other_cost: null,
-    rate_fuel_per_km: null,
-    rate_vehicle_per_km: null,
-    sessions: [],
-    earnings: [],
+    item_id: 'i1', owner: 'me', odo_start: null, odo_end: null, tips: null, personal_km: null,
+    bonuses: null, parking: null, tolls: null, other_cost: null,
+    rate_fuel_per_km: null, rate_vehicle_per_km: null, sessions: [], earnings: [],
     ...over,
   }
 }
@@ -59,6 +38,7 @@ function baseProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
     shifts: [shift()],
     expenses: [],
     vehicleCostRates: [],
+    platforms: [],
     taxYears: [],
     links: [],
     things: [],
@@ -69,6 +49,8 @@ function baseProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
     onSaveShiftParts: () => Promise.resolve(),
     onSetPaid: () => Promise.resolve(),
     onRemoveEarning: () => Promise.resolve(),
+    onSetPlatformPaid: () => Promise.resolve(),
+    onRemovePlatformEarning: () => Promise.resolve(),
     onSetBreak: () => Promise.resolve(),
     onUpdateItem: () => Promise.resolve(),
     onDelete: () => Promise.resolve(),
@@ -120,7 +102,6 @@ const vehicleEntity = {
 function about(id: string, from_id: string, to_id: string) {
   return { id, owner: 'me', from_id, to_id, kind: 'about' as const, created_at: '2026-09-01T00:00:00Z' }
 }
-
 function uses(id: string, from_id: string, to_id: string) {
   return { id, owner: 'me', from_id, to_id, kind: 'uses' as const, created_at: '2026-09-01T00:00:00Z' }
 }

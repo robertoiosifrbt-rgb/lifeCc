@@ -1,13 +1,18 @@
 import { PLATFORM_NAMES, PLATFORMS } from '../repository/items'
-import type { Platform } from '../repository/items'
+import type { NamedPlatform, Platform } from '../repository/items'
 
 type Props = {
   earnings: Record<Platform, string>
+  /** Configurable Platforms — the owner's own records, never a hardcoded
+   *  name — keyed by each one's own item id. */
+  platforms: NamedPlatform[]
+  platformEarnings: Record<string, string>
   tips: string
   bonuses: string
   busy: boolean
   readOnly: boolean
   onChangePlatform: (platform: Platform, typed: string) => void
+  onChangePlatformEarning: (platform_item_id: string, typed: string) => void
   onChangeTips: (typed: string) => void
   onChangeBonuses: (typed: string) => void
 }
@@ -28,6 +33,19 @@ export function ShiftEarnings(props: Props) {
             value={props.earnings[platform]}
             disabled={busy || readOnly}
             onChange={(event) => props.onChangePlatform(platform, event.target.value)}
+          />
+        </label>
+      ))}
+      {props.platforms.map(({ itemId, name }) => (
+        <label key={itemId} className="shift-paid shift-platform-earning">
+          <span className="shift-platform">{name}</span>
+          <input
+            className="shift-amount"
+            name={`platform:${itemId}`}
+            inputMode="decimal"
+            value={props.platformEarnings[itemId] ?? ''}
+            disabled={busy || readOnly}
+            onChange={(event) => props.onChangePlatformEarning(itemId, event.target.value)}
           />
         </label>
       ))}

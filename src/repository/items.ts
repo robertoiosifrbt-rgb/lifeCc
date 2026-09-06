@@ -35,6 +35,7 @@ export type { ExportFile } from './export'
 export { Conflict, isItemConflict } from './write'
 export type { Area, AreaPatch } from './area'
 export type { Platform, Shift, ShiftEarning, ShiftPatch, ShiftSession } from './shift'
+export type { RoadCostField } from './road-cost'
 export { takeHome, takeHomeOfAll } from './takehome'
 export { currentYearMoney, monthRange, periodMoney } from './period'
 export { dayBefore, sliceOfYear } from './slice'
@@ -67,18 +68,8 @@ export { dueDates, taxYearOf } from './taxyear'
 export type { DueDates, TaxYear } from './taxyear'
 export type { TakeHome } from './takehome'
 export { setSessionBreak } from './shifts'
-export {
-  earnedPence,
-  isOut,
-  kilometres,
-  minutesWorked,
-  PLATFORM_NAMES,
-  PLATFORMS,
-  roadCostExpenseOf,
-  ROAD_COST_FIELDS,
-  withRoadCostExpenses,
-} from './shift'
-export type { RoadCostField } from './shift'
+export { earnedPence, isOut, kilometres, minutesWorked, PLATFORM_NAMES, PLATFORMS } from './shift'
+export { roadCostExpenseOf, ROAD_COST_FIELDS, withRoadCostExpenses } from './road-cost'
 export {
   canCompleteWorkday,
   canDeleteWorkday,
@@ -117,11 +108,10 @@ export {
   normalizeLabel,
   orderedOf,
   positionForMove,
+  QUICK_ACTION_KINDS,
 } from './quick-action'
-export { QUICK_ACTION_KINDS } from './quick-action'
 export type { QuickAction, QuickActionKind, QuickActionPatch } from './quick-action'
 export { createQuickAction, discardQuickAction, quickActionsOf, updateQuickAction } from './quick-actions'
-
 /** The synced tables, named once. */
 export const ITEMS = 'items'
 export const AREAS = 'areas'
@@ -297,6 +287,6 @@ export {
 export type { JournalEntry, JournalPatch } from './journal-entry'
 export { findRequestedEntry, searchJournal, timelineOf } from './journal-entry'
 export { createJournalEntry, journalEntriesOf, saveJournalEntry } from './journal-entries'
-export type { CashoutFeeType, PlatformPatch, PlatformRecord } from './platform-record'
-export { CASHOUT_FEE_TYPES, orderedPlatformsOf } from './platform-record'
+export type { CashoutFeeType, NamedPlatform, PlatformPatch, PlatformRecord } from './platform-record'
+export { CASHOUT_FEE_TYPES, namedPlatformsFor, orderedPlatformsOf } from './platform-record'
 export { platformsOf, recordPlatform, removePlatform, savePlatform } from './platforms'

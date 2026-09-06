@@ -16,6 +16,7 @@
 // — a Completed Workday's own money is pinned on the shift itself, never
 // re-derived from a Platform's current configuration.
 
+import type { Item } from './item'
 import { asRecord, optionalNumber, optionalText, requiredText } from './row'
 
 export const CASHOUT_FEE_TYPES = ['fixed', 'percent'] as const
@@ -83,4 +84,30 @@ export function orderedPlatformsOf(
     if (a.active !== b.active) return a.active ? -1 : 1
     return a.display_order - b.display_order
   })
+}
+
+export type NamedPlatform = { itemId: string; name: string }
+
+/**
+ * Every active Platform, named from its own anchor — the same
+ * item-plus-extension resolution `vehiclesOf` already does for Vehicles —
+ * plus any Platform an earning on this Workday already names even if it has
+ * since been deactivated. Deactivating a Platform hides it from new picks;
+ * it must never make an existing earning vanish from the sheet.
+ */
+export function namedPlatformsFor(
+  items: readonly Item[],
+  platforms: readonly PlatformRecord[],
+  alsoInclude: readonly string[],
+): NamedPlatform[] {
+  const wanted = new Set(alsoInclude)
+  for (const platform of platforms) {
+    if (platform.active) wanted.add(platform.item_id)
+  }
+  const byId = new Map(platforms.map((platform) => [platform.item_id, platform]))
+  return orderedPlatformsOf([...wanted].flatMap((id) => byId.get(id) ?? []))
+    .flatMap((platform) => {
+      const item = items.find((candidate) => candidate.id === platform.item_id && candidate.deleted_at === null)
+      return item === undefined ? [] : [{ itemId: platform.item_id, name: item.title }]
+    })
 }

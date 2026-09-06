@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Expense } from './expense'
 import type { Link } from './link'
-import { roadCostExpenseOf, withRoadCostExpenses } from './shift'
+import { roadCostExpenseOf, withRoadCostExpenses } from './road-cost'
 import type { Shift } from './shift'
 
 function shift(over: Partial<Shift> = {}): Shift {

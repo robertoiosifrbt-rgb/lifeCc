@@ -122,6 +122,7 @@ export function AppShell({ session }: Props) {
           shifts={data.shifts}
           expenses={data.expenses}
           vehicleCostRates={data.vehicleCostRates}
+          platforms={data.platforms}
           taxYears={data.taxYears}
           links={data.links}
           things={data.things}
@@ -132,6 +133,12 @@ export function AppShell({ session }: Props) {
           onSaveShiftParts={(patch) => data.saveShiftParts(openItem.id, patch)}
           onSetPaid={(platform, amount) => data.setPaid(openItem.id, platform, amount)}
           onRemoveEarning={(platform) => data.removeEarning(openItem.id, platform)}
+          onSetPlatformPaid={(platform_item_id, amount) =>
+            data.setPlatformPaid(openItem.id, platform_item_id, amount)
+          }
+          onRemovePlatformEarning={(platform_item_id) =>
+            data.removePlatformEarning(openItem.id, platform_item_id)
+          }
           onSetBreak={(sessionId, minutes) => data.setBreak(sessionId, minutes)}
           onUpdateItem={(patch) => data.update(openItem, patch)}
           onDelete={() => data.discard(openItem)}

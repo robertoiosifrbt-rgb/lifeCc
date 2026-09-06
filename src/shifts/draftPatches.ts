@@ -161,6 +161,36 @@ export function earningsToRemoveOf(shift: Shift, draft: Draft): Platform[] {
   return removed
 }
 
+/** The same as `earningsPatchOf`, for a configurable Platform's own item id
+ *  rather than the legacy enum. */
+export function platformEarningsPatchOf(
+  shift: Shift,
+  draft: Draft,
+): { platform_item_id: string; amount: number }[] {
+  const changed: { platform_item_id: string; amount: number }[] = []
+  for (const [platform_item_id, typed] of Object.entries(draft.platformEarnings)) {
+    const parsed = parseMoney(typed)
+    if (!parsed.ok || parsed.value === null) continue
+    const already = shift.earnings.find((earning) => earning.platform_item_id === platform_item_id)?.amount
+    if (parsed.value !== already) changed.push({ platform_item_id, amount: parsed.value })
+  }
+  return changed
+}
+
+/** The same as `earningsToRemoveOf`, for a configurable Platform's own item
+ *  id — blank, not zero, taking the earning back rather than writing a fake
+ *  nothing over it. */
+export function platformEarningsToRemoveOf(shift: Shift, draft: Draft): string[] {
+  const removed: string[] = []
+  for (const [platform_item_id, typed] of Object.entries(draft.platformEarnings)) {
+    const parsed = parseMoney(typed)
+    if (!parsed.ok || parsed.value !== null) continue
+    const already = shift.earnings.some((earning) => earning.platform_item_id === platform_item_id)
+    if (already) removed.push(platform_item_id)
+  }
+  return removed
+}
+
 /** The sessions whose typed break changed, each ready for its own write. */
 export function breaksPatchOf(
   shift: Shift,
@@ -209,6 +239,8 @@ export function isDirty(
     Object.keys(shiftPatchOf(shift, draft)).length > 0 ||
     earningsPatchOf(shift, draft).length > 0 ||
     earningsToRemoveOf(shift, draft).length > 0 ||
+    platformEarningsPatchOf(shift, draft).length > 0 ||
+    platformEarningsToRemoveOf(shift, draft).length > 0 ||
     breaksPatchOf(shift, draft).length > 0 ||
     sessionsToRemoveOf(shift, draft).length > 0 ||
     roadCostPatchOf(shift, draft, expenses, links).length > 0 ||

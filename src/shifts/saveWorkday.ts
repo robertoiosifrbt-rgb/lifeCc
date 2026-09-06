@@ -22,6 +22,8 @@ import {
   earningsPatchOf,
   earningsToRemoveOf,
   itemPatchOf,
+  platformEarningsPatchOf,
+  platformEarningsToRemoveOf,
   roadCostPatchOf,
   roadCostsToRemoveOf,
   sessionsToRemoveOf,
@@ -34,6 +36,10 @@ export type WorkdayWriters = {
   onSaveShiftParts: (patch: ShiftPatch) => Promise<void>
   onSetPaid: (platform: Platform, amount: number) => Promise<void>
   onRemoveEarning: (platform: Platform) => Promise<void>
+  /** The same two writes as `onSetPaid`/`onRemoveEarning`, keyed by a
+   *  configurable Platform's own item id instead of the legacy enum. */
+  onSetPlatformPaid: (platform_item_id: string, amount: number) => Promise<void>
+  onRemovePlatformEarning: (platform_item_id: string) => Promise<void>
   onSetBreak: (sessionId: string, minutes: number) => Promise<void>
   onDropSession: (sessionId: string) => Promise<void>
   onLink: (to_id: string, kind: LinkKind) => Promise<void>
@@ -85,6 +91,8 @@ export async function saveWorkday(
   const shiftPatch = shiftPatchOf(shift, draft)
   const earningsPatch = earningsPatchOf(shift, draft)
   const earningsRemoved = earningsToRemoveOf(shift, draft)
+  const platformEarningsPatch = platformEarningsPatchOf(shift, draft)
+  const platformEarningsRemoved = platformEarningsToRemoveOf(shift, draft)
   const breaksPatch = breaksPatchOf(shift, draft)
   const roadCostPatch = roadCostPatchOf(shift, draft, expenses, links)
   const roadCostsRemoved = roadCostsToRemoveOf(shift, draft, expenses, links)
@@ -110,6 +118,12 @@ export async function saveWorkday(
 
   for (const { platform, amount } of earningsPatch) await writers.onSetPaid(platform, amount)
   for (const platform of earningsRemoved) await writers.onRemoveEarning(platform)
+  for (const { platform_item_id, amount } of platformEarningsPatch) {
+    await writers.onSetPlatformPaid(platform_item_id, amount)
+  }
+  for (const platform_item_id of platformEarningsRemoved) {
+    await writers.onRemovePlatformEarning(platform_item_id)
+  }
   for (const { sessionId, minutes } of breaksPatch) await writers.onSetBreak(sessionId, minutes)
   for (const sessionId of sessionsRemoved) await writers.onDropSession(sessionId)
   for (const { field, amount, existingExpenseItemId } of roadCostPatch) {
@@ -128,7 +142,15 @@ export async function saveWorkday(
     earnings: shift.earnings
       .filter((earning) => !earningsPatch.some((changed) => changed.platform === earning.platform))
       .filter((earning) => earning.platform === null || !earningsRemoved.includes(earning.platform))
-      .concat(earningsPatch.map((changed) => ({ ...changed, id: '', platform_item_id: null }))),
+      .filter((earning) =>
+        !platformEarningsPatch.some((changed) => changed.platform_item_id === earning.platform_item_id),
+      )
+      .filter(
+        (earning) =>
+          earning.platform_item_id === null || !platformEarningsRemoved.includes(earning.platform_item_id),
+      )
+      .concat(earningsPatch.map((changed) => ({ ...changed, id: '', platform_item_id: null })))
+      .concat(platformEarningsPatch.map((changed) => ({ ...changed, id: '', platform: null }))),
     sessions: shift.sessions
       .filter((session) => !sessionsRemoved.includes(session.id))
       .map((session) => {

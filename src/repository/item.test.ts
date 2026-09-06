@@ -32,6 +32,14 @@ describe('fromRow', () => {
     expect(fromRow({ ...GOOD_ROW, kind: 'entity' }).kind).toBe('entity')
   })
 
+  it('accepts platform anchor rows produced by the database', () => {
+    // Was rejected as "Unknown kind: platform" until this was added here -
+    // the database's items_kind_check has allowed it since D1, but nothing
+    // client-side agreed, so every sync failed outright the moment a single
+    // Platform row existed anywhere in the account.
+    expect(fromRow({ ...GOOD_ROW, kind: 'platform' }).kind).toBe('platform')
+  })
+
   it('accepts a captured item: no kind, no dates', () => {
     const captured = fromRow({ ...GOOD_ROW, state: 'inbox', kind: null, due: null })
     expect(captured.kind).toBeNull()

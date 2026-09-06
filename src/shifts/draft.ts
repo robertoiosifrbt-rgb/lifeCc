@@ -34,6 +34,11 @@ export type Draft = {
   tolls: string
   other_cost: string
   earnings: Record<Platform, string>
+  /** What a configurable Platform paid, keyed by its own item id — never the
+   *  legacy enum. Seeded from whatever this Workday already has of that
+   *  kind; a Platform since deactivated still keeps its key here, so an
+   *  existing amount is never dropped from the sheet. */
+  platformEarnings: Record<string, string>
   breaks: Record<string, string>
   /**
    * Sessions marked to go, not yet gone.
@@ -80,6 +85,10 @@ export function draftFrom(
     const found = shift.earnings.find((earning) => earning.platform === platform)
     earnings[platform] = found === undefined ? '' : found.amount.toFixed(2)
   }
+  const platformEarnings: Record<string, string> = {}
+  for (const earning of shift.earnings) {
+    if (earning.platform_item_id !== null) platformEarnings[earning.platform_item_id] = earning.amount.toFixed(2)
+  }
   const breaks: Record<string, string> = {}
   for (const session of shift.sessions) {
     breaks[session.id] = session.break_minutes === 0 ? '' : String(session.break_minutes)
@@ -99,6 +108,7 @@ export function draftFrom(
     tolls: moneyText(shift.tolls),
     other_cost: moneyText(shift.other_cost),
     earnings,
+    platformEarnings,
     breaks,
     removedSessions: [],
   }
@@ -161,11 +171,11 @@ export function previewShiftOf(shift: Shift, draft: Draft, costBasis: CostBasis)
     if (!parsed.ok || parsed.value === null) return []
     return [{ id: '', platform, platform_item_id: null, amount: parsed.value }]
   })
-  // Configurable-Platform earnings have no draft field of their own yet — no
-  // UI writes one in this round — so whatever the shift already has of that
-  // kind passes through unchanged rather than being silently dropped from
-  // the live total.
-  const keyedEarnings = shift.earnings.filter((earning) => earning.platform_item_id !== null)
+  const keyedEarnings = Object.entries(draft.platformEarnings).flatMap(([platform_item_id, typed]) => {
+    const parsed = parseMoney(typed)
+    if (!parsed.ok || parsed.value === null) return []
+    return [{ id: '', platform: null, platform_item_id, amount: parsed.value }]
+  })
   const earnings = [...legacyEarnings, ...keyedEarnings]
   const sessions = shift.sessions
     // Defensive, same as `sessionsToRemoveOf`: a still-open session named in

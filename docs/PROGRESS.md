@@ -84,7 +84,7 @@ construi încă modulele viitoare.
 
 ### Criterii suplimentare
 
-- `TODO` — platformele Multi-App Delivery sunt records configurabile, cu earning cycle, payout schedule, cash-out behaviour și fees configurabile/effective-dated, fără cazuri Uber/Deliveroo/Just Eat hardcodate. O fundație de date locală (tabelul `platforms`, ancorat ca `entities`/`links`, plus `shift_earnings` extins cu `platform_item_id` opțional alături de enumul vechi) există în schema/repository/cache, dar neaplicată live și **neconectată încă în UI-ul de Earnings** — earning cycle, payout schedule și cash-out rămân neconfigurabile. Criteriul rămâne `TODO` până la firul complet UI → repository → Supabase.
+- `TODO` — platformele Multi-App Delivery sunt records configurabile, cu earning cycle, payout schedule, cash-out behaviour și fees configurabile/effective-dated, fără cazuri Uber/Deliveroo/Just Eat hardcodate. Tabelul `platforms` (ancorat ca `entities`/`links`) și `shift_earnings.platform_item_id` există în schema/repository/cache, neaplicate live. **Firul UI → repository → Supabase există acum pentru earning-uri**: `ShiftEarnings` arată un câmp pentru fiecare Platformă activă a utilizatorului (plus una dezactivată dacă tura curentă îi are deja un câștig), Save draft/Complete scriu prin `platform_item_id`, live preview include suma — nimic hardcodat Uber/Deliveroo/Just Eat în acest fir. Rămân neconfigurabile prin UI: earning cycle, payout schedule, cash-out, fees, și istoricul lor effective-dated (D2). Criteriul rămâne `TODO` până acestea există.
 
 ---
 

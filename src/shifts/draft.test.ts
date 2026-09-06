@@ -101,6 +101,13 @@ describe('previewShiftOf — live preview reacts to what is typed, not what is s
     expect(preview.bonuses).toBe(2)
   })
 
+  it('changes Made immediately from a typed configurable-Platform amount too', () => {
+    const day = shift()
+    const draft = { ...draftFrom(item(), day, [], []), platformEarnings: { p1: '30' } }
+    const preview = previewShiftOf(day, draft, NO_COSTS)
+    expect(preview.earnings).toEqual([{ id: '', platform: null, platform_item_id: 'p1', amount: 30 }])
+  })
+
   it('changes Driven immediately from odo start/end/personal km, before anything is saved', () => {
     const day = shift()
     const draft = { ...draftFrom(item(), day, [], []), odo_start: '100', odo_end: '150', personal_km: '10' }

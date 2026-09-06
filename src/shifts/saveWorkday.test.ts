@@ -11,59 +11,27 @@ import { saveWorkday } from './saveWorkday'
 
 function item(over: Partial<Item> = {}): Item {
   return {
-    id: 'i1',
-    owner: 'me',
-    kind: 'shift',
-    state: 'active',
-    title: 'Shift',
-    due: '2026-09-05',
-    done_at: null,
-    area_id: 'area-1',
-    waiting_since: null,
-    version: 1,
-    created_at: '2026-09-05T00:00:00Z',
-    updated_at: '2026-09-05T00:00:00Z',
-    deleted_at: null,
+    id: 'i1', owner: 'me', kind: 'shift', state: 'active', title: 'Shift', due: '2026-09-05',
+    done_at: null, area_id: 'area-1', waiting_since: null, version: 1,
+    created_at: '2026-09-05T00:00:00Z', updated_at: '2026-09-05T00:00:00Z', deleted_at: null,
     ...over,
   }
 }
 
 function shift(over: Partial<Shift> = {}): Shift {
   return {
-    item_id: 'i1',
-    owner: 'me',
-    odo_start: null,
-    odo_end: null,
-    tips: null,
-    personal_km: null,
-    bonuses: null,
-    parking: null,
-    tolls: null,
-    other_cost: null,
-    rate_fuel_per_km: null,
-    rate_vehicle_per_km: null,
-    sessions: [],
-    earnings: [],
+    item_id: 'i1', owner: 'me', odo_start: null, odo_end: null, tips: null, personal_km: null,
+    bonuses: null, parking: null, tolls: null, other_cost: null,
+    rate_fuel_per_km: null, rate_vehicle_per_km: null, sessions: [], earnings: [],
     ...over,
   }
 }
 
 function vehicle(itemId: string): Entity {
   return {
-    item_id: itemId,
-    owner: 'me',
-    entity_kind: 'vehicle',
-    registration: null,
-    make: null,
-    model: null,
-    fuel: null,
-    odo: null,
-    mot_due: null,
-    road_tax_due: null,
-    insurance_due: null,
-    service_due: null,
-    oil_changed_at: null,
-    oil_due_at: null,
+    item_id: itemId, owner: 'me', entity_kind: 'vehicle', registration: null, make: null,
+    model: null, fuel: null, odo: null, mot_due: null, road_tax_due: null,
+    insurance_due: null, service_due: null, oil_changed_at: null, oil_due_at: null,
   }
 }
 
@@ -87,6 +55,14 @@ function writers(order: string[]): WorkdayWriters {
     }),
     onRemoveEarning: vi.fn(() => {
       order.push('remove-earning')
+      return Promise.resolve()
+    }),
+    onSetPlatformPaid: vi.fn(() => {
+      order.push('platform-earning')
+      return Promise.resolve()
+    }),
+    onRemovePlatformEarning: vi.fn(() => {
+      order.push('remove-platform-earning')
       return Promise.resolve()
     }),
     onSetBreak: vi.fn(() => {

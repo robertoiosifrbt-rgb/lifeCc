@@ -1,21 +1,6 @@
 import { useState } from 'react'
 
-import { canCompleteWorkday, canDeleteWorkday, sessionMessageOf } from '../repository/items'
-import type {
-  Area,
-  Entity,
-  Expense,
-  Item,
-  Link,
-  LinkKind,
-  Patch,
-  Platform,
-  RoadCostField,
-  Shift,
-  ShiftPatch,
-  TaxYearRow,
-  VehicleCostRate,
-} from '../repository/items'
+import { canCompleteWorkday, canDeleteWorkday, namedPlatformsFor, sessionMessageOf } from '../repository/items'
 import { Sheet } from '../ui/Sheet'
 import { DrivingCostBasis } from './DrivingCostBasis'
 import { draftFrom } from './draft'
@@ -23,58 +8,19 @@ import type { Draft } from './draft'
 import { isDirty } from './draftPatches'
 import { validateDraft } from './draftValidate'
 import { saveWorkday } from './saveWorkday'
-import type { WorkdayWriters } from './saveWorkday'
 import { ShiftActions } from './ShiftActions'
 import { ShiftEarnings } from './ShiftEarnings'
 import { ShiftHeader } from './ShiftHeader'
 import { ShiftHours } from './ShiftHours'
 import { ShiftOdometer } from './ShiftOdometer'
 import { ShiftRoadCosts } from './ShiftRoadCosts'
+import type { Props } from './ShiftSheet.types'
 import { ShiftSummary } from './ShiftSummary'
 import { UnsavedChangesBanner } from './UnsavedChangesBanner'
 import { useWorkdayComputations } from './useWorkdayComputations'
+import { workdayWritersFrom } from './workdayWriters'
 import { EMPTY_SHIFT } from './money'
 import './ShiftSheet.css'
-
-type Props = {
-  item: Item
-  shift: Shift | null
-  areas: Area[]
-  items: Item[]
-  shifts: Shift[]
-  expenses: Expense[]
-  vehicleCostRates: VehicleCostRate[]
-  taxYears: TaxYearRow[]
-  links: Link[]
-  things: Entity[]
-  today: string // Picks the Vehicle cost rate actually in force right now.
-  onClockOn: () => Promise<void>
-  onClockOff: (sessionId: string) => Promise<void>
-  onDropSession: (sessionId: string) => Promise<void>
-  onSaveShiftParts: (patch: ShiftPatch) => Promise<void>
-  onSetPaid: (platform: Platform, amount: number) => Promise<void>
-  /** Taking a platform's earning back — never a fake zero over it. */
-  onRemoveEarning: (platform: Platform) => Promise<void>
-  onSetBreak: (sessionId: string, minutes: number) => Promise<void>
-  onUpdateItem: (patch: Patch) => Promise<void>
-  onDelete: () => Promise<void>
-  /** A new dated row for the Vehicle's own cost — never the Area's. */
-  onSaveVehicleCost: (
-    vehicle_item_id: string,
-    effective_from: string,
-    vehicle_per_km: number,
-  ) => Promise<void>
-  onLink: (to_id: string, kind: LinkKind) => Promise<void>
-  onUnlink: (id: string) => Promise<void>
-  onSetRoadCost: (
-    field: RoadCostField,
-    amount: number,
-    existingExpenseItemId: string | null,
-    day: string,
-  ) => Promise<void>
-  onRemoveRoadCost: (expenseItem: Item) => Promise<void>
-  onClose: () => void
-}
 
 /**
  * One workday, Draft or Completed.
@@ -120,22 +66,7 @@ export function ShiftSheet(props: Props) {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  const writers: WorkdayWriters = {
-    onUpdateItem: props.onUpdateItem,
-    onSaveShiftParts: props.onSaveShiftParts,
-    onSetPaid: props.onSetPaid,
-    onRemoveEarning: props.onRemoveEarning,
-    onSetBreak: props.onSetBreak,
-    onDropSession: props.onDropSession,
-    onLink: props.onLink,
-    onUnlink: props.onUnlink,
-    onSetRoadCost: (field, amount, existingExpenseItemId) =>
-      props.onSetRoadCost(field, amount, existingExpenseItemId, draft.due !== '' ? draft.due : item.due ?? ''),
-    onRemoveRoadCost: (expenseItemId) => {
-      const found = props.items.find((candidate) => candidate.id === expenseItemId)
-      return found === undefined ? Promise.resolve() : props.onRemoveRoadCost(found)
-    },
-  }
+  const writers = workdayWritersFrom(props, item, draft)
 
   function onSaveDraft() {
     void guarded(async () => {
@@ -196,6 +127,7 @@ export function ShiftSheet(props: Props) {
     things: props.things,
   })
   const vehicleItemId = vehicleLink.kind === 'one' ? vehicleLink.vehicleItemId : null
+  const namedPlatforms = namedPlatformsFor(props.items, props.platforms, Object.keys(draft.platformEarnings))
 
   return (
     <Sheet title={`Workday · ${item.due ?? 'undated'}`} onClose={requestClose}>
@@ -252,12 +184,20 @@ export function ShiftSheet(props: Props) {
 
       <ShiftEarnings
         earnings={draft.earnings}
+        platforms={namedPlatforms}
+        platformEarnings={draft.platformEarnings}
         tips={draft.tips}
         bonuses={draft.bonuses}
         busy={busy}
         readOnly={completed}
         onChangePlatform={(platform, typed) =>
           setDraft((current) => ({ ...current, earnings: { ...current.earnings, [platform]: typed } }))
+        }
+        onChangePlatformEarning={(platform_item_id, typed) =>
+          setDraft((current) => ({
+            ...current,
+            platformEarnings: { ...current.platformEarnings, [platform_item_id]: typed },
+          }))
         }
         onChangeTips={(typed) => set('tips', typed)}
         onChangeBonuses={(typed) => set('bonuses', typed)}
