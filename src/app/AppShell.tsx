@@ -7,7 +7,7 @@ import type { ScreenContext } from '../items/context'
 import { useItems } from '../items/useItems'
 import { ExpenseSheet } from '../spend/ExpenseSheet'
 import { ShiftSheet } from '../shifts/ShiftSheet'
-import { costsFor, sliceOfYear } from '../repository/items'
+import { sliceOfYear } from '../repository/items'
 import type { Session } from '../repository/auth'
 import { useToday } from './today'
 import { MoreSheet } from './MoreSheet'
@@ -115,24 +115,22 @@ export function AppShell({ session }: Props) {
 
       {openItem !== null && openItem.kind === 'shift' && (
         <ShiftSheet
+          key={openItem.id}
           item={openItem}
           shift={data.shifts.find((s) => s.item_id === openItem.id) ?? null}
           areas={data.areas}
+          items={data.items}
+          expenses={data.expenses}
+          costs={data.costs}
           onClockOn={() => data.clockOn(openItem.id)}
           onClockOff={(sessionId) => data.clockOff(sessionId)}
           onDropSession={(sessionId) => data.dropSession(sessionId)}
+          onSaveShiftParts={(patch) => data.saveShiftParts(openItem.id, patch)}
           onSetPaid={(platform, amount) => data.setPaid(openItem.id, platform, amount)}
-          onSaveReadings={(odo_start, odo_end) =>
-            data.saveShiftParts(openItem.id, { odo_start, odo_end })
-          }
-          onSaveTips={(tips) => data.saveShiftParts(openItem.id, { tips })}
-          onSaveMoney={(patch) => data.saveShiftParts(openItem.id, patch)}
           onSetBreak={(sessionId, minutes) => data.setBreak(sessionId, minutes)}
-          onSavePersonalKm={(personal_km) =>
-            data.saveShiftParts(openItem.id, { personal_km })
-          }
-          onSetArea={(area_id) => data.update(openItem, { area_id })}
-          costs={costsFor(data.costs, openItem.area_id)}
+          onUpdateItem={(patch) => data.update(openItem, patch)}
+          onDelete={() => data.discard(openItem)}
+          onSaveVehicleCost={(area_id, fuel, vehicle) => data.saveCosts(area_id, fuel, vehicle)}
           slice={sliceOfYear({
             items: data.items,
             shifts: data.shifts,
@@ -140,11 +138,6 @@ export function AppShell({ session }: Props) {
             taxYears: data.taxYears,
             from: openItem.due ?? today,
           })}
-          onSaveCosts={(fuel, vehicle) =>
-            openItem.area_id === null
-              ? Promise.resolve()
-              : data.saveCosts(openItem.area_id, fuel, vehicle)
-          }
           onClose={closeItem}
         />
       )}

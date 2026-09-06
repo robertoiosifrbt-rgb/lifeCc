@@ -123,6 +123,15 @@ describe('minutesWorked', () => {
     expect(isOut(both)).toBe(true)
     expect(isOut(shift({ sessions: [finished] }))).toBe(false)
   })
+
+  it('is still out with two or more open sessions at once, the known corrupt case', () => {
+    // The live incident this guards against: fifteen open sessions on one
+    // shift. Complete Workday and Delete Workday both refuse on `isOut`, and
+    // this must stay true whether there is one open session or many — a
+    // second ambiguous one must never look like "closed" by accident.
+    const secondOpen = { id: 's3', started_at: '2026-09-05T18:00:00+00:00', ended_at: null, break_minutes: 0 }
+    expect(isOut(shift({ sessions: [open, secondOpen] }))).toBe(true)
+  })
 })
 
 describe('earnedPence', () => {

@@ -81,6 +81,18 @@ describe('forToday', () => {
     expect(groups.overdue).toEqual([])
   })
 
+  it('an overdue Workday leaves Overdue the moment it is completed', () => {
+    const stillOpen = item('shift-open', {
+      kind: 'shift',
+      state: 'active',
+      due: '2026-08-20',
+    })
+    expect(forToday([stillOpen], TODAY).overdue.map((i) => i.id)).toEqual(['shift-open'])
+
+    const completed = { ...stillOpen, state: 'done' as const, done_at: TODAY }
+    expect(forToday([completed], TODAY).overdue).toEqual([])
+  })
+
   it('puts the oldest first, in inbox and in undated', () => {
     const groups = forToday(
       [

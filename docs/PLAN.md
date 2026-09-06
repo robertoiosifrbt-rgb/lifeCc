@@ -444,6 +444,44 @@ Vehicle le consumă din aceleași obiecte.
 - tips;
 - bonuses.
 
+### Workday lifecycle
+
+Un Workday este un `Item` de kind `shift`, cu ciclul de viață Life Core deja
+existent — `active` înseamnă Draft, `done` înseamnă Completed. Nu există un
+al doilea status paralel doar pentru Delivery.
+
+- **Draft**: editabil — title, date, Area, sesiuni, câștiguri, odometru,
+  costuri de drum. Cât e Draft, apare corect în Overdue/active work dacă are
+  o dată trecută și nimeni nu l-a completat.
+- **Completed**: `state='done'`, `done_at` setat automat de regula generică
+  a item-ului. Iese din Overdue/active work ca orice alt item terminat.
+  Rămâne read-only pentru datele operaționale, dar rămâne descoperibil în
+  istoric.
+- **Start / Stop** rămân exclusiv despre sesiunea de lucru curentă
+  (`shift_sessions`) — Stop nu completează niciodată workday-ul.
+- **Complete Workday** e o acțiune separată și explicită, blocată dacă există
+  o sesiune deschisă (mesaj: „Stop the active session first.”). Nu inventează
+  o oră de final — ora vine numai din sesiunea reală, închisă prin Stop.
+- **Delete Workday** e soft-delete pe ancora item (aceeași regulă ca oriunde
+  în Life Core), blocat la fel dacă există o sesiune deschisă.
+- **Save draft**: formularul editează întâi o stare locală; preview-ul de sus
+  (Made/Driven/Roughly yours etc.) se recalculează imediat din acea stare
+  locală, folosind aceeași logică (`takeHome`) ca varianta persistată — nu o a
+  doua formulă pentru „cât timp tastezi”. Nimic nu se scrie pe server până la
+  Save draft sau Complete Workday. Start/Stop rămân excepția: sunt evenimente
+  reale și se scriu imediat.
+- **Fuel cost** nu mai este un input manual în Workday. Se citește automat
+  din calculul full-tank-to-full-tank existent (`fuelRate`/`fillsOf`, peste
+  fuel expenses ale Ariei), afișat ca „Automatic · £x.xxxx/km” sau „Not
+  enough full-tank data yet” — niciodată £0 ca și cum ar fi un cost real.
+- **Vehicle rate** rămâne o configurare a Ariei (`running_costs`), nu o
+  formulă automată inventată aici. Se editează dintr-o acțiune secundară,
+  „Configure vehicle cost”, separată de completarea normală a turei.
+- Vechiul Delivery Hub Manager e folosit ca referință de **funcționalitate**
+  recuperată (Draft/Completed, Save draft, Complete workday, live preview),
+  nu ca arhitectură de reprodus — fără tabele Zite, fără status paralel,
+  fără flat tax/NI, fără platforme hardcodate ca structură nouă.
+
 ### Platforms
 
 Uber Eats, Deliveroo, Just Eat și alte platforme sunt Companies / income

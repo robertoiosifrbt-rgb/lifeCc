@@ -62,6 +62,16 @@ export function readingOf(typed: string): number | null {
   return Number(trimmed.replace(',', '.'))
 }
 
+/** What the person typed, as a rate per kilometre — four decimal places. */
+export function rateOf(typed: string): number | null {
+  const trimmed = typed.trim().replace(/^£/, '').replace(',', '.')
+  if (trimmed === '') return null
+  if (!/^\d+(\.\d{1,4})?$/.test(trimmed)) {
+    throw new Error(`That is not an amount per kilometre: ${typed}`)
+  }
+  return Number(trimmed)
+}
+
 /**
  * A shift with nothing in it yet.
  *

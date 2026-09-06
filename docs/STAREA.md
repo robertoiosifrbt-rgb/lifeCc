@@ -290,6 +290,46 @@ Din aplicația de referință au fost adoptate și câmpuri pentru:
 
 Plinurile pot ține litri; documentația veche care spunea contrariul era stale.
 
+Workday-ul (sheet-ul unui `Item` de kind `shift`) are acum un lifecycle clar,
+recuperat din vechiul Delivery Hub Manager ca funcționalitate, nu ca arhitectură:
+
+- **Draft / Completed**, pe `item.state` existent (`active`/`done`) — fără
+  status paralel nou. Draft e complet editabil: title, date, Area, sesiuni,
+  câștiguri, odometru, costuri de drum. Completed e read-only pentru datele
+  operaționale, fără Start/Resume, dar rămâne descoperibil normal.
+- Formularul editează întâi o stare locală (draft); preview-ul de sus (Made,
+  Roughly yours, Worked, Driven, Fuel and wear, road costs, Tax and NI) se
+  recalculează imediat din acea stare locală, la fiecare tastă, folosind
+  exact `takeHome`/`kilometres`/`minutesWorked` — aceeași logică pe care o
+  folosește și varianta persistată, nu o formulă separată pentru preview.
+  Nimic nu se scrie pe server până la „Save draft” sau „Complete workday”.
+  Dacă sheet-ul e închis cu modificări nesalvate, apare o confirmare explicită
+  înainte să fie pierdute.
+- „Start”/„Stop” rămân singurele acțiuni imediate (scriu direct sesiunea);
+  totul altceva e Save draft/Complete workday.
+- „Stop” închide numai sesiunea curentă. „Complete workday” e o acțiune
+  separată și explicită, blocată cu mesaj clar („Stop the active session
+  first.”) dacă există o sesiune deschisă — la fel și „Delete workday”
+  (soft-delete pe ancoră, ca oriunde în Life Core). Nicio oră de final nu e
+  inventată — vine numai din sesiunea reală, închisă prin Stop.
+- Data unui Workday se editează ca `due` pe aceeași ancoră (nu se creează un
+  al doilea shift) — mutarea pe altă zi îl scoate/introduce corect din
+  Overdue/ziua respectivă, prin filtrele generice deja existente.
+- „Fuel £/km” nu mai e input manual în Workday: se citește automat din
+  calculul full-tank-to-full-tank existent (`fuelRateForArea`, peste
+  `fuelRate`/`fillsOf`), afișat „Automatic · £x.xxxx/km” sau „Not enough
+  full-tank data yet” — niciodată £0 ca și cum ar fi un cost real. „Vehicle
+  £/km” rămâne o configurare a Ariei (`running_costs`), mutată într-o acțiune
+  secundară „Configure vehicle cost”, nu mai apare ca input banal al turei
+  zilnice. Rata pinuită pe shift (`rate_fuel_per_km`/`rate_vehicle_per_km`,
+  déjà existentă în schemă) rămâne singura sursă pentru costul persistat —
+  neschimbată de acest task.
+
+Migrația `20260906060000_shift_invariants` rămâne neaplicată live, exact ca
+înainte (vezi mai jos) — acest task nu a atins-o și nu depinde de ea: UI-ul
+nou tratează fail-safe orice tură cu sesiuni deschise ambigue (una sau mai
+multe), fără să pornească vreodată o sesiune nouă peste o stare neclară.
+
 ### Command Centre — partea existentă
 
 Rezumatul din Today poate arăta date reale pentru:

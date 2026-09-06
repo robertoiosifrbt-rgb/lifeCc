@@ -5,6 +5,7 @@ import { currentSession } from './auth'
 import { expenseFromRow, fillsOf } from './expense'
 import type { Category, Expense } from './expense'
 import { fuelRate } from './fuel'
+import type { FuelRate } from './fuel'
 import { createDated, softDelete } from './write'
 import { supabaseExpenses, supabaseExpenseWriter, supabaseWriter } from './source'
 import { runningCostsOf, saveRunningCosts } from './settings-api'
@@ -86,6 +87,33 @@ export async function recordExpense(
 }
 
 /**
+ * The fuel rate this area's fill-ups work out to, right now.
+ *
+ * The one function that reads the pump receipts of an area — the automatic
+ * "what a kilometre costs" a shift shows, and the same sum `refreshFuelRate`
+ * freezes onto a shift when it writes one. Two callers, one formula: a screen
+ * showing its own guess at this would be a second answer to the question the
+ * fill-ups already answer.
+ */
+export function fuelRateForArea(
+  items: readonly Item[],
+  expenses: readonly Expense[],
+  area_id: string | null,
+): FuelRate {
+  if (area_id === null) return fuelRate([])
+  // Only this area's fill-ups. A second line of work is a second vehicle
+  // burning fuel at its own price, and one rate worked out from both bonnets
+  // is a number that describes neither.
+  const here = new Set(
+    items.filter((item) => item.area_id === area_id).map((item) => item.id),
+  )
+  const mine = expenses.filter(
+    (expense) => expense.category === 'fuel' && here.has(expense.item_id),
+  )
+  return fuelRate(fillsOf(mine))
+}
+
+/**
  * Works the fuel rate out again and writes it where the shifts can pin it.
  *
  * Derived, but stored, and on purpose: a shift freezes the rate it was worked
@@ -101,16 +129,7 @@ export async function refreshFuelRate(
 ): Promise<void> {
   if (area_id === null) return
 
-  // Only this area's fill-ups. A second line of work is a second vehicle
-  // burning fuel at its own price, and one rate worked out from both bonnets
-  // is a number that describes neither.
-  const here = new Set(
-    items.filter((item) => item.area_id === area_id).map((item) => item.id),
-  )
-  const mine = (await expensesOf(owner)).filter(
-    (expense) => expense.category === 'fuel' && here.has(expense.item_id),
-  )
-  const rate = fuelRate(fillsOf(mine))
+  const rate = fuelRateForArea(items, await expensesOf(owner), area_id)
   if (rate.perKm === null) return
 
   const held = (await runningCostsOf(owner)).find((row) => row.area_id === area_id)

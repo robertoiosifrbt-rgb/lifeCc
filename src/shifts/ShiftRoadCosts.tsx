@@ -1,25 +1,24 @@
-import type { Shift, ShiftPatch } from '../repository/items'
-
 type Props = {
-  shift: Shift
+  parking: string
+  tolls: string
+  other_cost: string
   busy: boolean
-  onSave: (key: keyof ShiftPatch, typed: string, held: number | null) => void
+  readOnly: boolean
+  onChange: (key: 'parking' | 'tolls' | 'other_cost', typed: string) => void
 }
 
 /**
  * Parking, tolls, and whatever else the day cost on the road.
  *
- * Apart from Money out on purpose, and the database draws the same line: these
- * are spent inside one shift, never have a receipt worth filing, and belong to
- * that day's own profit rather than to the month's pile of bills.
+ * Apart from Money out on purpose, and the database draws the same line:
+ * these are spent inside one shift, never have a receipt worth filing, and
+ * belong to that day's own profit rather than to the month's pile of bills.
  */
-export function ShiftRoadCosts({ shift, busy, onSave }: Props) {
+export function ShiftRoadCosts({ parking, tolls, other_cost, busy, readOnly, onChange }: Props) {
+  const values = { parking, tolls, other_cost }
   return (
     <section className="shift-block">
       <h3 className="shift-heading">What the day cost on the road</h3>
-      {/* Apart from Money out on purpose: these are spent inside one shift,
-          never have a receipt worth filing, and belong to this day's own
-          profit rather than to the month's pile of bills. */}
       {(
         [
           ['parking', 'Parking'],
@@ -33,9 +32,9 @@ export function ShiftRoadCosts({ shift, busy, onSave }: Props) {
             className="shift-amount"
             name={key}
             inputMode="decimal"
-            defaultValue={shift[key] === null ? '' : shift[key].toFixed(2)}
-            disabled={busy}
-            onBlur={(event) => onSave(key, event.target.value, shift[key])}
+            value={values[key]}
+            disabled={busy || readOnly}
+            onChange={(event) => onChange(key, event.target.value)}
           />
         </label>
       ))}

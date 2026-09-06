@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 import {
+  costsFor,
+  fuelRateForArea,
+  isOut,
   kilometres,
   minutesWorked,
-  PLATFORM_NAMES,
-  PLATFORMS,
   reserveFor,
   takeHome,
 } from '../repository/items'
-import { treeOf } from '../repository/items'
 import type {
   Area,
+  Expense,
   Item,
+  Patch,
   Platform,
   RunningCosts,
   Shift,
@@ -20,276 +21,271 @@ import type {
   Slice,
 } from '../repository/items'
 import { Sheet } from '../ui/Sheet'
-import { ShiftCosts } from './ShiftCosts'
+import { DrivingCostBasis } from './DrivingCostBasis'
+import {
+  breaksPatchOf,
+  draftFrom,
+  earningsPatchOf,
+  isDirty,
+  itemPatchOf,
+  previewShiftOf,
+  shiftPatchOf,
+  validateDraft,
+} from './draft'
+import type { Draft } from './draft'
+import { ShiftActions } from './ShiftActions'
+import { ShiftEarnings } from './ShiftEarnings'
+import { ShiftHeader } from './ShiftHeader'
 import { ShiftHours } from './ShiftHours'
-import { ShiftRoadCosts } from './ShiftRoadCosts'
 import { ShiftOdometer } from './ShiftOdometer'
-import { EMPTY_SHIFT, hoursAndMinutes, penceOf, pounds } from './money'
+import { ShiftRoadCosts } from './ShiftRoadCosts'
+import { ShiftSummary } from './ShiftSummary'
+import { EMPTY_SHIFT } from './money'
 import './ShiftSheet.css'
 
 type Props = {
   item: Item
   shift: Shift | null
   areas: Area[]
+  items: Item[]
+  expenses: Expense[]
+  costs: RunningCosts[]
   onClockOn: () => Promise<void>
   onClockOff: (sessionId: string) => Promise<void>
   onDropSession: (sessionId: string) => Promise<void>
+  onSaveShiftParts: (patch: ShiftPatch) => Promise<void>
   onSetPaid: (platform: Platform, amount: number) => Promise<void>
-  onSaveReadings: (odo_start: number | null, odo_end: number | null) => Promise<void>
-  onSaveTips: (tips: number | null) => Promise<void>
-  /** Bonuses, parking, tolls and the rest — everything else on the day. */
-  onSaveMoney: (patch: ShiftPatch) => Promise<void>
   onSetBreak: (sessionId: string, minutes: number) => Promise<void>
-  onSavePersonalKm: (personal_km: number | null) => Promise<void>
-  onSetArea: (area_id: string | null) => Promise<void>
-  /** What a kilometre costs in this shift's area, or null if nobody said. */
-  costs: RunningCosts | null
-  onSaveCosts: (fuel_per_km: number, vehicle_per_km: number) => Promise<void>
+  onUpdateItem: (patch: Patch) => Promise<void>
+  onDelete: () => Promise<void>
+  onSaveVehicleCost: (
+    area_id: string,
+    fuel_per_km: number,
+    vehicle_per_km: number,
+  ) => Promise<void>
   /** Where this shift's day sits in its tax year, for working out the reserve. */
   slice: Slice
   onClose: () => void
 }
 
-function amountOf(shift: Shift, platform: Platform): string {
-  const found = shift.earnings.find((earning) => earning.platform === platform)
-  return found === undefined ? '' : found.amount.toFixed(2)
-}
-
 /**
- * One shift, open: the hours, what each platform paid, the odometer, tips.
+ * One workday, Draft or Completed.
  *
- * Everything writes on blur rather than on a Save button. A shift is filled in
- * over a whole day, in a van, between drops — a form you have to remember to
- * submit is a form that loses half a day's numbers.
+ * Everything typed here goes into a local draft first. The live summary reads
+ * that draft immediately, on every keystroke; nothing is written until Save
+ * draft or Complete Workday is pressed. Start and Stop are the one exception —
+ * they are real events, not form fields, so they write the moment they are
+ * pressed, same as before.
  */
 export function ShiftSheet(props: Props) {
   const { item, onClose } = props
   const shift = props.shift ?? EMPTY_SHIFT
+  const completed = item.state === 'done'
+
+  const [draft, setDraft] = useState<Draft>(() => draftFrom(item, shift))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmingClose, setConfirmingClose] = useState(false)
 
-  function run(body: () => Promise<void>) {
+  const dirty = !completed && isDirty(item, shift, draft)
+  const errors = completed ? [] : validateDraft(shift, draft)
+  const blockedByOpenSession = isOut(shift)
+
+  /** Runs a write, catching its own error rather than throwing past the caller. */
+  function guarded(body: () => Promise<void>): Promise<void> {
     setBusy(true)
     setError(null)
-    void body()
+    return body()
       .catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : String(reason))
       })
       .finally(() => setBusy(false))
   }
 
-  function onPaid(platform: Platform, typed: string) {
-    const already = amountOf(shift, platform)
-    if (typed.trim() === already.trim()) return
-    let pence: number | null
-    try {
-      pence = penceOf(typed)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
-      return
-    }
-    if (pence === null) return
-    run(() => props.onSetPaid(platform, pence / 100))
+  function run(body: () => Promise<void>) {
+    void guarded(body)
   }
 
-  /**
-   * One money field, written on blur and only when it changed.
-   *
-   * Written once because there are now six of them, and six copies of "parse
-   * it, compare it, save it" is six places for the comparison to be forgotten
-   * — which shows up as a write on every tap out of a field nobody touched.
-   */
-  function money(key: keyof ShiftPatch, typed: string, held: number | null) {
-    const already = held === null ? '' : held.toFixed(2)
-    if (typed.trim() === already.trim()) return
-    let value: number | null
-    try {
-      value = penceOf(typed)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason))
-      return
-    }
-    run(() => props.onSaveMoney({ [key]: value === null ? null : value / 100 }))
+  function set<K extends keyof Draft>(key: K, value: Draft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  const worked = minutesWorked(shift)
-  const km = kilometres(shift)
-  // What this day adds to the year's bill, worked out where it lands rather
-  // than as a flat share of it. Early in the year, inside the allowance, that
-  // is nothing; later it is a fifth and then more.
-  const slice = props.slice
-  const sum = takeHome(shift, (profitPence) =>
-    slice.figures === null || slice.income === null
+  /** Writes every field that changed, then settles the draft on the result. */
+  async function saveAll(): Promise<{ item: Item; shift: Shift }> {
+    const itemPatch = itemPatchOf(item, draft)
+    const shiftPatch = shiftPatchOf(shift, draft)
+    const earningsPatch = earningsPatchOf(shift, draft)
+    const breaksPatch = breaksPatchOf(shift, draft)
+
+    if (Object.keys(shiftPatch).length > 0) await props.onSaveShiftParts(shiftPatch)
+    for (const { platform, amount } of earningsPatch) await props.onSetPaid(platform, amount)
+    for (const { sessionId, minutes } of breaksPatch) await props.onSetBreak(sessionId, minutes)
+    if (Object.keys(itemPatch).length > 0) await props.onUpdateItem(itemPatch)
+
+    const nextItem: Item = { ...item, ...itemPatch }
+    const nextShift: Shift = {
+      ...shift,
+      ...shiftPatch,
+      earnings: shift.earnings
+        .filter((earning) => !earningsPatch.some((changed) => changed.platform === earning.platform))
+        .concat(earningsPatch),
+      sessions: shift.sessions.map((session) => {
+        const changed = breaksPatch.find((entry) => entry.sessionId === session.id)
+        return changed === undefined ? session : { ...session, break_minutes: changed.minutes }
+      }),
+    }
+    return { item: nextItem, shift: nextShift }
+  }
+
+  function onSaveDraft() {
+    void guarded(async () => {
+      const settled = await saveAll()
+      setDraft(draftFrom(settled.item, settled.shift))
+    })
+  }
+
+  function onComplete() {
+    if (blockedByOpenSession) return
+    void guarded(async () => {
+      await saveAll()
+      await props.onUpdateItem({ state: 'done' })
+    })
+  }
+
+  function onDelete() {
+    if (blockedByOpenSession) return
+    void guarded(() => props.onDelete())
+  }
+
+  function requestClose() {
+    if (dirty) {
+      setConfirmingClose(true)
+      return
+    }
+    onClose()
+  }
+
+  const preview = previewShiftOf(shift, draft)
+  const worked = minutesWorked(preview)
+  const km = kilometres(preview)
+  const sum = takeHome(preview, (profitPence) =>
+    props.slice.figures === null || props.slice.income === null
       ? null
-      : reserveFor(slice.figures, slice.income, slice.beforePence, profitPence),
+      : reserveFor(props.slice.figures, props.slice.income, props.slice.beforePence, profitPence),
   )
 
+  const areaId = completed ? item.area_id : draft.area_id === '' ? null : draft.area_id
+  const fuelRate = fuelRateForArea(props.items, props.expenses, areaId)
+  const fuelPerKm = fuelRate.perKm
+  const runningCosts = costsFor(props.costs, areaId)
+
   return (
-    <Sheet title={`Shift · ${item.due ?? ''}`} onClose={onClose}>
-      <dl className="shift-totals">
-        <div className="shift-total">
-          <dt>Made</dt>
-          <dd>{pounds(sum.grossPence)}</dd>
+    <Sheet title={`Workday · ${item.due ?? 'undated'}`} onClose={requestClose}>
+      {confirmingClose && (
+        <div className="shift-unsaved" role="alert">
+          <p>You have unsaved changes. Close anyway?</p>
+          <div className="shift-actions">
+            <button
+              type="button"
+              className="shift-button"
+              onClick={() => setConfirmingClose(false)}
+            >
+              Keep editing
+            </button>
+            <button type="button" className="shift-button shift-danger" onClick={onClose}>
+              Discard changes
+            </button>
+          </div>
         </div>
-        <div className="shift-total shift-total-net">
-          <dt>Roughly yours</dt>
-          {/* Roughly, and the word is not modesty. What this day is worth
-              depends on what was actually spent over the month; here the
-              fuel and the wear are what the day used up, at the rate the
-              pump has been charging. */}
-          <dd>{sum.missing.length === 0 ? pounds(sum.netPence) : '—'}</dd>
-        </div>
-        <div className="shift-total">
-          <dt>Worked</dt>
-          <dd>{hoursAndMinutes(worked)}</dd>
-        </div>
-      </dl>
+      )}
 
-      <dl className="shift-breakdown">
-        <div className="shift-line">
-          <dt>Driven</dt>
-          {/* Unknown, not zero: one reading tells you nothing about the other. */}
-          <dd>{km === null ? '—' : `${km.toFixed(1)} km`}</dd>
-        </div>
-        <div className="shift-line">
-          <dt>Fuel and wear used</dt>
-          <dd>{sum.missing.includes('costs') || sum.missing.includes('kilometres')
-            ? '—'
-            : `−${pounds(sum.costsPence)}`}</dd>
-        </div>
-        <div className="shift-line">
-          <dt>Parking, tolls and the rest</dt>
-          {/* Not an estimate like the line above it: this is money that left a
-              pocket on the day, so it is shown even when the rates are not
-              set and nothing else can be worked out. */}
-          <dd>{sum.directPence === 0 ? '—' : `−${pounds(sum.directPence)}`}</dd>
-        </div>
-        <div className="shift-line">
-          <dt>Tax and NI to put aside</dt>
-          <dd>
-            {sum.missing.includes('rates')
-              ? '—'
-              : `−${pounds(sum.taxPence + sum.niPence)}`}
-          </dd>
-        </div>
-      </dl>
+      <ShiftHeader
+        title={draft.title}
+        due={draft.due}
+        area_id={draft.area_id}
+        areas={props.areas}
+        completed={completed}
+        busy={busy}
+        onChangeTitle={(typed) => set('title', typed)}
+        onChangeDue={(typed) => set('due', typed)}
+        onChangeArea={(area_id) => set('area_id', area_id)}
+      />
 
-      {/* Never a silent zero: a missing rate is an unknown reserve, not a
-          reserve of nothing, and £0 tax is the lie that costs money. */}
-      {sum.missing.includes('rates') && (
-        <p className="shift-missing">
-          This year&rsquo;s figures are not set, so what this day owes is
-          unknown — not nothing. Put them in on <Link to="/hmrc">HMRC</Link>.
-        </p>
-      )}
-      {sum.missing.includes('costs') && (
-        <p className="shift-missing">
-          No cost per kilometre yet. Write down two full tanks under Money out
-          and it works itself out.
-        </p>
-      )}
-      {sum.missing.includes('kilometres') && (
-        <p className="shift-missing">
-          Both odometer readings are needed before fuel can be worked out.
-        </p>
-      )}
+      <ShiftSummary sum={sum} worked={worked} km={km} />
 
       {error !== null && <p className="shift-error">{error}</p>}
 
       <ShiftHours
         shift={shift}
         busy={busy}
+        readOnly={completed}
+        breaks={draft.breaks}
+        onChangeBreak={(sessionId, typed) =>
+          setDraft((current) => ({ ...current, breaks: { ...current.breaks, [sessionId]: typed } }))
+        }
         onClockOn={props.onClockOn}
         onClockOff={props.onClockOff}
         onDropSession={props.onDropSession}
-        onSetBreak={props.onSetBreak}
         onRun={run}
-        onError={setError}
       />
 
-      <section className="shift-block">
-        <h3 className="shift-heading">Paid</h3>
-        {PLATFORMS.map((platform) => (
-          <label key={platform} className={`shift-paid shift-${platform}`}>
-            <span className="shift-platform">{PLATFORM_NAMES[platform]}</span>
-            <input
-              className="shift-amount"
-              name={platform}
-              inputMode="decimal"
-              defaultValue={amountOf(shift, platform)}
-              disabled={busy}
-              onBlur={(event) => onPaid(platform, event.target.value)}
-            />
-          </label>
-        ))}
-        <label className="shift-paid shift-tips">
-          <span className="shift-platform">Tips</span>
-          <input
-            className="shift-amount"
-            name="tips"
-            inputMode="decimal"
-            defaultValue={shift.tips === null ? '' : shift.tips.toFixed(2)}
-            disabled={busy}
-            onBlur={(event) => {
-              try {
-                const pence = penceOf(event.target.value)
-                run(() => props.onSaveTips(pence === null ? null : pence / 100))
-              } catch (reason) {
-                setError(reason instanceof Error ? reason.message : String(reason))
-              }
-            }}
-          />
-        </label>
-        <label className="shift-paid shift-tips">
-          <span className="shift-platform">Bonuses</span>
-          <input
-            className="shift-amount"
-            name="bonuses"
-            inputMode="decimal"
-            defaultValue={shift.bonuses === null ? '' : shift.bonuses.toFixed(2)}
-            disabled={busy}
-            onBlur={(event) => money('bonuses', event.target.value, shift.bonuses)}
-          />
-        </label>
-      </section>
-
-      <ShiftRoadCosts shift={shift} busy={busy} onSave={money} />
-
-      <section className="shift-block">
-        <h3 className="shift-heading">Where it belongs</h3>
-        <label className="shift-paid">
-          <span className="shift-platform">Area</span>
-          <select
-            className="shift-amount shift-area"
-            name="area"
-            value={item.area_id ?? ''}
-            disabled={busy}
-            onChange={(event) =>
-              run(() => props.onSetArea(event.target.value === '' ? null : event.target.value))
-            }
-          >
-            <option value="">—</option>
-            {treeOf(props.areas).map(({ area, depth }) => (
-              <option key={area.id} value={area.id}>
-                {'\u00a0'.repeat(depth * 2)}
-                {area.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
-
-      {item.area_id !== null && (
-        <ShiftCosts costs={props.costs} onSave={props.onSaveCosts} />
-      )}
+      <ShiftEarnings
+        earnings={draft.earnings}
+        tips={draft.tips}
+        bonuses={draft.bonuses}
+        busy={busy}
+        readOnly={completed}
+        onChangePlatform={(platform, typed) =>
+          setDraft((current) => ({ ...current, earnings: { ...current.earnings, [platform]: typed } }))
+        }
+        onChangeTips={(typed) => set('tips', typed)}
+        onChangeBonuses={(typed) => set('bonuses', typed)}
+      />
 
       <ShiftOdometer
-        shift={shift}
+        odo_start={draft.odo_start}
+        odo_end={draft.odo_end}
+        personal_km={draft.personal_km}
         busy={busy}
-        onSaveReadings={props.onSaveReadings}
-        onSavePersonalKm={props.onSavePersonalKm}
-        onRun={run}
-        onError={setError}
+        readOnly={completed}
+        onChange={(key, typed) => set(key, typed)}
+      />
+
+      <ShiftRoadCosts
+        parking={draft.parking}
+        tolls={draft.tolls}
+        other_cost={draft.other_cost}
+        busy={busy}
+        readOnly={completed}
+        onChange={(key, typed) => set(key, typed)}
+      />
+
+      {areaId !== null && (
+        <DrivingCostBasis
+          fuelRate={fuelRate}
+          costs={runningCosts}
+          busy={busy}
+          readOnly={completed}
+          onConfigureVehicle={(vehicle_per_km) => {
+            if (fuelPerKm === null) return Promise.resolve()
+            // The Area this writes is the one the draft is showing right now
+            // — not necessarily the persisted item's — so a rate typed after
+            // changing the Area, before Save draft, lands on the Area it was
+            // actually shown against.
+            return props.onSaveVehicleCost(areaId, fuelPerKm, vehicle_per_km)
+          }}
+        />
+      )}
+
+      <ShiftActions
+        completed={completed}
+        dirty={dirty}
+        busy={busy}
+        blockedByOpenSession={blockedByOpenSession}
+        errors={errors}
+        onSaveDraft={onSaveDraft}
+        onComplete={onComplete}
+        onDelete={onDelete}
       />
     </Sheet>
   )

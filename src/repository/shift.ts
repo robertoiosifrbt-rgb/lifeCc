@@ -208,6 +208,17 @@ export function isOut(shift: Shift): boolean {
 }
 
 /**
+ * What Complete Workday and Delete Workday both say when they refuse.
+ *
+ * A shift is never finished or discarded while a session on it is still
+ * running — Stop only ever closes the one session, never the day, so an open
+ * session has to be closed first, in words, not by finishing it for you.
+ * True for two or more open sessions the same as for one: `isOut` does not
+ * count them, and neither does this.
+ */
+export const STOP_SESSION_FIRST = 'Stop the active session first.'
+
+/**
  * What the shift made: the platforms and the tips together.
  *
  * In pence, so the addition is exact. Money added as floating point drifts,

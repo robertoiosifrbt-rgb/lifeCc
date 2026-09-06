@@ -45,7 +45,7 @@ export type { Category, Expense } from './expense'
 export { CATEGORIES, CATEGORY_NAMES, fillsOf } from './expense'
 export { fuelRate } from './fuel'
 export type { Fill, FuelRate } from './fuel'
-export { expensesOf, recordExpense, removeExpense } from './expenses'
+export { expensesOf, fuelRateForArea, recordExpense, removeExpense } from './expenses'
 export type { RunningCosts } from './settings'
 export { costsFor, hasCosts } from './settings'
 export {
@@ -69,6 +69,7 @@ export {
   minutesWorked,
   PLATFORM_NAMES,
   PLATFORMS,
+  STOP_SESSION_FIRST,
 } from './shift'
 export { endSession, removeSession, saveShift, setEarning, shiftsOf, startSession } from './shifts'
 export { runSessionRecovery, startSessionSafely } from './shifts'

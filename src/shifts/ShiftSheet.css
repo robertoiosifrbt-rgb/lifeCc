@@ -240,3 +240,120 @@
 .shift-break-unit {
   white-space: nowrap;
 }
+
+.shift-header-status {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.shift-header-title {
+  margin: 0;
+  font-size: var(--text-l);
+  font-weight: 650;
+}
+
+.shift-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.shift-label {
+  color: var(--text-dim);
+  font-size: var(--text-s);
+  font-weight: 550;
+  letter-spacing: 0.01em;
+}
+
+.shift-input {
+  min-height: var(--tap);
+  width: 100%;
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--text-m);
+  color: var(--text);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.shift-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.shift-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.shift-cost-value {
+  font-size: var(--text-m);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.shift-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.shift-button {
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--text-m);
+}
+
+.shift-button:active {
+  transform: translateY(1px);
+}
+
+.shift-button:disabled {
+  opacity: 0.55;
+}
+
+.shift-primary {
+  border-color: var(--accent-strong);
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  box-shadow: var(--shadow-soft);
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+
+.shift-danger {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--danger);
+}
+
+.shift-errors {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--danger);
+  font-size: var(--text-s);
+  background: var(--danger-wash);
+  border-radius: var(--radius-s);
+}
+
+.shift-unsaved {
+  padding: var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--danger-wash);
+  color: var(--danger);
+  font-size: var(--text-s);
+}
+
+.shift-unsaved p {
+  margin: 0 0 var(--space-2);
+}
