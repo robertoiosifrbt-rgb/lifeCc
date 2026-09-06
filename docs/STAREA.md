@@ -582,6 +582,17 @@ găsit blocaje reale, în afara celor de mai sus:
   `20260907030000_platform_rules` (neaplicată live; nicio Platformă n-a avut
   vreodată o valoare reală în coloanele scoase — niciun ecran de configurare
   a Platformelor nu există încă, e D3).
+- **`platform_item_id` verifica doar proprietarul, nu felul item-ului** —
+  FK-ul `(platform_item_id, owner) references items (id, owner)` pe
+  `shift_earnings` și `platform_rules` dovedea doar că item-ul e al aceluiași
+  owner, nu că e chiar o Platformă — nimic nu oprea o legătură către un Task
+  sau altă ancoră a aceluiași om (o constrângere CHECK nu poate rula un
+  subquery). Reparat cu un trigger generic, `require_item_kind()` (parametrizat
+  cu numele coloanei și felul așteptat, la fel ca `pin()`), pus pe ambele
+  tabele. Migrație nouă: `20260907040000_platform_item_kind` (neaplicată
+  live). Gaură similară, nefixată aici — în afara acestui blocaj —:
+  `vehicle_cost_rates.vehicle_item_id`/`vehicle_fuel_rates.vehicle_item_id` au
+  exact aceeași limitare (FK pe owner, nu pe `entity_kind='vehicle'`).
 - **„Download everything" excludea aproape tot, nu doar tabelele D1** —
   `exportAll`/`exportFile` citeau doar `items`, `journal_entries` și
   `quick_actions`; un shift, un Expense, un istoric de `vehicle_cost_rates`,
@@ -593,7 +604,7 @@ găsit blocaje reale, în afara celor de mai sus:
   TypeScript, fără schimbare de schemă.
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
-sandbox): toate migrațiile aplicate în ordine, `check:rls` — 90/90 cazuri;
+sandbox): toate migrațiile aplicate în ordine, `check:rls` — 92/92 cazuri;
 typecheck, lint, build, structure, reachable, drops, 653 teste unitare —
 toate verzi.
 

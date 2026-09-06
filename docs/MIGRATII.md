@@ -138,6 +138,14 @@ coloane de regulă din `platforms`, care rămâne doar identitate (`active`,
 o valoare reală în acele coloane, neexistând încă niciun ecran de configurare
 a Platformelor (D3).
 
+`20260907040000_platform_item_kind` **nu** este aplicată live și nu apare în
+tabelul de mai sus. A patra reparație de audit D1: `platform_item_id` (pe
+`shift_earnings` și `platform_rules`) verifica prin FK doar că item-ul
+referit e al aceluiași owner, niciodată că e chiar o Platformă — un CHECK nu
+poate rula un subquery, așa că e nevoie de un trigger. Adaugă
+`require_item_kind()`, un trigger generic (parametrizat, ca `pin()`), pus pe
+ambele tabele. Fără date live de migrat.
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat

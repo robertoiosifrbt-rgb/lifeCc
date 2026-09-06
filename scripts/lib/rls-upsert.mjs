@@ -19,7 +19,7 @@
  * not listed here, it is not checked.
  */
 
-import { A, B, DENIED } from './rls-context.mjs'
+import { A, B, CONSTRAINT, DENIED } from './rls-context.mjs'
 
 /** Refusal: a composite key with nothing to point at. */
 const FOREIGN_KEY = '23503'
@@ -256,6 +256,39 @@ export const CASES = [
         'item_id, platform',
       )
       await t.asA(() => t.denied(FOREIGN_KEY, sql, params))
+    },
+  },
+  {
+    group: 'negative',
+    // The FK on platform_item_id only proves the referenced item is owned by
+    // the same person — it says nothing about what kind of item that is.
+    name: 'shift_earnings.platform_item_id must be a platform, not any owned item',
+    run: async (t) => {
+      const shift = await anchorOwnedBy(t, A, 'shift')
+      const notAPlatform = await anchorOwnedBy(t, A, 'expense')
+      await t.asA(() =>
+        t.denied(
+          CONSTRAINT,
+          `insert into public.shift_earnings (item_id, platform_item_id, amount)
+           values ($1, $2, $3)`,
+          [shift, notAPlatform, 20],
+        ),
+      )
+    },
+  },
+  {
+    group: 'negative',
+    name: 'platform_rules.platform_item_id must be a platform, not any owned item',
+    run: async (t) => {
+      const notAPlatform = await anchorOwnedBy(t, A, 'shift')
+      await t.asA(() =>
+        t.denied(
+          CONSTRAINT,
+          `insert into public.platform_rules (platform_item_id, effective_from)
+           values ($1, $2)`,
+          [notAPlatform, '2026-01-01'],
+        ),
+      )
     },
   },
 ]
