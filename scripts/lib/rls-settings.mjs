@@ -127,20 +127,33 @@ export const CASES = [
     name: 'the driving rates are pinned onto a shift, and a later change does not reach back',
     run: (t) =>
       t.asA(async () => {
-        const area = await t.q(
-          "insert into public.areas (name) values ('MultiApp Delivery') returning id",
+        // Both rates are Vehicle-keyed since `pin_while_draft`/D1 — never
+        // Area-keyed `running_costs`. A shift pins from whatever Vehicle its
+        // own `about` link resolves to, so the link has to exist before the
+        // first write to `shifts` fires `pin_shift_rates()`.
+        const vehicleItem = await t.q(
+          "insert into public.items (title, kind, state) values ('Car', 'entity', 'active') returning id",
         )
+        const vehicleId = vehicleItem.rows[0].id
+        await t.q("insert into public.entities (item_id, entity_kind) values ($1, 'vehicle')", [
+          vehicleId,
+        ])
+        await t.q('insert into public.vehicle_fuel_rates (vehicle_item_id, fuel_per_km) values ($1, 0.116)', [
+          vehicleId,
+        ])
         await t.q(
-          `insert into public.running_costs (area_id, fuel_per_km, vehicle_per_km)
-           values ($1, 0.116, 0.05)`,
-          [area.rows[0].id],
+          'insert into public.vehicle_cost_rates (vehicle_item_id, vehicle_per_km) values ($1, 0.05)',
+          [vehicleId],
         )
+
         const anchor = await t.q(
-          `insert into public.items (title, kind, state, due, area_id)
-           values ('Shift', 'shift', 'active', current_date, $1) returning id`,
-          [area.rows[0].id],
+          "insert into public.items (title, kind, state, due) values ('Shift', 'shift', 'active', current_date) returning id",
         )
         const id = anchor.rows[0].id
+        await t.q("insert into public.links (from_id, to_id, kind) values ($1, $2, 'about')", [
+          id,
+          vehicleId,
+        ])
         await t.q('insert into public.shifts (item_id) values ($1)', [id])
 
         const pinned = await t.q('select * from public.shifts where item_id = $1', [id])
@@ -149,9 +162,13 @@ export const CASES = [
           'the fuel cost was not pinned',
         )
 
-        // What a kilometre cost in October is history. The pump does not
-        // re-price last month, and neither does this.
-        await t.q('update public.running_costs set fuel_per_km = 0.2')
+        // What a kilometre cost in October is history. Changing the Vehicle's
+        // rate on its own touches no shift row — only a further write to
+        // `shifts` re-pins, and this test makes none — so the earlier pin
+        // must still stand.
+        await t.q('update public.vehicle_fuel_rates set fuel_per_km = 0.2 where vehicle_item_id = $1', [
+          vehicleId,
+        ])
         const after = await t.q(
           'select rate_fuel_per_km from public.shifts where item_id = $1',
           [id],
@@ -167,13 +184,8 @@ export const CASES = [
     name: 'a shift written before the costs existed is pinned by the next write to it',
     run: (t) =>
       t.asA(async () => {
-        const area = await t.q(
-          "insert into public.areas (name) values ('MultiApp Delivery') returning id",
-        )
         const anchor = await t.q(
-          `insert into public.items (title, kind, state, due, area_id)
-           values ('Shift', 'shift', 'active', current_date, $1) returning id`,
-          [area.rows[0].id],
+          "insert into public.items (title, kind, state, due) values ('Shift', 'shift', 'active', current_date) returning id",
         )
         const id = anchor.rows[0].id
         await t.q('insert into public.shifts (item_id) values ($1)', [id])
@@ -184,11 +196,20 @@ export const CASES = [
         )
         t.require(bare.rows[0].rate_fuel_per_km === null, 'it pinned a rate out of nowhere')
 
-        await t.q(
-          `insert into public.running_costs (area_id, fuel_per_km, vehicle_per_km)
-           values ($1, 0.116, 0.05)`,
-          [area.rows[0].id],
+        const vehicleItem = await t.q(
+          "insert into public.items (title, kind, state) values ('Car', 'entity', 'active') returning id",
         )
+        const vehicleId = vehicleItem.rows[0].id
+        await t.q("insert into public.entities (item_id, entity_kind) values ($1, 'vehicle')", [
+          vehicleId,
+        ])
+        await t.q('insert into public.vehicle_fuel_rates (vehicle_item_id, fuel_per_km) values ($1, 0.116)', [
+          vehicleId,
+        ])
+        await t.q("insert into public.links (from_id, to_id, kind) values ($1, $2, 'about')", [
+          id,
+          vehicleId,
+        ])
         await t.q('update public.shifts set tips = 12.50 where item_id = $1', [id])
 
         const now = await t.q(
