@@ -1,11 +1,31 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { exportFile } from './export'
+import type { ExportData } from './export'
 import type { Item } from './item'
 import type { JournalEntry } from './journal-entry'
 import type { QuickAction } from './quick-action'
 
 const NOW = new Date('2026-09-04T18:30:00.000Z')
+
+function data(over: Partial<ExportData> = {}): ExportData {
+  return {
+    items: [],
+    areas: [],
+    shifts: [],
+    expenses: [],
+    costs: [],
+    vehicleCostRates: [],
+    taxYears: [],
+    things: [],
+    links: [],
+    platforms: [],
+    platformRules: [],
+    journal: [],
+    quickActions: [],
+    ...over,
+  }
+}
 
 function item(id: string, over: Partial<Item> = {}): Item {
   return {
@@ -57,9 +77,7 @@ describe('exportFile', () => {
   it('writes the whole snapshot, deleted rows included', () => {
     const file = exportFile(
       'a',
-      [item('one'), item('two', { deleted_at: '2026-09-03T00:00:00+00:00' })],
-      [],
-      [],
+      data({ items: [item('one'), item('two', { deleted_at: '2026-09-03T00:00:00+00:00' })] }),
       '2026-09-03T00:00:00+00:00',
       NOW,
     )
@@ -69,7 +87,7 @@ describe('exportFile', () => {
   })
 
   it('says how far it is synced, so it promises no more than it knows', () => {
-    const file = exportFile('a', [], [], [], '2026-09-03T00:00:00+00:00', NOW)
+    const file = exportFile('a', data(), '2026-09-03T00:00:00+00:00', NOW)
     const read = JSON.parse(file.contents) as Record<string, unknown>
 
     expect(read['syncedThrough']).toBe('2026-09-03T00:00:00+00:00')
@@ -78,7 +96,7 @@ describe('exportFile', () => {
   })
 
   it('is a valid empty file when you have nothing', () => {
-    const file = exportFile('a', [], [], [], null, NOW)
+    const file = exportFile('a', data(), null, NOW)
     const read = JSON.parse(file.contents) as {
       items: Item[]
       journal: JournalEntry[]
@@ -91,6 +109,28 @@ describe('exportFile', () => {
     expect(file.name).toBe('life-control-centre-2026-09-04.json')
   })
 
+  it('writes every table a screen can hold, not only items/journal/quickActions', () => {
+    // "Download everything" downloaded only items, journal and Quick Actions
+    // for a long time — a shift's numbers, an expense's amount, a Vehicle's
+    // cost history, a Platform and its rules were all silently left out.
+    const file = exportFile(
+      'a',
+      data({
+        areas: [{ id: 'area-1', owner: 'a', name: 'Work', parent_id: null, version: 1, created_at: '', updated_at: '', deleted_at: null }],
+      }),
+      null,
+      NOW,
+    )
+    const read = JSON.parse(file.contents) as Record<string, unknown>
+    for (const table of [
+      'areas', 'shifts', 'expenses', 'costs', 'vehicleCostRates', 'taxYears',
+      'things', 'links', 'platforms', 'platformRules',
+    ]) {
+      expect(read[table]).not.toBeUndefined()
+    }
+    expect((read['areas'] as unknown[])[0]).toMatchObject({ id: 'area-1' })
+  })
+
   it('writes the journal whole — title, body and journaled_at, not only the anchor', () => {
     // The item anchor alone (title/state/due) says nothing a person wrote —
     // it is the journal_entries row that carries the actual text. Both must
@@ -98,15 +138,16 @@ describe('exportFile', () => {
     // the one thing Journal is for.
     const file = exportFile(
       'a',
-      [item('note', { kind: 'journal', title: 'A note to self' })],
-      [
-        journalEntry('note', {
-          title: 'A good day',
-          body: 'Wrote this down before I forgot it.',
-          journaled_at: '2026-09-02T20:15:00+00:00',
-        }),
-      ],
-      [],
+      data({
+        items: [item('note', { kind: 'journal', title: 'A note to self' })],
+        journal: [
+          journalEntry('note', {
+            title: 'A good day',
+            body: 'Wrote this down before I forgot it.',
+            journaled_at: '2026-09-02T20:15:00+00:00',
+          }),
+        ],
+      }),
       '2026-09-03T00:00:00+00:00',
       NOW,
     )
@@ -130,14 +171,10 @@ describe('exportFile', () => {
   it('keeps a journal entry whose anchor has been deleted, exactly like every other row', () => {
     const file = exportFile(
       'a',
-      [
-        item('gone', {
-          kind: 'journal',
-          deleted_at: '2026-09-03T00:00:00+00:00',
-        }),
-      ],
-      [journalEntry('gone', { body: 'Should still be readable in the file.' })],
-      [],
+      data({
+        items: [item('gone', { kind: 'journal', deleted_at: '2026-09-03T00:00:00+00:00' })],
+        journal: [journalEntry('gone', { body: 'Should still be readable in the file.' })],
+      }),
       null,
       NOW,
     )
@@ -151,16 +188,16 @@ describe('exportFile', () => {
     // would be everything except one table a person owns.
     const file = exportFile(
       'a',
-      [],
-      [],
-      [
-        quickAction('q1', { action_key: 'delivery.work', area_id: 'area-1', position: 0 }),
-        quickAction('q2', {
-          action_key: 'money.expense',
-          position: 1,
-          deleted_at: '2026-09-06T09:00:00+00:00',
-        }),
-      ],
+      data({
+        quickActions: [
+          quickAction('q1', { action_key: 'delivery.work', area_id: 'area-1', position: 0 }),
+          quickAction('q2', {
+            action_key: 'money.expense',
+            position: 1,
+            deleted_at: '2026-09-06T09:00:00+00:00',
+          }),
+        ],
+      }),
       '2026-09-06T00:00:00+00:00',
       NOW,
     )
@@ -208,7 +245,7 @@ describe('the file name, away from UTC', () => {
   it('is named after your day, not after UTC\'s', () => {
     // 21:30 UTC is half past midnight the next morning in Bucharest.
     const late = new Date('2026-09-04T21:30:00+00:00')
-    expect(exportFile('a', [], [], [], null, late).name).toBe(
+    expect(exportFile('a', data(), null, late).name).toBe(
       'life-control-centre-2026-09-05.json',
     )
   })

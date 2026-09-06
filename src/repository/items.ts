@@ -4,6 +4,7 @@
 
 import { currentSession } from './auth'
 import type { Session } from './auth'
+import { readExportData } from './export-data'
 import { exportFile } from './export'
 import type { ExportFile } from './export'
 import { fromRow as fromAreaRow } from './area'
@@ -16,7 +17,6 @@ import { syncSettings } from './settings-api'
 import { syncCore } from './core'
 import { syncExpenses } from './expenses'
 import { syncJournalEntries } from './journal-entries'
-import { journalStore } from './journal-store'
 import { syncPlatforms } from './platforms'
 import { syncShifts } from './shifts'
 import { areaStore, quickActionStore, store } from './store'
@@ -241,13 +241,8 @@ export async function discard(owner: string, item: Item, now: Date): Promise<Ite
 /** "Download everything": the entire snapshot, as a file. */
 export async function exportAll(owner: string, now: Date): Promise<ExportFile> {
   await requireAccount(owner)
-  const [items, cursor, journal, quickActions] = await Promise.all([
-    store.readAll(owner),
-    store.cursor(owner),
-    journalStore.readAll(owner),
-    quickActionStore.readAll(owner),
-  ])
-  return exportFile(owner, items, journal, quickActions, cursor, now)
+  const { data, cursor } = await readExportData(owner)
+  return exportFile(owner, data, cursor, now)
 }
 
 /** The row the server returned goes into the cache straight away. The cursor

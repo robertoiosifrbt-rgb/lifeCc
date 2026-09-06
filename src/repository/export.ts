@@ -3,8 +3,17 @@
 
 import { localToday } from './item'
 import type { Item } from './item'
+import type { Area } from './area'
+import type { Expense } from './expense'
+import type { TaxYearRow } from './hmrc-year'
 import type { JournalEntry } from './journal-entry'
+import type { Entity } from './entity'
+import type { Link } from './link'
+import type { PlatformRecord, PlatformRule } from './platform-record'
 import type { QuickAction } from './quick-action'
+import type { RunningCosts } from './settings'
+import type { Shift } from './shift'
+import type { VehicleCostRate } from './vehicle-cost'
 
 export type ExportFile = {
   name: string
@@ -12,42 +21,46 @@ export type ExportFile = {
   contents: string
 }
 
+export type ExportData = {
+  items: readonly Item[]
+  areas: readonly Area[]
+  shifts: readonly Shift[]
+  expenses: readonly Expense[]
+  costs: readonly RunningCosts[]
+  vehicleCostRates: readonly VehicleCostRate[]
+  taxYears: readonly TaxYearRow[]
+  things: readonly Entity[]
+  links: readonly Link[]
+  platforms: readonly PlatformRecord[]
+  platformRules: readonly PlatformRule[]
+  journal: readonly JournalEntry[]
+  quickActions: readonly QuickAction[]
+}
+
 /**
- * The entire snapshot, as a file.
+ * The entire snapshot, as a file — every table `readSnapshot` reads, not
+ * just `items`. A shift's numbers, an expense's amount, a Vehicle's cost
+ * history, a Platform's rules: none of them are derivable from `items`
+ * alone, so leaving any one out would make "Download everything" a file
+ * that quietly excludes data a person owns.
  *
- * It includes the deleted rows and the point it is synced through: a file that
- * did not say how fresh it is would promise more than it knows.
- *
- * The journal rides beside `items`, not folded into it: an entry's body,
- * title and journaled_at live in their own table, exactly like a shift's
- * numbers or an expense's amount — and unlike those, the journal has no
- * other place a person can read its text back from. Leaving it out here
- * would mean "Download everything" downloaded everything except the one
- * thing Journal is actually for.
- *
- * Quick Actions ride beside `items` too, for the same reason: they are the
- * user's own configuration, not something derivable from anything else in
- * the file, so leaving them out would be an "everything" that quietly
- * excludes one table a person owns.
+ * It includes the deleted rows and the point it is synced through: a file
+ * that did not say how fresh it is would promise more than it knows.
  */
 export function exportFile(
   user: string,
-  items: readonly Item[],
-  journal: readonly JournalEntry[],
-  quickActions: readonly QuickAction[],
+  data: ExportData,
   cursor: string | null,
   now: Date,
 ): ExportFile {
   const contents = JSON.stringify(
     {
       app: 'life-control-centre',
-      formatVersion: 1,
+      formatVersion: 2,
       user,
       exportedAt: now.toISOString(),
       syncedThrough: cursor,
-      items,
-      journal,
-      quickActions,
+      ...data,
     },
     null,
     2,

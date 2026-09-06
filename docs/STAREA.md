@@ -582,10 +582,19 @@ găsit blocaje reale, în afara celor de mai sus:
   `20260907030000_platform_rules` (neaplicată live; nicio Platformă n-a avut
   vreodată o valoare reală în coloanele scoase — niciun ecran de configurare
   a Platformelor nu există încă, e D3).
+- **„Download everything" excludea aproape tot, nu doar tabelele D1** —
+  `exportAll`/`exportFile` citeau doar `items`, `journal_entries` și
+  `quick_actions`; un shift, un Expense, un istoric de `vehicle_cost_rates`,
+  o Platformă și regulile ei nu ajungeau niciodată în fișier. Reparat:
+  `exportFile` primește acum un obiect `ExportData` cu toate cele 13 tabele
+  citite de `readSnapshot` (`formatVersion` 1→2); `exportAll` le adună
+  printr-un nou modul, `repository/export-data.ts` (`readExportData`), ca să
+  nu care `items.ts` însuși toate importurile tabelelor. Nicio migrație: pur
+  TypeScript, fără schimbare de schemă.
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
 sandbox): toate migrațiile aplicate în ordine, `check:rls` — 90/90 cazuri;
-typecheck, lint, build, structure, reachable, drops, 652 teste unitare —
+typecheck, lint, build, structure, reachable, drops, 653 teste unitare —
 toate verzi.
 
 ### Command Centre — partea existentă
