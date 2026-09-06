@@ -104,7 +104,7 @@ async function areaOwnedBy(t, owner) {
   return rows[0].id
 }
 
-/** The five tables the app upserts, and a payload the shape the app sends. */
+/** Every table the app upserts, and a payload in the shape the app sends. */
 async function payloads(t) {
   const shift = await anchorOwnedBy(t, A, 'shift')
   const expense = await anchorOwnedBy(t, A, 'expense')
@@ -151,6 +151,22 @@ async function payloads(t) {
       conflict: 'owner, tax_year',
       payload: { tax_year: '2026/27', ...YEAR_FIGURES },
       keys: { tax_year: '2027/28' },
+    },
+    {
+      table: 'platform_rules',
+      conflict: 'platform_item_id, effective_from',
+      payload: {
+        platform_item_id: await anchorOwnedBy(t, A, 'platform'),
+        effective_from: '2026-01-01',
+        payout_schedule: 'weekly',
+        cashout_enabled: true,
+        cashout_fee_type: 'fixed',
+        cashout_fee_value: 0.5,
+      },
+      keys: {
+        platform_item_id: await anchorOwnedBy(t, A, 'platform'),
+        effective_from: '2026-02-01',
+      },
     },
   ]
 }

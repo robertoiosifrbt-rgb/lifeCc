@@ -6,11 +6,12 @@
 
 import type { Expense } from './expense'
 import type { TaxYearRow } from './hmrc-year'
+import type { PlatformRule } from './platform-record'
 import type { RunningCosts } from './settings'
 import type { VehicleCostRate } from './vehicle-cost'
 import { completed, open, request, STORES } from './store'
 
-const { COSTS, EXPENSES, TAX_YEARS, VEHICLE_COST_RATES } = STORES
+const { COSTS, EXPENSES, PLATFORM_RULES, TAX_YEARS, VEHICLE_COST_RATES } = STORES
 
 /**
  * The settings, kept the same way the shift parts are: whole, no cursor.
@@ -91,6 +92,31 @@ export const settingsStore = {
     const keys = await request(store.index('owner').getAllKeys(owner))
     for (const key of keys) store.delete(key)
     for (const row of rates) store.put(row)
+    await completed(tx)
+  },
+
+  async platformRules(owner: string): Promise<PlatformRule[]> {
+    const opened = await open()
+    const tx = opened.transaction(PLATFORM_RULES, 'readonly')
+    const rows: unknown = await request(
+      tx.objectStore(PLATFORM_RULES).index('owner').getAll(owner),
+    )
+    if (!Array.isArray(rows)) throw new Error('The cache did not return a list')
+    return rows as PlatformRule[]
+  },
+
+  async replacePlatformRules(owner: string, rules: readonly PlatformRule[]): Promise<void> {
+    for (const row of rules) {
+      if (row.owner !== owner) {
+        throw new Error(`The platform rule for ${row.platform_item_id} belongs to ${row.owner}`)
+      }
+    }
+    const opened = await open()
+    const tx = opened.transaction(PLATFORM_RULES, 'readwrite')
+    const store = tx.objectStore(PLATFORM_RULES)
+    const keys = await request(store.index('owner').getAllKeys(owner))
+    for (const key of keys) store.delete(key)
+    for (const row of rules) store.put(row)
     await completed(tx)
   },
 }

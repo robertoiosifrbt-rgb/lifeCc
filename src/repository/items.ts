@@ -287,6 +287,14 @@ export {
 export type { JournalEntry, JournalPatch } from './journal-entry'
 export { findRequestedEntry, searchJournal, timelineOf } from './journal-entry'
 export { createJournalEntry, journalEntriesOf, saveJournalEntry } from './journal-entries'
-export type { CashoutFeeType, NamedPlatform, PlatformPatch, PlatformRecord } from './platform-record'
-export { CASHOUT_FEE_TYPES, namedPlatformsFor, orderedPlatformsOf } from './platform-record'
-export { platformsOf, recordPlatform, removePlatform, savePlatform } from './platforms'
+export type {
+  CashoutFeeType,
+  NamedPlatform,
+  PlatformPatch,
+  PlatformRecord,
+  PlatformRule,
+  PlatformRulePatch,
+} from './platform-record'
+export { CASHOUT_FEE_TYPES, currentPlatformRuleOf, namedPlatformsFor, orderedPlatformsOf } from './platform-record'
+export { platformRulesOf, platformsOf, recordPlatform, removePlatform } from './platforms'
+export { savePlatform, savePlatformRule } from './platforms'

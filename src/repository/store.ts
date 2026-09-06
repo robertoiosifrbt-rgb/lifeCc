@@ -29,10 +29,9 @@ export type Store<T extends Row> = {
 }
 
 const DB_NAME = 'life-control-centre'
-// Bumped for the D1 data foundation: Platforms ride their anchor like
-// entities/links; vehicle cost rates are a handful of settings rows, kept
-// the same way running_costs/tax_years already are.
-const DB_VERSION = 11
+// Bumped for the D1 audit round: Platform rules are effective-dated, the
+// same shape vehicle cost rates already use.
+const DB_VERSION = 12
 const ITEMS = 'items'
 const AREAS = 'areas'
 // Home's Quick Actions: its own table, own cursor, the same reason areas
@@ -59,6 +58,9 @@ const TAX_YEARS = 'tax_years'
 // A Vehicle's own cost-per-km history: one row per Vehicle per date it
 // changed, few enough to fetch whole, no cursor of its own.
 const VEHICLE_COST_RATES = 'vehicle_cost_rates'
+// A Platform's earning-cycle/payout/cash-out rules, effective-dated the same
+// way: one row per Platform per date the rule changed, never overwritten.
+const PLATFORM_RULES = 'platform_rules'
 // The personal journal. No cursor either, for the same reason as entities: it
 // rides the anchor that carries the news it changed.
 const JOURNAL = 'journal_entries'
@@ -86,6 +88,7 @@ export const STORES = {
   JOURNAL,
   LINKS,
   PLATFORMS,
+  PLATFORM_RULES,
   SHIFTS,
   TAX_YEARS,
   VEHICLE_COST_RATES,
@@ -151,6 +154,12 @@ export function open(): Promise<IDBDatabase> {
           keyPath: ['vehicle_item_id', 'effective_from'],
         })
         rates.createIndex('owner', 'owner', { unique: false })
+      }
+      if (!opened.objectStoreNames.contains(PLATFORM_RULES)) {
+        const rules = opened.createObjectStore(PLATFORM_RULES, {
+          keyPath: ['platform_item_id', 'effective_from'],
+        })
+        rules.createIndex('owner', 'owner', { unique: false })
       }
       if (opened.objectStoreNames.contains(CURSORS)) {
         opened.deleteObjectStore(CURSORS)

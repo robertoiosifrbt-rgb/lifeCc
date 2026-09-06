@@ -564,10 +564,29 @@ găsit blocaje reale, în afara celor de mai sus:
   înainte, fără să știe că un Expense e implicat. Migrație nouă:
   `20260907020000_road_cost_expenses` (extinde enumul de categorii,
   neaplicată live).
+- **Platforms neconectat în UI-ul de Earnings, plus un bug critic găsit pe
+  drum** — `ShiftEarnings` arăta doar lista veche hardcodată (Uber Eats/
+  Deliveroo/Just Eat/Other); o Platformă configurată n-avea cum să primească
+  un câștig. Reparat: câte un câmp per Platformă activă a utilizatorului
+  (plus una dezactivată dacă tura are deja un câștig pe ea), scriind prin
+  `platform_item_id`. Pe drum, a ieșit la iveală un bug independent, mai grav:
+  `repository/item.ts` nu recunoștea `kind: 'platform'` — orice cont cu o
+  singură Platformă ar fi picat complet sincronizarea (nimic nu s-ar mai fi
+  încărcat, nicăieri). Reparat în același commit.
+- **Regulile Platformei (earning cycle/payout/cash-out) nu erau
+  effective-dated** — o singură linie mutabilă pe `platforms`, deși
+  contractul D1.F cere explicit istoric versionat, exact ca la
+  `vehicle_cost_rates`. Reparat: tabel nou `platform_rules` (o linie per
+  Platformă per dată de la care regula a intrat în vigoare); `platforms`
+  rămâne doar identitate (`active`, `display_order`). Migrație nouă:
+  `20260907030000_platform_rules` (neaplicată live; nicio Platformă n-a avut
+  vreodată o valoare reală în coloanele scoase — niciun ecran de configurare
+  a Platformelor nu există încă, e D3).
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
 sandbox): toate migrațiile aplicate în ordine, `check:rls` — 90/90 cazuri;
-typecheck, lint, 634 teste unitare — toate verzi.
+typecheck, lint, build, structure, reachable, drops, 652 teste unitare —
+toate verzi.
 
 ### Command Centre — partea existentă
 

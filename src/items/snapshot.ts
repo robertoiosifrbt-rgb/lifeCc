@@ -11,6 +11,7 @@ import {
   expensesOf,
   journalEntriesOf,
   linksOf,
+  platformRulesOf,
   platformsOf,
   quickActionsOf,
   runningCostsOf,
@@ -28,6 +29,7 @@ import type {
   JournalEntry,
   Link,
   PlatformRecord,
+  PlatformRule,
   QuickAction,
   RunningCosts,
   Shift,
@@ -46,6 +48,7 @@ export type Snapshot = {
   things: Entity[]
   links: Link[]
   platforms: PlatformRecord[]
+  platformRules: PlatformRule[]
   journal: JournalEntry[]
   quickActions: QuickAction[]
 }
@@ -60,7 +63,7 @@ export type Snapshot = {
 export async function readSnapshot(owner: string): Promise<Snapshot> {
   const [
     items, areas, shifts, expenses, costs, vehicleCostRates, taxYears,
-    things, links, platforms, journal, quickActions,
+    things, links, platforms, platformRules, journal, quickActions,
   ] = await Promise.all([
     all(owner),
     areasOf(owner),
@@ -72,11 +75,12 @@ export async function readSnapshot(owner: string): Promise<Snapshot> {
     thingsOf(owner),
     linksOf(owner),
     platformsOf(owner),
+    platformRulesOf(owner),
     journalEntriesOf(owner),
     quickActionsOf(owner),
   ])
   return {
     items, areas, shifts: withRoadCostExpenses(shifts, expenses, links), expenses, costs,
-    vehicleCostRates, taxYears, things, links, platforms, journal, quickActions,
+    vehicleCostRates, taxYears, things, links, platforms, platformRules, journal, quickActions,
   }
 }

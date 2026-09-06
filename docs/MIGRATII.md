@@ -127,6 +127,17 @@ Expense-uri reale, legate de Workday prin `about`. Coloanele vechi de pe
 live; vezi `docs/STAREA.md` pentru regula dual-path (Expense legat câștigă
 peste coloana veche, niciodată conversie automată).
 
+`20260907030000_platform_rules` **nu** este aplicată live și nu apare în
+tabelul de mai sus. A treia reparație de audit D1: regulile unei Platforme
+(earning cycle, payout schedule, cash-out) stăteau ca o singură linie mutabilă
+pe `platforms` (deja live, din D1) — contractul cere effective-dating, exact
+ca la `vehicle_cost_rates`. Adaugă tabelul nou `platform_rules` (o linie per
+Platformă per dată de la care regula a intrat în vigoare) și scoate cele 7
+coloane de regulă din `platforms`, care rămâne doar identitate (`active`,
+`display_order`). Fără date live de migrat — nicio Platformă n-a avut vreodată
+o valoare reală în acele coloane, neexistând încă niciun ecran de configurare
+a Platformelor (D3).
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat

@@ -32,6 +32,7 @@ import type {
   Link,
   Patch,
   PlatformRecord,
+  PlatformRule,
   Expense,
   QuickAction,
   RunningCosts,
@@ -75,6 +76,7 @@ export type ItemsHandle = MoneyActions &
   things: Entity[]
   links: Link[]
   platforms: PlatformRecord[]
+  platformRules: PlatformRule[]
   journal: JournalEntry[]
   quickActions: QuickAction[]
   loading: boolean
@@ -110,6 +112,7 @@ export function useItems(owner: string): ItemsHandle {
   const [things, setThings] = useState<Entity[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [platforms, setPlatforms] = useState<PlatformRecord[]>([])
+  const [platformRules, setPlatformRules] = useState<PlatformRule[]>([])
   const [journal, setJournal] = useState<JournalEntry[]>([])
   const [quickActions, setQuickActions] = useState<QuickAction[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,6 +131,7 @@ export function useItems(owner: string): ItemsHandle {
     setThings(snapshot.things)
     setLinks(snapshot.links)
     setPlatforms(snapshot.platforms)
+    setPlatformRules(snapshot.platformRules)
     setJournal(snapshot.journal)
     setQuickActions(snapshot.quickActions)
   }, [])
@@ -244,14 +248,13 @@ export function useItems(owner: string): ItemsHandle {
     things,
     links,
     platforms,
+    platformRules,
     journal,
     quickActions,
     loading,
     sync,
     unsaved,
-
     resync: () => setRound((n) => n + 1),
-
     capture: (title) => write(() => captureItem(owner, title)),
 
     update: (item, patch) =>

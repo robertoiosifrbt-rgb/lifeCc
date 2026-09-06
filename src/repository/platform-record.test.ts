@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Item } from './item'
-import { namedPlatformsFor } from './platform-record'
-import type { PlatformRecord } from './platform-record'
+import { currentPlatformRuleOf, namedPlatformsFor, platformRuleFromRow } from './platform-record'
+import type { PlatformRecord, PlatformRule } from './platform-record'
 
-function platform(over: Partial<PlatformRecord> = {}): PlatformRecord {
+function rule(over: Partial<PlatformRule> = {}): PlatformRule {
   return {
-    item_id: 'p1',
+    platform_item_id: 'p1',
     owner: 'me',
-    active: true,
-    display_order: 0,
+    effective_from: '2026-01-01',
     earning_cycle_kind: null,
     earning_cycle_starts_on: null,
     payout_schedule: null,
@@ -17,6 +16,20 @@ function platform(over: Partial<PlatformRecord> = {}): PlatformRecord {
     cashout_settlement: null,
     cashout_fee_type: null,
     cashout_fee_value: null,
+    version: 1,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
+    ...over,
+  }
+}
+
+function platform(over: Partial<PlatformRecord> = {}): PlatformRecord {
+  return {
+    item_id: 'p1',
+    owner: 'me',
+    active: true,
+    display_order: 0,
     ...over,
   }
 }
@@ -75,5 +88,48 @@ describe('namedPlatformsFor', () => {
 
   it('never lists the same Platform twice, active and also named by an existing earning', () => {
     expect(namedPlatformsFor([item()], [platform()], ['p1'])).toEqual([{ itemId: 'p1', name: 'Uber Eats' }])
+  })
+})
+
+describe('platformRuleFromRow', () => {
+  it('refuses a row without an effective date', () => {
+    const raw = { ...rule(), effective_from: undefined }
+    expect(() => platformRuleFromRow(raw)).toThrow('without an effective date')
+  })
+
+  it('refuses an unknown cash-out fee type', () => {
+    expect(() => platformRuleFromRow({ ...rule(), cashout_fee_type: 'crypto' })).toThrow(
+      'Unknown cash-out fee type',
+    )
+  })
+})
+
+describe('currentPlatformRuleOf', () => {
+  it('none when this Platform has never had a rule', () => {
+    expect(currentPlatformRuleOf([], 'p1', '2026-06-01')).toBeNull()
+  })
+
+  it('the newest rule not yet in the future — never a later one, never a stale one', () => {
+    const rules = [
+      rule({ effective_from: '2026-01-01', payout_schedule: 'weekly' }),
+      rule({ effective_from: '2026-06-01', payout_schedule: 'daily' }),
+      rule({ effective_from: '2026-12-01', payout_schedule: 'monthly' }),
+    ]
+    expect(currentPlatformRuleOf(rules, 'p1', '2026-06-15')?.payout_schedule).toBe('daily')
+  })
+
+  it('a change today never rewrites what an earlier date was assessed against', () => {
+    const rules = [rule({ effective_from: '2026-01-01', payout_schedule: 'weekly' })]
+    expect(currentPlatformRuleOf(rules, 'p1', '2025-12-01')).toBeNull()
+  })
+
+  it('ignores a soft-deleted (invalidated) rule', () => {
+    const rules = [rule({ effective_from: '2026-01-01', deleted_at: '2026-02-01T00:00:00Z' })]
+    expect(currentPlatformRuleOf(rules, 'p1', '2026-06-01')).toBeNull()
+  })
+
+  it('ignores another Platform’s rule entirely', () => {
+    const rules = [rule({ platform_item_id: 'p2' })]
+    expect(currentPlatformRuleOf(rules, 'p1', '2026-06-01')).toBeNull()
   })
 })
