@@ -42,6 +42,7 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260906000000_journal` | `journal_entries` + `items.kind='journal'` | 6 sep 2026 |
 | `20260906050000_quick_actions` | tabelul `quick_actions` | 6 sep 2026 |
 | `20260906070000_pin_while_draft` | `vehicle_fuel_rates` + `pin_shift_rates()` re-derivă rata de combustibil după Vehicul | 6 sep 2026 (manual, vezi drift) |
+| `20260907000000_delivery_data_foundation` | `vehicle_cost_rates`, `platforms`, imutabilitate Completed, `shift_earnings.platform_item_id` | 6 sep 2026 (manual, vezi drift) |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
@@ -70,35 +71,43 @@ din prima scriere — comportamentul pentru un Workday Completed rămâne exact 
 de dinainte. Adaugă și tabelul `vehicle_fuel_rates`: rata de combustibil se
 citește acum după Vehiculul legat de Workday (via `links`/`entities`), nu după
 Aria lui. La momentul acestei migrații, `rate_vehicle_per_km` (uzura) rămăsese
-încă citită din `running_costs` după Arie — corectat de migrația D1 de mai jos
-(D1 însăși **nu** este aplicată live, vezi paragraful următor). Un audit
-ulterior a mai găsit și reparat o greșeală de ordine `grant`/`revoke` pe
-`vehicle_fuel_rates` din acest fișier (`revoke all` rula după un `grant`
+încă citită din `running_costs` după Arie — corectat de migrația D1 de mai jos.
+Un audit ulterior a mai găsit și reparat o greșeală de ordine `grant`/`revoke`
+pe `vehicle_fuel_rates` din acest fișier (`revoke all` rula după un `grant`
 țintit și îl ștergea silențios); fișierul a fost rescris pe loc **înainte** de
 rularea manuală de mai jos, deci versiunea rulată pe live este cea corectată.
 
-`20260907000000_delivery_data_foundation` **nu** este aplicată live și nu
-apare în tabelul de mai sus. Adaugă `vehicle_cost_rates` (istoricul de cost pe
-km al unui Vehicul, înlocuind `running_costs` pentru acest rol — vezi
-corecția de mai sus), imutabilitate Completed impusă prin trigger-e noi pe
-`shifts`/`shift_sessions`/`shift_earnings`/`links` (independent de
-`shift_invariants`), tabelul `platforms` (fundație de date, neconectat încă
-în UI-ul de Earnings) și o extindere a `shift_earnings` (id surogat,
-`platform_item_id` opțional alături de enumul `platform` existent, fără să-l
-înlocuiască). Vezi `docs/STAREA.md`, secțiunea „Migrație nouă (D1)”, pentru
-detalii.
+`20260907000000_delivery_data_foundation` este acum în tabelul de mai sus,
+aplicată manual pe live (vezi drift mai jos). Adaugă `vehicle_cost_rates`
+(istoricul de cost pe km al unui Vehicul, înlocuind `running_costs` pentru
+acest rol — vezi corecția de mai sus), imutabilitate Completed impusă prin
+trigger-e noi pe `shifts`/`shift_sessions`/`shift_earnings`/`links`
+(independent de `shift_invariants`), tabelul `platforms` (fundație de date,
+neconectat încă în UI-ul de Earnings) și o extindere a `shift_earnings` (id
+surogat, `platform_item_id` opțional alături de enumul `platform` existent,
+fără să-l înlocuiască). Vezi `docs/STAREA.md`, secțiunea „Migrație nouă (D1)”,
+pentru detalii.
 
-**Dependență operațională, nu doar ordine de fișiere.** Ordinea standard de
-migrații pune `0600` înaintea lui `0700`, iar `0700` înaintea migrației D1 de
-mai sus. `0600` este blocată de incidentul live cunoscut cu 15 rânduri
-`shift_sessions` simultan deschise (vezi `docs/STAREA.md`). Codul Workday din
-aceste runde poate fi logic independent de invariantele din `0600`, dar
-aplicarea secvențială normală a migrațiilor nu poate ajunge la `0700` sau la
-D1 cât timp `0600` rămâne neaplicată/blocată — deci nici `0700`, nici D1 nu
-sunt pregătite de producție doar pentru că există în repo și modelul de
-Vehicul din ele este acum corect. Aplicarea oricăreia dintre ele, repararea
-celor 15 sesiuni sau alegerea uneia reale rămân decizii separate, explicite,
-ale proprietarului — nu s-a făcut nimic din toate astea aici.
+**Bug reparat înainte de rularea live, niciodată live cu el.** Cele două
+indexuri unice de la pasul 5 (`shift_earnings_legacy_platform_unique`,
+`shift_earnings_platform_item_unique`) erau scrise inițial ca indexuri
+parțiale (`where platform is not null` / `where platform_item_id is not
+null`). Postgres nu poate ținti un index parțial dintr-un `ON CONFLICT` fără
+să repete predicatul acolo, iar `.upsert(..., { onConflict: 'item_id,platform'
+})` din cod nu face asta — eroare `42P10`, prinsă de `check:rls` în CI
+(6 din 90 cazuri picate), niciodată live. Fișierul a fost rescris pe loc
+**înainte** de rularea manuală de mai jos: indexurile sunt acum obișnuite
+(fără `where`), ceea ce e suficient — semantica NULL standard a UNIQUE deja
+separă un rând legacy (`platform` setat) de unul cu `platform_item_id`
+(reciproc), fără predicat.
+
+**`0600` (`shift_invariants`) rămâne neaplicată live**, separat de toate
+astea. Codul Workday poate fi logic independent de invariantele din
+`20260906060000_shift_invariants`, dar fișierul ei tot n-a fost rulat —
+blocată de incidentul live cunoscut cu 15 rânduri `shift_sessions` simultan
+deschise (vezi `docs/STAREA.md`). Repararea celor 15 sesiuni și aplicarea lui
+`0600` rămân decizii separate, explicite, ale proprietarului — nu s-a făcut
+nimic din astea aici.
 
 ## Schimbări manuale declarate
 
@@ -137,6 +146,26 @@ confirmate, nu ipotetice:
 această migrație ca aplicată în istoricul CLI (`supabase migration repair`
 sau echivalent), fie să adapteze fișierul să fie idempotent. Nu s-a făcut
 niciuna dintre astea aici — doar constatarea.
+
+### `20260907000000_delivery_data_foundation` — rulată manual, nu prin CLI
+
+Același drift ca mai sus, pentru aceleași motive:
+
+- rulată din SQL Editor Supabase pe `tasks-calendar`, nu prin `supabase db
+  push`/CLI — **nu apare** în `supabase_migrations.schema_migrations`;
+- fișierul n-are `if not exists`/`or replace` pe niciuna dintre structurile
+  noi (`vehicle_cost_rates`, `platforms`, coloanele/indexurile adăugate pe
+  `shift_earnings`, funcțiile și trigger-ele de imutabilitate Completed) — un
+  `db push` viitor, în ordinea normală a fișierelor, va încerca s-o reaplice
+  și va eșua;
+- ordinea standard de migrații pune `0600` (`shift_invariants`, tot
+  neaplicată live) înaintea acesteia — un `db push` viitor va eșua întâi pe
+  `0600` (dacă rămâne blocată) sau, dacă `0600` s-ar rezolva vreodată, imediat
+  după, pe aceasta.
+
+Aceeași remediere ca mai sus rămâne necesară înainte de orice `db push`
+viitor: `supabase migration repair` (sau echivalent) pe ambele migrații, sau
+fișiere idempotente. Nu s-a făcut aici.
 
 ### `reserves`
 

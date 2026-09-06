@@ -481,8 +481,9 @@ drift-ului CLI pe `0700` rămân decizii separate, explicite, ale proprietarului
 ### Migrație nouă (D1): fundația de date pentru Delivery
 
 `supabase/migrations/20260907000000_delivery_data_foundation.sql` este a doua
-migrație nouă a acestei runde, tot **nefiind niciodată live**. Conține patru
-bucăți independente:
+migrație nouă a acestei runde. **Este acum aplicată live**, manual (SQL
+Editor Supabase, pe `tasks-calendar`), nu prin CLI — vezi drift-ul documentat
+în `docs/MIGRATII.md`. Conține patru bucăți independente:
 
 - **`vehicle_cost_rates`** — istoricul de cost pe km al unui Vehicul, cheie
   `(vehicle_item_id, effective_from)`, exact tabelul citit acum de
@@ -506,18 +507,29 @@ bucăți independente:
   D3 experiența finală Delivery).
 - **`shift_earnings` extins** — `id` surogat, `platform`/`platform_item_id`
   ambele nullable cu un `CHECK` de exact-unul-dintre-ele, două indexuri unice
-  parțiale (unul pentru enumul vechi, unul pentru legătura la o Platformă
+  obișnuite (unul pentru enumul vechi, unul pentru legătura la o Platformă
   configurabilă), `pin()` extins să acopere ambele. Coloana enum
   `platform` existentă **nu e ștearsă, redenumită sau reasignată** — coexistă
   cu calea nouă, exact regula „nicio istorie ghicită sau distrusă”.
 
+**Bug găsit în CI, reparat înainte de rularea live.** Cele două indexuri de
+mai sus au fost scrise inițial ca indexuri *parțiale* (`where platform is not
+null` / `where platform_item_id is not null`). Postgres nu poate ținti un
+index parțial dintr-un `ON CONFLICT` fără să repete predicatul acolo, iar
+`.upsert(..., { onConflict: 'item_id,platform' })` din cod nu face asta —
+eroare `42P10`, prinsă de `check:rls` (6 din 90 cazuri picate), niciodată pe
+vreo bază live. Fișierul a fost rescris pe loc, înainte de rularea manuală de
+mai jos: indexurile sunt acum obișnuite, fără `where` — semantica NULL
+standard a UNIQUE (fiecare NULL distinct) dă deja separarea dorită între un
+rând legacy și unul cu `platform_item_id`, fără predicat.
+
 Verificat comportamental pe același Postgres local efemer (nu Supabase):
-scenarii pentru fiecare trigger de imutabilitate, pentru `CHECK`-ul
-exact-unul-dintre-ele și pentru cele două indexuri unice parțiale — toate au
-trecut. **Nu este aplicată live** și nu apare în `docs/MIGRATII.md` ca
-aplicată. Ordinea de aplicare rămâne aceeași dependență secvențială: `0600`
-înaintea lui `0700`, `0700` înaintea acestei migrații D1 — niciuna dintre ele
-nu poate ajunge pe live înaintea celei dinaintea ei.
+scenarii pentru fiecare trigger de imutabilitate și pentru `CHECK`-ul
+exact-unul-dintre-ele — toate au trecut, înainte de reparația de mai sus.
+**Este acum aplicată live** (vezi drift-ul din `docs/MIGRATII.md` — rulată
+manual, nu prin CLI). `0600` (`shift_invariants`) rămâne separat, neaplicată
+live — blocată de incidentul cu 15 rânduri `shift_sessions` simultan
+deschise, nu de nimic din migrația asta.
 
 Ce rămâne neschimbat de această rundă: D2 (payout/cash-out/settlement) și D3
 (experiența finală Delivery — Dashboard/Shifts/Platforms/Earnings/Expenses/

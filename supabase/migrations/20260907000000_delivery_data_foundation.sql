@@ -176,9 +176,16 @@ create policy platforms_delete on public.platforms for delete to authenticated
 -- nullable — a NULL platform column could never satisfy a PK across many
 -- rows for the same item. A surrogate id takes its place, and it is also
 -- exactly the stable identity D2 will need to attach a settlement event to
--- the earning that produced it. The two partial unique indexes below are
--- the old constraint's replacement, one per era: they never overlap, since
--- every row still carries exactly one of the two columns.
+-- the earning that produced it. The two unique indexes below are the old
+-- constraint's replacement, one per era. Both are ordinary (non-partial)
+-- indexes on purpose: regular UNIQUE semantics already treat NULL as
+-- distinct from every other NULL, so a legacy row (platform set,
+-- platform_item_id null) never collides with a configurable-Platform row
+-- (the reverse) on either index — no WHERE predicate needed, and none
+-- added, because a partial index cannot be named as an `ON CONFLICT`
+-- target without repeating its predicate there too (Postgres 42P10); the
+-- app's `.upsert(..., { onConflict: 'item_id,platform' })` has no way to do
+-- that.
 alter table public.shift_earnings add column id uuid not null default gen_random_uuid();
 alter table public.shift_earnings drop constraint shift_earnings_pkey;
 alter table public.shift_earnings add primary key (id);
@@ -197,9 +204,9 @@ alter table public.shift_earnings
   );
 
 create unique index shift_earnings_legacy_platform_unique
-  on public.shift_earnings (item_id, platform) where platform is not null;
+  on public.shift_earnings (item_id, platform);
 create unique index shift_earnings_platform_item_unique
-  on public.shift_earnings (item_id, platform_item_id) where platform_item_id is not null;
+  on public.shift_earnings (item_id, platform_item_id);
 
 -- Same upsert-vs-grant shape `20260905170000_upsert_keys` already fixed for
 -- `(item_id, platform)`: `platform_item_id` also sits in an upsert's own SET
