@@ -457,18 +457,25 @@ reparație, upsert-ul pe `vehicle_fuel_rates` ar fi eșuat mereu din lipsă de
 `UPDATE` pe `vehicle_item_id`. Fișierul a fost **rescris pe loc** (nefiind
 niciodată live, nimic de păstrat): revoke-ul precede acum toate grant-urile.
 
-**Nu este aplicată live** și nu apare încă în `docs/MIGRATII.md` ca aplicată.
+**Este acum aplicată live**, dar manual (SQL Editor Supabase, pe proiectul
+`tasks-calendar`), nu prin `supabase db push`/CLI — apare în
+`docs/MIGRATII.md` ca aplicată, cu drift documentat acolo: nefiind trecută
+prin CLI, nu apare în `supabase_migrations.schema_migrations`, iar fișierul
+n-are `if not exists`/`or replace trigger`, deci un `db push` viitor, în
+ordinea normală a fișierelor, va încerca s-o reaplice și va eșua. Asta trebuie
+rezolvat (`supabase migration repair` sau fișier idempotent) înainte de orice
+`db push` viitor — nu s-a făcut aici.
 
-**Dependență de `shift_invariants`, nu independență.** Codul Workday din acest
-task poate fi logic independent de invariantele din `20260906060000_shift_invariants`
-— UI-ul tratează fail-safe orice tură cu sesiuni deschise ambigue, fără să
-pornească vreodată o sesiune nouă peste o stare neclară. Dar ordinea standard
-de migrații pune `0600` înaintea lui `0700`, iar aplicarea secvențială normală
-nu poate ajunge la `0700` cât timp `0600` rămâne neaplicată — blocată de
-incidentul live cu 15 rânduri `shift_sessions` simultan deschise (vezi mai
-sus). Deci `0700` nu e „gata de producție” doar pentru că modelul de Vehicul
-din ea e acum corect; aplicarea ei, ca și repararea celor 15 sesiuni sau
-aplicarea lui `0600`, rămâne o decizie separată, explicită, a proprietarului
+**`shift_invariants` (0600) rămâne neaplicată live**, indiferent de asta.
+Codul Workday din acest task poate fi logic independent de invariantele din
+`20260906060000_shift_invariants` — UI-ul tratează fail-safe orice tură cu
+sesiuni deschise ambigue, fără să pornească vreodată o sesiune nouă peste o
+stare neclară. Dar ordinea standard de migrații pune `0600` înaintea lui
+`0700`, iar un `db push` viitor prin CLI tot va încerca `0600` întâi (blocată
+de incidentul live cu 15 rânduri `shift_sessions` simultan deschise, vezi mai
+sus) — și, chiar dacă `0600` s-ar rezolva, va eșua apoi pe `0700` din motivul
+de mai sus. Repararea celor 15 sesiuni, aplicarea lui `0600` și rezolvarea
+drift-ului CLI pe `0700` rămân decizii separate, explicite, ale proprietarului
 — niciuna dintre ele nu s-a făcut aici.
 
 ### Migrație nouă (D1): fundația de date pentru Delivery

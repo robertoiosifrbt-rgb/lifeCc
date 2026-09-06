@@ -41,6 +41,7 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260905200000_waiting` | `items.waiting_since` + update grant | 6 sep 2026 |
 | `20260906000000_journal` | `journal_entries` + `items.kind='journal'` | 6 sep 2026 |
 | `20260906050000_quick_actions` | tabelul `quick_actions` | 6 sep 2026 |
+| `20260906070000_pin_while_draft` | `vehicle_fuel_rates` + `pin_shift_rates()` re-derivă rata de combustibil după Vehicul | 6 sep 2026 (manual, vezi drift) |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
@@ -60,20 +61,21 @@ nu este drift de schemă și nu schimbă ce face migrația.
 `20260906060000_shift_invariants` **nu** este aplicată live și nu apare în
 tabelul de mai sus. Vezi `docs/STAREA.md` pentru motivul blocajului.
 
-`20260906070000_pin_while_draft` **nu** este aplicată live și nu apare în
-tabelul de mai sus. Rescrie `pin_shift_rates()` (funcție deja existentă din
+`20260906070000_pin_while_draft` este acum în tabelul de mai sus, aplicată
+manual pe live (vezi drift mai jos pentru cum anume). Rescrie
+`pin_shift_rates()` (funcție deja existentă din
 `20260905100000_reserves`/`20260905160000_one_answer`) ca să repinuiască rata
 de cost a unui Workday încă Draft la fiecare scriere, în loc s-o lase înghețată
 din prima scriere — comportamentul pentru un Workday Completed rămâne exact cel
 de dinainte. Adaugă și tabelul `vehicle_fuel_rates`: rata de combustibil se
 citește acum după Vehiculul legat de Workday (via `links`/`entities`), nu după
 Aria lui. La momentul acestei migrații, `rate_vehicle_per_km` (uzura) rămăsese
-încă citită din `running_costs` după Arie — corectat de migrația D1 de mai jos.
-Un audit ulterior a mai găsit și reparat o greșeală de ordine `grant`/`revoke`
-pe `vehicle_fuel_rates` din acest fișier (`revoke all` rula după un `grant`
-țintit și îl ștergea silențios); fișierul a fost rescris pe loc, nefiind
-niciodată live. Vezi `docs/STAREA.md`, secțiunea Delivery/Work, pentru motivul
-complet.
+încă citită din `running_costs` după Arie — corectat de migrația D1 de mai jos
+(D1 însăși **nu** este aplicată live, vezi paragraful următor). Un audit
+ulterior a mai găsit și reparat o greșeală de ordine `grant`/`revoke` pe
+`vehicle_fuel_rates` din acest fișier (`revoke all` rula după un `grant`
+țintit și îl ștergea silențios); fișierul a fost rescris pe loc **înainte** de
+rularea manuală de mai jos, deci versiunea rulată pe live este cea corectată.
 
 `20260907000000_delivery_data_foundation` **nu** este aplicată live și nu
 apare în tabelul de mai sus. Adaugă `vehicle_cost_rates` (istoricul de cost pe
@@ -111,6 +113,30 @@ Motivul: trimiteau către o Edge Function care nu mai exista și nu mai erau
 folosite de codul curent.
 
 ## Drift cunoscut
+
+### `20260906070000_pin_while_draft` — rulată manual, nu prin CLI
+
+Migrația a fost rulată direct din SQL Editor Supabase pe proiectul de
+producție (`tasks-calendar`), nu prin `supabase db push`/CLI. Consecințe
+confirmate, nu ipotetice:
+
+- **nu apare** în `supabase_migrations.schema_migrations` — din perspectiva
+  CLI-ului, migrația este încă „neaplicată”;
+- fișierul nu are `if not exists` pe `create table public.vehicle_fuel_rates`
+  și nu are `or replace` pe `create trigger` — o rulare viitoare prin
+  `supabase db push`, în ordinea normală a fișierelor, va încerca s-o
+  reaplice și va eșua (`relation "vehicle_fuel_rates" already exists` /
+  eroare echivalentă pe trigger);
+- ordinea standard de migrații (vezi paragraful de mai jos) pune
+  `20260906060000_shift_invariants` înaintea acesteia; acel fișier tot **nu**
+  este aplicat live, deci un `db push` viitor va încerca întâi `0600`, apoi va
+  eșua pe `0700` din motivul de mai sus, indiferent dacă `0600` reușește sau
+  nu.
+
+Înainte de orice `supabase db push` viitor, cineva trebuie fie să marcheze
+această migrație ca aplicată în istoricul CLI (`supabase migration repair`
+sau echivalent), fie să adapteze fișierul să fie idempotent. Nu s-a făcut
+niciuna dintre astea aici — doar constatarea.
 
 ### `reserves`
 
