@@ -4,10 +4,8 @@
 // Inbox; process it as a task due tomorrow; it shows up in the Calendar on
 // tomorrow; tick it, it shows up as done on the day you ticked it; press
 // "Download everything" and see it in the file; open the laptop - it is
-// there; refresh - it is there. Three out of three.
-//
-// This is the only check that exercises the whole stack at once: the
-// screens, the repository, PostgREST, the trigger, RLS and IndexedDB.
+// there; refresh - it is there. The only check that exercises the whole
+// stack at once: screens, repository, PostgREST, the trigger, RLS, IndexedDB.
 
 import { readFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
@@ -89,15 +87,18 @@ async function signIn(page) {
       .catch(() => null)
     throw new Error(`could not sign in as ${EMAIL}: ${said ?? 'stayed on sign-in'}`)
   }
-  // `data-sync` on the shell says when the first sync is done, even though the header no longer shows it in text once healthy.
+  // `data-sync` mirrors SyncState.kind: 'never' -> 'syncing' -> a terminal
+  // 'synced' or 'failed'; only a terminal state ends this wait — the timeout
+  // below is a safety net, never the correctness mechanism.
   await page.waitForFunction(
-    () => document.querySelector('.shell')?.getAttribute('data-sync') !== 'syncing',
-    undefined,
+    (kinds) => kinds.includes(document.querySelector('.shell')?.getAttribute('data-sync')),
+    ['synced', 'failed'],
     { timeout: 30000 },
   )
+  const state = await page.getAttribute('.shell', 'data-sync')
+  if (state === 'failed') throw new Error('the first sync failed (data-sync="failed")')
 }
 
-/** Opens More from the header, then one of its three doors. */
 async function openMore(page, label) {
   await page.click('button[name="more"]')
   await page.click(`a.more-link >> text=${label}`)
@@ -176,8 +177,7 @@ try {
   await step('it shows up in the Calendar, on tomorrow, under Planned', async () => {
     await openCalendar(page)
 
-    // The mark on the grid is what sends you to that day at all. Without it,
-    // a day holding something is indistinguishable from an empty one.
+    // The mark on the grid is what sends you to that day at all — without it, a day holding something looks the same as an empty one.
     if (sameMonth(TOMORROW, TODAY)) {
       await dayCell(page, TOMORROW)
         .first()

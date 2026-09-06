@@ -210,45 +210,75 @@ async function checkItself(page) {
   console.log(`  self-check: caught ${[...kinds].join(', ')}`)
 }
 
+/** One content-kind problem, so each check below reads as a single line. */
+function flag(where, element, detail) {
+  problems.push({ where, kind: 'content', element, detail })
+}
+
 /**
  * Copy and structure specific to Phase 1B: Directory must not read as
- * "thing", Capture must carry its accessible name, and More must expose
- * exactly the three doors the plan names — no more, no fewer.
+ * "thing", Capture must carry its accessible name, More must expose exactly
+ * the three doors the plan names, the primary nav must stay at exactly the
+ * four named tabs in order, and Settings must actually expose the existing
+ * account/sync/export/sign-out/Quick-Actions functions (presence only —
+ * Sign out and Download are never invoked here to prove they exist).
  */
 async function checkContent(page) {
+  await open(page, '/today')
+  const tabs = (await page.locator('.shell-nav .shell-nav-button').allTextContents()).map((t) =>
+    t.trim(),
+  )
+  const expectedTabs = ['Home', 'Plan', 'Areas', 'Money']
+  if (JSON.stringify(tabs) !== JSON.stringify(expectedTabs)) {
+    flag(
+      'Primary nav',
+      '.shell-nav',
+      `shows ${JSON.stringify(tabs)}, expected ${JSON.stringify(expectedTabs)}`,
+    )
+  }
+
+  await open(page, '/settings')
+  const required = [
+    ['button[name="resync"]', 'Sync again'],
+    ['a.settings-link', 'Configure Quick Actions'],
+    ['button[name="download"]', 'Download everything'],
+    ['button[name="sign-out"]', 'Sign out'],
+  ]
+  for (const [selector, label] of required) {
+    if ((await page.locator(selector).count()) === 0) {
+      flag('Settings', selector, `"${label}" control is missing`)
+    }
+  }
+  if ((await page.locator('.settings-sync').count()) === 0) {
+    flag('Settings', '.settings-sync', 'no visible sync status')
+  }
+
   await open(page, '/things')
   const bodyText = await page.locator('.things').innerText()
   if (/\badd a thing\b/i.test(bodyText) || /\ba thing is\b/i.test(bodyText)) {
-    problems.push({
-      where: 'Directory',
-      kind: 'content',
-      element: '.things',
-      detail: 'still uses "thing" wording in user-facing copy',
-    })
+    flag('Directory', '.things', 'still uses "thing" wording in user-facing copy')
   }
 
   await open(page, '/today')
   const captureLabel = await page.locator('button[name="capture"]').getAttribute('aria-label')
   if (captureLabel !== 'Capture') {
-    problems.push({
-      where: 'Home',
-      kind: 'content',
-      element: 'button[name="capture"]',
-      detail: `accessible name is "${String(captureLabel)}", expected "Capture"`,
-    })
+    flag(
+      'Home',
+      'button[name="capture"]',
+      `accessible name is "${String(captureLabel)}", expected "Capture"`,
+    )
   }
 
   await page.click('button[name="more"]')
   await page.waitForSelector('.more-list')
   const doors = (await page.locator('.more-link').allTextContents()).map((t) => t.trim())
-  const expected = ['Journal', 'Directory', 'Settings']
-  if (JSON.stringify(doors) !== JSON.stringify(expected)) {
-    problems.push({
-      where: 'More',
-      kind: 'content',
-      element: '.more-list',
-      detail: `shows ${JSON.stringify(doors)}, expected ${JSON.stringify(expected)}`,
-    })
+  const expectedDoors = ['Journal', 'Directory', 'Settings']
+  if (JSON.stringify(doors) !== JSON.stringify(expectedDoors)) {
+    flag(
+      'More',
+      '.more-list',
+      `shows ${JSON.stringify(doors)}, expected ${JSON.stringify(expectedDoors)}`,
+    )
   }
   await page.click('.sheet-close')
 }
