@@ -56,14 +56,14 @@ este efectiv satisfăcut.
 Țintă din PLAN: experiența coerentă `Home / Plan / Areas / Money`, fără a
 construi încă modulele viitoare.
 
-- `TODO` — navigația/experiența principală exprimă clar Home / Plan / Areas / Money;
-- `TODO` — `Things` nu mai este termen principal de UI;
-- `TODO` — HMRC este expus semantic sub Money / Tax;
+- `DONE` — navigația/experiența principală exprimă clar Home / Plan / Areas / Money;
+- `DONE` — `Things` nu mai este termen principal de UI;
+- `DONE` — HMRC este expus semantic sub Money / Tax;
 - `PARTIAL` — Area / Project / Goal / Entity sunt definite clar în produs; UI-ul încă nu le exprimă complet;
-- `TODO` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere;
+- `DONE` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere;
 - `TODO` — Journal MVP: quick entry, text liber, dată+oră, editare, timeline/search și legături opționale conform PLAN.
 
-**Scor fază: 0.5 / 6 = 8%**
+**Scor fază: 4.5 / 6 = 75%**
 
 ### Criterii suplimentare
 
@@ -80,11 +80,11 @@ construi încă modulele viitoare.
 - `TODO` — Home & Life Admin;
 - `TODO` — Personal Finance.
 
-**Scor fază: 0.5 / 6 = 8%**
+**Scor fază: 0.5 / 7 = 7%**
 
 ### Criterii suplimentare
 
-- _Adaugă aici criterii noi aprobate pentru Faza 2._
+- `TODO` — platformele Multi-App Delivery sunt records configurabile, cu earning cycle, payout schedule, cash-out behaviour și fees configurabile/effective-dated, fără cazuri Uber/Deliveroo/Just Eat hardcodate.
 
 ---
 
@@ -98,11 +98,13 @@ construi încă modulele viitoare.
 - `TODO` — budgets;
 - `TODO` — separare completă și explicită personal vs company în Money.
 
-**Scor fază: 1 / 7 = 14%**
+**Scor fază: 1 / 10 = 10%**
 
 ### Criterii suplimentare
 
-- _Adaugă aici criterii noi aprobate pentru Faza 3._
+- `TODO` — reserves separă required/target de actually funded și leagă funding-ul de bani reali aflați într-un cont/pot controlat;
+- `TODO` — platform-held/pending earnings sunt separate de received money, cu settlement/cash-out fără a transforma soldul platformei într-un bank account controlat;
+- `TODO` — regulile/ratele financiare schimbătoare sunt configuration-first și effective-dated/versionate, cu invariabilele financiare păstrate în cod.
 
 ---
 
@@ -115,11 +117,11 @@ construi încă modulele viitoare.
 - `PARTIAL` — Self Assessment personal; există HMRC/tax-year logic, dar nu agregarea completă;
 - `TODO` — company tax obligations separat de persoană.
 
-**Scor fază: 1 / 6 = 17%**
+**Scor fază: 1 / 7 = 14%**
 
 ### Criterii suplimentare
 
-- _Adaugă aici criterii noi aprobate pentru Faza 4._
+- `TODO` — Tax aplică independent regulile fiscale/accounting relevante; semantica Delivery/Money `earned / held / received` nu decide singură momentul fiscal.
 
 ---
 
@@ -189,13 +191,13 @@ construi încă modulele viitoare.
 
 # Progres total curent
 
-Criterii urmărite: **45**
+Criterii urmărite: **50**
 
-Puncte curente: **8 / 45**
+Puncte curente: **12 / 50**
 
-**Progres mecanic: 18%**
+**Progres mecanic: 24%**
 
-**Rămas mecanic: 82%**
+**Rămas mecanic: 76%**
 
 Acest procent nu este estimare de timp. Fundația tehnică deja existentă poate
 face unele criterii viitoare mult mai rapide decât sugerează numărul brut.
@@ -212,7 +214,11 @@ După o implementare verificată:
 4. se recalculează scorul fazei și totalul;
 5. dacă apare o cerință nouă de produs, se adaugă mai întâi în `PLAN.md`, apoi
    aici ca criteriu;
-6. nu se șterg criterii doar ca procentul să arate mai bine.
+6. nu se șterg criterii doar ca procentul să arate mai bine;
+7. un task care schimbă acoperirea unui criteriu urmărit nu este declarat gata
+   până când statusul și scorurile din acest fișier au fost actualizate;
+8. pentru economie de context, agentul citește numai faza relevantă și totalul,
+   nu întregul tracker, exceptând recalculările globale.
 
 # Extensii viitoare
 
