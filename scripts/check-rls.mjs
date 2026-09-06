@@ -12,6 +12,7 @@ import { CASES as JOURNAL_CASES } from './lib/rls-journal.mjs'
 import { CASES as QUICK_ACTION_CASES } from './lib/rls-quick-actions.mjs'
 import { CASES as QUICK_ACTION_COLUMN_CASES } from './lib/rls-quick-actions-columns.mjs'
 import { CASES as SETTINGS_CASES } from './lib/rls-settings.mjs'
+import { CASES as SHIFT_RATE_CASES } from './lib/rls-shift-rates.mjs'
 import { CASES as ITEM_CASES } from './lib/rls.mjs'
 import { CASES as SHIFT_CASES } from './lib/rls-shifts.mjs'
 import { CASES as SHIFT_INVARIANT_CASES } from './lib/rls-shift-invariants.mjs'
@@ -26,6 +27,7 @@ const CASES = [
   ...SHIFT_CASES,
   ...SHIFT_INVARIANT_CASES,
   ...SETTINGS_CASES,
+  ...SHIFT_RATE_CASES,
   ...EXPENSE_CASES,
   ...UPSERT_CASES,
   ...LINK_CASES,

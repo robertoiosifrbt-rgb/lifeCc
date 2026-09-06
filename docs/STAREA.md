@@ -593,6 +593,15 @@ găsit blocaje reale, în afara celor de mai sus:
   live). Gaură similară, nefixată aici — în afara acestui blocaj —:
   `vehicle_cost_rates.vehicle_item_id`/`vehicle_fuel_rates.vehicle_item_id` au
   exact aceeași limitare (FK pe owner, nu pe `entity_kind='vehicle'`).
+- **`vehicle_cost_rates` se pinea după data scrierii, nu după ziua turei** —
+  `pin_shift_rates()` compara `effective_from` cu `now()`; o tură completată
+  la mult timp după ziua efectivă (sau editată ulterior) primea rata validă
+  azi, nu rata în vigoare chiar în ziua lucrată. Reparat: comparația folosește
+  acum `items.due` al turei înseși (aceeași coloană setată de
+  `createDated`/`createShift`), cu fallback la data curentă doar dacă `due`
+  ar lipsi. `vehicle_fuel_rates` nu are nevoie de aceeași reparație — e un
+  rând mutabil unic, fără istoric de date. Migrație nouă:
+  `20260907050000_pin_rate_by_workday_date` (neaplicată live).
 - **„Download everything" excludea aproape tot, nu doar tabelele D1** —
   `exportAll`/`exportFile` citeau doar `items`, `journal_entries` și
   `quick_actions`; un shift, un Expense, un istoric de `vehicle_cost_rates`,
@@ -604,7 +613,7 @@ găsit blocaje reale, în afara celor de mai sus:
   TypeScript, fără schimbare de schemă.
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
-sandbox): toate migrațiile aplicate în ordine, `check:rls` — 92/92 cazuri;
+sandbox): toate migrațiile aplicate în ordine, `check:rls` — 93/93 cazuri;
 typecheck, lint, build, structure, reachable, drops, 653 teste unitare —
 toate verzi.
 

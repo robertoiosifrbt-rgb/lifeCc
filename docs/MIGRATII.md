@@ -146,6 +146,13 @@ poate rula un subquery, așa că e nevoie de un trigger. Adaugă
 `require_item_kind()`, un trigger generic (parametrizat, ca `pin()`), pus pe
 ambele tabele. Fără date live de migrat.
 
+`20260907050000_pin_rate_by_workday_date` **nu** este aplicată live și nu
+apare în tabelul de mai sus. A cincea reparație de audit D1:
+`pin_shift_rates()` compara `vehicle_cost_rates.effective_from` cu `now()` —
+momentul scrierii, nu ziua turei. O tură scrisă/editată mult după ziua
+lucrată primea rata curentă azi, nu rata în vigoare atunci. Rescrie
+comparația să folosească `items.due` al turei. Fără date live de migrat.
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat
