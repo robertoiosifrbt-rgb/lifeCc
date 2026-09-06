@@ -24,11 +24,22 @@ describe('tabInfoFor', () => {
     expect(tabInfoFor('/journal')).toEqual({ title: 'Home · Journal', tabPath: '/today' })
   })
 
-  it('has nothing to say about a screen that belongs to none of the four', () => {
-    // Things is reached from the header, not from a bar tab; an area's own
-    // page is a literal route param, never an exact match on ':id'.
-    expect(tabInfoFor('/things')).toBeUndefined()
-    expect(tabInfoFor('/areas/some-id')).toBeUndefined()
+  it('credits a real area page to Areas, by its static prefix rather than an exact match', () => {
+    // The declared route is `/areas/:id`; no real URL ever equals that
+    // literally, so the area's own id has to match by prefix instead —
+    // without ever hardcoding which area it is.
+    expect(tabInfoFor('/areas/some-id')).toEqual({ title: 'Areas', tabPath: '/areas' })
+    expect(tabInfoFor('/areas/another-one')).toEqual({ title: 'Areas', tabPath: '/areas' })
+  })
+
+  it('titles Directory with its own name, and lights no bar tab for it', () => {
+    // Directory is a secondary screen, reached from More — not a fifth tab,
+    // so no bar button should read as active for it.
+    expect(tabInfoFor('/things')).toEqual({ title: 'Directory', tabPath: '/things' })
+  })
+
+  it('titles Settings with its own name, and lights no bar tab for it', () => {
+    expect(tabInfoFor('/settings')).toEqual({ title: 'Settings', tabPath: '/settings' })
   })
 
   it('has nothing to say about an unknown URL', () => {

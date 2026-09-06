@@ -33,7 +33,14 @@ if (!EMAIL || !PASSWORD) {
 /** The screen before the account. */
 const PUBLIC_PATHS = ['/sign-in']
 /** The screens after the account. The last one does not exist: it needs an exit. */
-const PRIVATE_PATHS = ['/today', '/calendar', '/', '/a-path-that-does-not-exist']
+const PRIVATE_PATHS = [
+  '/today',
+  '/calendar',
+  '/things',
+  '/settings',
+  '/',
+  '/a-path-that-does-not-exist',
+]
 
 const ARGUMENTS = { minTap: MIN_TAP, safe: SAFE, tappable: TAPPABLE }
 
@@ -133,12 +140,20 @@ try {
     collect(await page.evaluate(inspect, ARGUMENTS), 'the capture sheet', size)
     await page.click('.sheet-close')
 
+    await page.click('button[name="more"]')
+    await page.waitForSelector('.more-list')
+    collect(await page.evaluate(inspect, ARGUMENTS), 'the More sheet', size)
+    await page.click('.sheet-close')
+
     await page.locator('.row').first().click()
     await page.waitForSelector('input[name="due"]')
     collect(await page.evaluate(inspect, ARGUMENTS), 'the item sheet', size)
     await page.click('.sheet-close')
 
-    if (size === SIZES[0]) await checkItself(page)
+    if (size === SIZES[0]) {
+      await checkItself(page)
+      await checkContent(page)
+    }
     await context.close()
   }
 } catch (reason) {
@@ -193,6 +208,49 @@ async function checkItself(page) {
     }
   }
   console.log(`  self-check: caught ${[...kinds].join(', ')}`)
+}
+
+/**
+ * Copy and structure specific to Phase 1B: Directory must not read as
+ * "thing", Capture must carry its accessible name, and More must expose
+ * exactly the three doors the plan names — no more, no fewer.
+ */
+async function checkContent(page) {
+  await open(page, '/things')
+  const bodyText = await page.locator('.things').innerText()
+  if (/\badd a thing\b/i.test(bodyText) || /\ba thing is\b/i.test(bodyText)) {
+    problems.push({
+      where: 'Directory',
+      kind: 'content',
+      element: '.things',
+      detail: 'still uses "thing" wording in user-facing copy',
+    })
+  }
+
+  await open(page, '/today')
+  const captureLabel = await page.locator('button[name="capture"]').getAttribute('aria-label')
+  if (captureLabel !== 'Capture') {
+    problems.push({
+      where: 'Home',
+      kind: 'content',
+      element: 'button[name="capture"]',
+      detail: `accessible name is "${String(captureLabel)}", expected "Capture"`,
+    })
+  }
+
+  await page.click('button[name="more"]')
+  await page.waitForSelector('.more-list')
+  const doors = (await page.locator('.more-link').allTextContents()).map((t) => t.trim())
+  const expected = ['Journal', 'Directory', 'Settings']
+  if (JSON.stringify(doors) !== JSON.stringify(expected)) {
+    problems.push({
+      where: 'More',
+      kind: 'content',
+      element: '.more-list',
+      detail: `shows ${JSON.stringify(doors)}, expected ${JSON.stringify(expected)}`,
+    })
+  }
+  await page.click('.sheet-close')
 }
 
 if (problems.length === 0) {

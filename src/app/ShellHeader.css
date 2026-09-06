@@ -31,20 +31,11 @@
   gap: var(--space-2);
 }
 
-/* Wrapping, because the row now holds three tools and the narrowest phone is
-   320px wide. Squeezed instead of wrapped, the sync button came out 43px
-   across — under the minimum a thumb can hit — and four lines tall. A second
-   line costs nothing; a target nobody can press costs the tool. */
-.head-row-tools {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: var(--space-2);
-}
-
 .head-title {
   font-size: var(--text-xl);
   font-weight: 650;
   letter-spacing: -0.022em;
+  overflow-wrap: anywhere;
 }
 
 .head-button {
@@ -60,50 +51,28 @@
   font-size: var(--text-s);
 }
 
-/* A link wearing the same clothes as the buttons beside it: it sits in the
-   same row and does the same job, so it must not look like a stray word. */
-a.head-button {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-
 .head-button:active {
   transform: translateY(1px);
 }
 
-.head-account {
-  color: var(--text-dim);
-  font-size: var(--text-s);
-  overflow-wrap: anywhere;
-}
-
-/* It fills the line it is on, but it does not shrink below what a thumb can
-   press. `flex: 1` with `min-width: 0` let it squeeze to 43px across and four
-   lines tall once a third tool joined the row; the basis holds it wide enough
-   to wrap the row instead of crushing the button. */
-.head-sync {
-  flex: 1 1 12rem;
-  min-width: 0;
+/* A compact but real warning, never a silent failure: shown only while sync
+   actually has a problem, and it leads straight to where it can be seen and
+   retried. */
+.head-sync-warn {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
   min-height: var(--tap);
   padding: 0 var(--space-3);
-  text-align: left;
   border-radius: var(--radius-s);
-  border: 1px solid var(--line);
-  background: var(--bg-raised);
-  color: var(--text-dim);
-  font-size: var(--text-s);
-  overflow-wrap: anywhere;
-}
-
-.head-sync-bad {
-  color: var(--danger);
-  border-color: var(--danger);
+  border: 1px solid var(--danger);
   background: var(--danger-wash);
-}
-
-.head-error {
   color: var(--danger);
   font-size: var(--text-s);
+  text-decoration: none;
   overflow-wrap: anywhere;
+}
+
+.head-sync-warn:active {
+  transform: translateY(1px);
 }

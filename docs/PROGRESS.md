@@ -56,11 +56,11 @@ este efectiv satisfăcut.
 Țintă din PLAN: experiența coerentă `Home / Plan / Areas / Money`, fără a
 construi încă modulele viitoare.
 
-- `DONE` — navigația/experiența principală exprimă clar Home / Plan / Areas / Money;
-- `DONE` — `Things` nu mai este termen principal de UI;
+- `DONE` — navigația/experiența principală exprimă clar Home / Plan / Areas / Money (exact patru tab-uri; Directory și Settings sunt secundare, reachable din More, niciodată un al cincilea/șaselea tab; `/areas/:id` păstrează contextul Areas în antet/bara de jos în loc să cadă pe titlul generic);
+- `DONE` — `Things` nu mai este termen principal de UI (verificat acum și la nivel de copy din ecran, nu doar de etichetă în header: „Nothing here yet"/„Add a thing" au fost înlocuite, secțiunile explicite sunt People/Companies/Vehicles/Properties);
 - `DONE` — HMRC este expus semantic sub Money / Tax;
 - `PARTIAL` — Area / Project / Goal / Entity sunt definite clar în produs; UI-ul încă nu le exprimă complet;
-- `DONE` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere;
+- `DONE` — funcțiile existente sunt reexpuse coerent fără duplicare sau pierdere (header global curățat la titlu + „More"; email de cont, Sign out, resync și Download everything mutate în Settings, cu aceleași handlere/state, reachable din More; Capture rămâne universal ca un control compact, nu mai domină ecranul);
 - `DONE` — Journal MVP: quick entry din Home, text liber, titlu opțional, `journaled_at` editabil separat de created_at/updated_at, editare ulterioară, timeline cronologic, căutare, legături opționale (Area + links existente), fără a deveni un al cincilea tab — end-to-end UI → repository → Supabase → sync/cache → export, cu migrație, RLS și teste.
 
 **Scor fază: 5.5 / 6 = 92%**

@@ -13,15 +13,30 @@ procente de progres sau explicații despre cum s-a ajuns aici.
 - snapshot/cache și sincronizare prin repository;
 - export complet al datelor;
 - navigația principală exprimă harta mentală țintă: Home / Plan / Areas /
-  Money;
-- ecran de arie;
+  Money, exact patru tab-uri;
+- header-ul global normal e curat: doar titlul ecranului curent și un control
+  compact „More" (minimum 44px); email de cont, Sign out, resync și Download
+  everything nu mai apar pe fiecare ecran — au un loc propriu, Settings;
+- „More" e o foaie secundară cu exact trei uși: Journal, Directory, Settings —
+  niciun al cincilea tab;
+- Settings (`/settings`) ține utilitățile globale reexpuse, fără logică nouă:
+  email de cont, status sync, „Sync again", link spre configurare Quick
+  Actions, „Download everything", Sign out;
+- încrederea în sync rămâne vizibilă fără să ocupe header-ul: sănătos, nu ține
+  loc; cu o problemă reală, header-ul arată o afordanță compactă spre
+  Settings — niciun eșec de sync nu e ascuns tăcut;
+- Capture universal, la o atingere distanță, dar compact (buton „+", minimum
+  44×44px) — nu mai domină ecranul cu un bloc pe toată lățimea;
+- ecran de arie, cu context corect în header/bara de jos (`/areas/:id` ține
+  tab-ul Areas aprins și titlul „Areas", fără să cadă pe titlul generic);
 - HMRC, expus acum ca `Tax` sub Money;
-- Things (Person/Company/Vehicle/Property), etichetat clar în header ca
-  „People, Companies, Vehicles & Property" și accesibil de acolo, nu din
-  navigația principală;
+- Directory (`/things` neschimbat ca rută/model intern) — People / Companies /
+  Vehicles / Properties explicit ca secțiuni, fără cuvântul „thing" în UX;
+  reachable din More, nu din navigația principală;
 - Journal — jurnal personal, MVP complet conform PLAN (secțiunea 33);
+  reachable din More, rămâne semantic parte din Home;
 - Home Quick Actions — configurabile de utilizator, nu hardcodate (detaliat
-  mai jos).
+  mai jos); configurarea rămâne reachable atât din Home cât și din Settings.
 
 Landing-ul actual rămâne fostul `Today`, la ruta `/today`; el este acum
 etichetat `Home` în navigație și își păstrează toate funcțiile (Inbox, Today,
@@ -36,8 +51,11 @@ singur selector comun cu Home, `currentYearMoney`) și o intrare spre `Tax`
 timp snapshotul inițial nu s-a încărcat, ca să nu afișeze liste goale sau
 £0.00 false. Când ești pe Calendar sau pe Tax, antetul și bara de jos arată
 în continuare contextul corect (`Plan · Calendar`, respectiv
-`Money · Tax`, cu tab-ul părinte aprins). Niciunul dintre aceste ecrane nu
-introduce date sau modele noi — reexpun ce exista deja.
+`Money · Tax`, cu tab-ul părinte aprins); la fel și pe pagina unei arii
+(`/areas/:id`), unde antetul spune acum „Areas" (nu titlul generic vechi) și
+tab-ul Areas rămâne aprins, în timp ce AreaScreen însuși continuă să arate
+calea/numele real al ariei. Niciunul dintre aceste ecrane nu introduce date
+sau modele noi — reexpun ce exista deja.
 
 ### Items
 

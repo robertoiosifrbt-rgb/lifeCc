@@ -10,6 +10,8 @@ export type ScreenContext = {
   openItem: (item: Item) => void
   /** Today, from the device clock. */
   today: string
+  /** The account you are in. Settings is where it is shown. */
+  email: string | null
 }
 
 export function useScreen(): ScreenContext {

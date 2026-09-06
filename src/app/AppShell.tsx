@@ -8,9 +8,9 @@ import { useItems } from '../items/useItems'
 import { ExpenseSheet } from '../spend/ExpenseSheet'
 import { ShiftSheet } from '../shifts/ShiftSheet'
 import { costsFor, sliceOfYear } from '../repository/items'
-import { signOut } from '../repository/auth'
 import type { Session } from '../repository/auth'
 import { useToday } from './today'
+import { MoreSheet } from './MoreSheet'
 import { ShellHeader } from './ShellHeader'
 import { journalEntryPath, opensInJournal, SCREENS, tabInfoFor } from './screens'
 import './AppShell.css'
@@ -23,8 +23,8 @@ export function AppShell({ session }: Props) {
   const tab = tabInfoFor(location.pathname)
   const data = useItems(session.userId)
 
-  const [error, setError] = useState<string | null>(null)
   const [capturing, setCapturing] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
 
   // Looked up fresh every render, so the sheet never shows a stale version. If
@@ -37,13 +37,7 @@ export function AppShell({ session }: Props) {
   // that re-renders on every keystroke would move it while you type.
   const closeItem = useCallback(() => setOpenId(null), [])
   const closeCapture = useCallback(() => setCapturing(false), [])
-
-  function report(body: () => Promise<unknown>) {
-    setError(null)
-    void body().catch((reason: unknown) => {
-      setError(reason instanceof Error ? reason.message : String(reason))
-    })
-  }
+  const closeMore = useCallback(() => setMoreOpen(false), [])
 
   const context: ScreenContext = {
     data,
@@ -58,36 +52,28 @@ export function AppShell({ session }: Props) {
       setOpenId(item.id)
     },
     today,
+    email: session.email,
   }
 
   return (
-    <div className="shell">
+    // data-sync carries the sync state for checks and tests: the header no
+    // longer shows it in text once sync is healthy, but nothing that reads
+    // sync state should have to scrape the header's visible copy for it.
+    <div className="shell" data-sync={data.sync.kind}>
       <ShellHeader
         title={tab?.title ?? 'Life Control Centre'}
-        email={session.email}
         sync={data.sync}
-        onResync={data.resync}
-        onDownload={() => report(() => data.download())}
-        onSignOut={() => report(signOut)}
-        error={error}
+        onMore={() => setMoreOpen(true)}
       />
 
       <main className="shell-body">
         <Outlet context={context} />
       </main>
 
-      {/* Stuck to the bottom, where the thumb already is. The thing that has
-          to be easiest is putting something in. */}
+      {/* Stuck to the bottom, where the thumb already is. Capture stays one
+          gesture away without dominating the screen or costing the bar a
+          fifth slot. */}
       <div className="shell-bottom">
-        <button
-          className="shell-capture"
-          type="button"
-          name="capture"
-          onClick={() => setCapturing(true)}
-        >
-          Write a line
-        </button>
-
         <nav className="shell-nav" aria-label="Screens">
           {SCREENS.map((screen) => (
             <NavLink
@@ -106,7 +92,19 @@ export function AppShell({ session }: Props) {
             </NavLink>
           ))}
         </nav>
+
+        <button
+          className="shell-capture"
+          type="button"
+          name="capture"
+          aria-label="Capture"
+          onClick={() => setCapturing(true)}
+        >
+          +
+        </button>
       </div>
+
+      {moreOpen && <MoreSheet onClose={closeMore} />}
 
       {capturing && (
         <CaptureSheet

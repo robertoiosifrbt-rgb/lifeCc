@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 // The full cycle from the end of step 5 of the plan, driven through the
-// browser like a person would:
+// browser like a person would: write "call X" on the phone, it lands in the
+// Inbox; process it as a task due tomorrow; it shows up in the Calendar on
+// tomorrow; tick it, it shows up as done on the day you ticked it; press
+// "Download everything" and see it in the file; open the laptop - it is
+// there; refresh - it is there. Three out of three.
 //
-//   You write "call X" on the phone. It shows up in the Inbox. You process it
-//   as a task due tomorrow. It shows up in the Calendar on tomorrow. You tick
-//   it. It shows up as done on the day you ticked it. You press "Download
-//   everything" and see it in the file. You open the laptop - it is there. You
-//   refresh - it is there. Three out of three.
-//
-// This is the only check that exercises the whole stack at once: the screens,
-// the repository, PostgREST, the trigger, RLS and IndexedDB.
+// This is the only check that exercises the whole stack at once: the
+// screens, the repository, PostgREST, the trigger, RLS and IndexedDB.
 
 import { readFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
@@ -32,21 +30,18 @@ if (!EMAIL || !PASSWORD) {
 /** A title unique to this run, so a second run cannot be confused with it. */
 const TITLE = `call X ${Date.now()}`
 
-function today() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
+function ymd(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
 
+const today = () => ymd(new Date())
 function tomorrow() {
   const now = new Date()
   now.setDate(now.getDate() + 1)
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  return ymd(now)
 }
 
 const TODAY = today()
@@ -94,13 +89,18 @@ async function signIn(page) {
       .catch(() => null)
     throw new Error(`could not sign in as ${EMAIL}: ${said ?? 'stayed on sign-in'}`)
   }
-  // The first sync must finish before anything is asserted about the rows.
-  await page.waitForSelector('.head-sync', { timeout: 20000 })
+  // `data-sync` on the shell says when the first sync is done, even though the header no longer shows it in text once healthy.
   await page.waitForFunction(
-    () => !(document.querySelector('.head-sync')?.textContent ?? '').includes('Syncing'),
+    () => document.querySelector('.shell')?.getAttribute('data-sync') !== 'syncing',
     undefined,
     { timeout: 30000 },
   )
+}
+
+/** Opens More from the header, then one of its three doors. */
+async function openMore(page, label) {
+  await page.click('button[name="more"]')
+  await page.click(`a.more-link >> text=${label}`)
 }
 
 /** The row carrying our title, wherever it is on screen. */
@@ -230,6 +230,7 @@ try {
   })
 
   await step('you press "Download everything" and see it in the file', async () => {
+    await openMore(page, 'Settings') // it moved off the header and into Settings
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 20000 }),
       page.click('button[name="download"]'),

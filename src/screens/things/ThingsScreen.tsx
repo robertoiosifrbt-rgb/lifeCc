@@ -14,8 +14,17 @@ import './ThingsScreen.css'
 /** Vehicles first: they are the ones with dates that cost money when missed. */
 const ORDER: readonly EntityKind[] = ['vehicle', 'company', 'person', 'property']
 
+/** The section heading for each kind — plural, the way a directory lists them. */
+const SECTION_NAMES: Record<EntityKind, string> = {
+  person: 'People',
+  company: 'Companies',
+  property: 'Properties',
+  vehicle: 'Vehicles',
+}
+
 /**
- * The things your life is made of, and the state of each.
+ * Directory: the people, companies, vehicles and properties your life is
+ * made of, and the state of each.
  *
  * A list rather than a tree: a car is not under a company, and pretending
  * otherwise would be a shape invented for the screen rather than taken from
@@ -59,16 +68,15 @@ export function ThingsScreen() {
     <section className="things">
       {alive.length === 0 && !adding && (
         <p className="things-empty">
-          Nothing here yet. A thing is something that exists whether or not you
-          do anything about it — your car, your landlord, the company that
-          insures you.
+          Nothing here yet. Add a person, company, vehicle or property to keep
+          track of it — your car, your landlord, the company that insures you.
         </p>
       )}
 
       {ORDER.filter((one) => alive.some((thing) => thing.entity_kind === one)).map(
         (one) => (
           <div key={one} className="things-group">
-            <h2 className="things-kind">{ENTITY_KIND_NAMES[one]}</h2>
+            <h2 className="things-kind">{SECTION_NAMES[one]}</h2>
             <ul className="things-list">
               {alive
                 .filter((thing) => thing.entity_kind === one)
@@ -114,7 +122,7 @@ export function ThingsScreen() {
           }}
         >
           <label className="things-label" htmlFor="thing-kind">
-            What is it?
+            Person, company, vehicle or property?
           </label>
           <select
             id="thing-kind"
@@ -168,7 +176,7 @@ export function ThingsScreen() {
           className="things-add"
           onClick={() => setAdding(true)}
         >
-          Add a thing
+          Add to Directory
         </button>
       )}
 

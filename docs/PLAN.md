@@ -244,6 +244,34 @@ HMRC nu este navigație principală. Este o zonă specializată din Money / Tax.
 
 Calendarul este o vedere din Plan peste aceleași obiecte, nu o lume separată.
 
+### Shell secundar: More, Settings, Capture
+
+Regulile aprobate pentru shell-ul Fazei 1, valabile pe orice ecran:
+
+- header-ul global normal conține doar titlul ecranului curent și un control
+  compact „More" (minimum 44px); nu mai expune email de cont, Sign out,
+  resync, Download everything sau Directory pe fiecare ecran;
+- „More" deschide o foaie secundară cu exact trei uși: Journal, Directory,
+  Settings — nu este un al cincilea tab principal;
+- Journal rămâne semantic parte din Home, chiar dacă e reachable din More;
+  Directory este un director de entități cross-cutting; Settings este
+  configurare de aplicație/cont;
+- Settings ține utilitățile globale existente reexpuse (nu duplicate):
+  email de cont, status sync, Sync again, configurare Quick Actions,
+  Download everything, Sign out;
+- încrederea în sync nu dispare din header: cât timp sync-ul e sănătos,
+  header-ul nu ține o zonă mare de status; când sync-ul are o problemă reală,
+  header-ul arată un afordanță compactă, vizibilă, care duce spre Settings —
+  nu ascunde niciodată tăcut un eșec de sync;
+- Capture rămâne universal și la o singură atingere distanță, dar nu mai
+  domină ecranul: un control compact (minimum 44×44px), nu un bloc lat pe
+  toată lățimea; nu devine un al cincilea tab;
+- Directory expune explicit People / Companies / Vehicles / Properties —
+  niciodată „Things" ca termen orientat spre utilizator; ruta `/things` și
+  modelul intern pot rămâne neschimbate, doar UX-ul se schimbă;
+- harta mentală principală rămâne exclusiv Home / Plan / Areas / Money, cu
+  patru tab-uri; Directory și Settings sunt ecrane secundare, nu tab-uri.
+
 ---
 
 ## 7. HOME / Command Centre
@@ -1360,6 +1388,13 @@ Istoria tehnică nu se copiază aici.
   bani reali aflați într-un cont/pot controlat.
 - Regulile și ratele schimbătoare sunt effective-dated/versionate și nu rescriu
   automat trecutul.
+- Header-ul global normal ține doar titlul ecranului și un control „More";
+  utilitățile de cont/export/sync trăiesc în Settings, reachable din More, nu
+  pe fiecare ecran de domeniu.
+- Journal, Directory și Settings sunt destinații secundare, reachable din
+  More — niciodată un al cincilea sau al șaselea tab principal.
+- Capture rămâne la o atingere distanță de oriunde, dar ca un control compact
+  (minimum 44×44px), nu un bloc ce domină ecranul.
 
 ### Decizii încă deschise
 
