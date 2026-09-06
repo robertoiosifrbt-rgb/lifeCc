@@ -215,14 +215,19 @@ function flag(where, element, detail) {
   problems.push({ where, kind: 'content', element, detail })
 }
 
+/** Whether a role/accessible-name control is rendered and visible — never clicked. */
+async function visibleRole(page, role, name) {
+  return page.getByRole(role, { name, exact: true }).first().isVisible()
+}
+
 /**
  * Copy and structure specific to Phase 1B: Directory must not read as
  * "thing", Capture must carry its accessible name, More must expose exactly
  * the three doors the plan names, the primary nav must stay at exactly the
- * four named tabs in order, and Settings must actually expose the existing
- * account/sync/export/sign-out/Quick-Actions functions (presence only —
- * Sign out and Download are never invoked here to prove they exist).
- */
+ * four named tabs in order, and Settings — opened directly at `/settings`,
+ * not through the More sheet — must visibly expose the existing account/
+ * sync/export/sign-out/Quick-Actions functions by exact accessible role and
+ * name, never by clicking Sync again, Download everything or Sign out. */
 async function checkContent(page) {
   await open(page, '/today')
   const tabs = (await page.locator('.shell-nav .shell-nav-button').allTextContents()).map((t) =>
@@ -239,18 +244,18 @@ async function checkContent(page) {
 
   await open(page, '/settings')
   const required = [
-    ['button[name="resync"]', 'Sync again'],
-    ['a.settings-link', 'Configure Quick Actions'],
-    ['button[name="download"]', 'Download everything'],
-    ['button[name="sign-out"]', 'Sign out'],
+    ['button', 'Sync again'],
+    ['link', 'Configure Quick Actions'],
+    ['button', 'Download everything'],
+    ['button', 'Sign out'],
   ]
-  for (const [selector, label] of required) {
-    if ((await page.locator(selector).count()) === 0) {
-      flag('Settings', selector, `"${label}" control is missing`)
+  for (const [role, name] of required) {
+    if (!(await visibleRole(page, role, name))) {
+      flag('Settings', `${role} "${name}"`, `not visible with exact accessible name "${name}"`)
     }
   }
-  if ((await page.locator('.settings-sync').count()) === 0) {
-    flag('Settings', '.settings-sync', 'no visible sync status')
+  if (!(await page.locator('.settings-sync').first().isVisible())) {
+    flag('Settings', '.settings-sync', 'sync status/section is not visible')
   }
 
   await open(page, '/things')
