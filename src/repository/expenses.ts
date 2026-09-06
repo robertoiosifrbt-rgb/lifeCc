@@ -3,7 +3,7 @@
 
 import { currentSession } from './auth'
 import { link, linksOf, thingsOf } from './core'
-import { expenseFromRow } from './expense'
+import { CATEGORY_NAMES, expenseFromRow } from './expense'
 import type { Category, Expense } from './expense'
 import { fuelRateForVehicle, vehicleLinkOf } from './vehicle'
 import { createDated, softDelete } from './write'
@@ -90,6 +90,41 @@ export async function recordExpense(
     await refreshVehicleFuelRate(owner, what.vehicle_item_id)
   }
   return anchor
+}
+
+/**
+ * A road-cost field's amount for one Workday — parking, tolls, or "something
+ * else" — as a real, shared Expense rather than a number on the shift.
+ *
+ * Updates the Expense already linked when `existingExpenseItemId` names one;
+ * otherwise makes a fresh anchor, on the Workday's own day, and links it with
+ * `about` — the same relation a fuel Expense already carries to a Vehicle.
+ * Never business_pct anything but 100: a parking ticket or a toll paid to do
+ * the work is entirely a cost of it, not something shared with personal use.
+ */
+export async function setRoadCost(
+  owner: string,
+  shiftItemId: string,
+  category: Category,
+  amount: number,
+  existingExpenseItemId: string | null,
+  day: string,
+): Promise<void> {
+  await requireAccount(owner)
+  let item_id = existingExpenseItemId
+  if (item_id === null) {
+    const anchor = await createDated(supabaseWriter<Patch>(ITEMS, owner), {
+      kind: 'expense',
+      title: CATEGORY_NAMES[category],
+      day,
+      area_id: null,
+    })
+    await store.upsert(owner, [anchor], null)
+    item_id = anchor.id
+  }
+  await supabaseExpenseWriter(owner).save({ item_id, amount, category, business_pct: 100 })
+  if (existingExpenseItemId === null) await link(owner, item_id, shiftItemId, 'about')
+  await syncExpenses(owner)
 }
 
 /**

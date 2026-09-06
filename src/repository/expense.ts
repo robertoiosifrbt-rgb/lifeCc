@@ -6,13 +6,15 @@
 import { asRecord, optionalDay, optionalNumber, requiredText } from './row'
 import type { Fill } from './fuel'
 
-export const CATEGORIES = ['fuel', 'repair', 'insurance', 'other'] as const
+export const CATEGORIES = ['fuel', 'repair', 'insurance', 'parking', 'tolls', 'other'] as const
 export type Category = (typeof CATEGORIES)[number]
 
 export const CATEGORY_NAMES: Record<Category, string> = {
   fuel: 'Fuel',
   repair: 'Repair',
   insurance: 'Insurance',
+  parking: 'Parking',
+  tolls: 'Tolls',
   other: 'Something else',
 }
 

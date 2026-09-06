@@ -75,6 +75,8 @@ function baseProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
     onSaveVehicleCost: () => Promise.resolve(),
     onLink: () => Promise.resolve(),
     onUnlink: () => Promise.resolve(),
+    onSetRoadCost: () => Promise.resolve(),
+    onRemoveRoadCost: () => Promise.resolve(),
     onClose: () => {},
     ...overrides,
   }

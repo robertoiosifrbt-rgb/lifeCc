@@ -10,9 +10,10 @@ type Props = {
 /**
  * Parking, tolls, and whatever else the day cost on the road.
  *
- * Apart from Money out on purpose, and the database draws the same line:
- * these are spent inside one shift, never have a receipt worth filing, and
- * belong to that day's own profit rather than to the month's pile of bills.
+ * Looks like three plain amounts, same as always — but each one is now a
+ * real, shared Expense underneath (see `roadCostPatchOf` in
+ * `draftPatches.ts`), the same object Money itself would show, not a number
+ * living only on this shift.
  */
 export function ShiftRoadCosts({ parking, tolls, other_cost, busy, readOnly, onChange }: Props) {
   const values = { parking, tolls, other_cost }

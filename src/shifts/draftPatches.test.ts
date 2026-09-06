@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { Item } from '../repository/item'
 import type { Shift } from '../repository/shift'
+import type { Expense } from '../repository/expense'
+import type { Link } from '../repository/link'
 import { draftFrom, previewShiftOf } from './draft'
 import {
   breaksPatchOf,
@@ -9,6 +11,8 @@ import {
   earningsToRemoveOf,
   isDirty,
   itemPatchOf,
+  roadCostPatchOf,
+  roadCostsToRemoveOf,
   sessionsToRemoveOf,
   shiftPatchOf,
 } from './draftPatches'
@@ -57,13 +61,13 @@ function shift(over: Partial<Shift> = {}): Shift {
 describe('isDirty / patches — Save draft only writes what changed', () => {
   it('is not dirty right after the draft is built from what is saved', () => {
     const day = shift({ tips: 5 })
-    expect(isDirty(item(), day, draftFrom(item(), day, [], []), [], [])).toBe(false)
+    expect(isDirty(item(), day, draftFrom(item(), day, [], []), [], [], [])).toBe(false)
   })
 
   it('is dirty the moment a field is typed differently', () => {
     const day = shift()
     const draft = { ...draftFrom(item(), day, [], []), tips: '5' }
-    expect(isDirty(item(), day, draft, [], [])).toBe(true)
+    expect(isDirty(item(), day, draft, [], [], [])).toBe(true)
     expect(shiftPatchOf(day, draft)).toEqual({ tips: 5 })
   })
 
@@ -71,7 +75,7 @@ describe('isDirty / patches — Save draft only writes what changed', () => {
     const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(item(), day, [], []), removedSessions: ['s1'] }
-    expect(isDirty(item(), day, draft, [], [])).toBe(true)
+    expect(isDirty(item(), day, draft, [], [], [])).toBe(true)
   })
 
   it('only patches the item when title, date or Area actually changed', () => {
@@ -160,6 +164,61 @@ describe('isDirty / patches — Save draft only writes what changed', () => {
       expect(earningsToRemoveOf(day, draft)).toEqual(['uber_eats'])
       // The live preview already treats it as unknown, not as a fake £0.
       expect(previewShiftOf(day, draft, NO_COSTS).earnings).toEqual([])
+    })
+  })
+
+  describe('roadCostPatchOf / roadCostsToRemoveOf', () => {
+    function expenseFor(item_id: string, category: Expense['category'], amount: number): Expense {
+      return {
+        item_id, owner: 'me', amount, category,
+        odo: null, full_tank: null, litres: null,
+        covers_from: null, covers_to: null, business_pct: 100,
+      }
+    }
+    function about(id: string, from_id: string, to_id: string): Link {
+      return { id, owner: 'me', from_id, to_id, kind: 'about', created_at: '2026-09-01T00:00:00Z' }
+    }
+
+    it('nothing to write when the draft still matches the effective value', () => {
+      const day = shift({ parking: 5 })
+      const draft = draftFrom(item(), day, [], [])
+      expect(roadCostPatchOf(day, draft, [], [])).toEqual([])
+      expect(roadCostsToRemoveOf(day, draft, [], [])).toEqual([])
+    })
+
+    it('a freshly typed field, never linked before, patches with no existing Expense', () => {
+      const day = shift()
+      const draft = { ...draftFrom(item(), day, [], []), parking: '5' }
+      expect(roadCostPatchOf(day, draft, [], [])).toEqual([
+        { field: 'parking', amount: 5, existingExpenseItemId: null },
+      ])
+    })
+
+    it('editing a field already backed by an Expense patches against that Expense', () => {
+      const day = shift({ parking: 20 })
+      const links = [about('l1', 'e1', 'i1')]
+      const expenses = [expenseFor('e1', 'parking', 20)]
+      const draft = { ...draftFrom(item(), day, [], []), parking: '25' }
+      expect(roadCostPatchOf(day, draft, expenses, links)).toEqual([
+        { field: 'parking', amount: 25, existingExpenseItemId: 'e1' },
+      ])
+    })
+
+    it('clearing a field backed by an Expense marks that Expense for removal', () => {
+      const day = shift({ parking: 20 })
+      const links = [about('l1', 'e1', 'i1')]
+      const expenses = [expenseFor('e1', 'parking', 20)]
+      const draft = { ...draftFrom(item(), day, [], []), parking: '' }
+      expect(roadCostsToRemoveOf(day, draft, expenses, links)).toEqual([
+        { field: 'parking', expenseItemId: 'e1' },
+      ])
+      expect(roadCostPatchOf(day, draft, expenses, links)).toEqual([])
+    })
+
+    it('clearing a field that was only ever a legacy column has nothing to remove', () => {
+      const day = shift({ parking: 20 })
+      const draft = { ...draftFrom(item(), day, [], []), parking: '' }
+      expect(roadCostsToRemoveOf(day, draft, [], [])).toEqual([])
     })
   })
 })

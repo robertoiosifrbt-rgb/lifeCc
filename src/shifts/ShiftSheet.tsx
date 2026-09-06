@@ -10,6 +10,7 @@ import type {
   LinkKind,
   Patch,
   Platform,
+  RoadCostField,
   Shift,
   ShiftPatch,
   TaxYearRow,
@@ -22,6 +23,7 @@ import type { Draft } from './draft'
 import { isDirty } from './draftPatches'
 import { validateDraft } from './draftValidate'
 import { saveWorkday } from './saveWorkday'
+import type { WorkdayWriters } from './saveWorkday'
 import { ShiftActions } from './ShiftActions'
 import { ShiftEarnings } from './ShiftEarnings'
 import { ShiftHeader } from './ShiftHeader'
@@ -64,6 +66,13 @@ type Props = {
   ) => Promise<void>
   onLink: (to_id: string, kind: LinkKind) => Promise<void>
   onUnlink: (id: string) => Promise<void>
+  onSetRoadCost: (
+    field: RoadCostField,
+    amount: number,
+    existingExpenseItemId: string | null,
+    day: string,
+  ) => Promise<void>
+  onRemoveRoadCost: (expenseItem: Item) => Promise<void>
   onClose: () => void
 }
 
@@ -87,7 +96,7 @@ export function ShiftSheet(props: Props) {
   const [savingVehicleCost, setSavingVehicleCost] = useState(false)
   const [confirmingClose, setConfirmingClose] = useState(false)
 
-  const dirty = !completed && isDirty(item, shift, draft, props.links, props.things)
+  const dirty = !completed && isDirty(item, shift, draft, props.links, props.things, props.expenses)
   const errors = completed ? [] : validateDraft(shift, draft)
   const blockedByOpenSession = !canCompleteWorkday(shift) || !canDeleteWorkday(shift)
   const sessionMessage = sessionMessageOf(shift)
@@ -111,7 +120,7 @@ export function ShiftSheet(props: Props) {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  const writers = {
+  const writers: WorkdayWriters = {
     onUpdateItem: props.onUpdateItem,
     onSaveShiftParts: props.onSaveShiftParts,
     onSetPaid: props.onSetPaid,
@@ -120,11 +129,17 @@ export function ShiftSheet(props: Props) {
     onDropSession: props.onDropSession,
     onLink: props.onLink,
     onUnlink: props.onUnlink,
+    onSetRoadCost: (field, amount, existingExpenseItemId) =>
+      props.onSetRoadCost(field, amount, existingExpenseItemId, draft.due !== '' ? draft.due : item.due ?? ''),
+    onRemoveRoadCost: (expenseItemId) => {
+      const found = props.items.find((candidate) => candidate.id === expenseItemId)
+      return found === undefined ? Promise.resolve() : props.onRemoveRoadCost(found)
+    },
   }
 
   function onSaveDraft() {
     void guarded(async () => {
-      const settled = await saveWorkday(item, shift, draft, props.links, props.things, writers)
+      const settled = await saveWorkday(item, shift, draft, props.links, props.things, props.expenses, writers)
       setDraft(draftFrom(settled.item, settled.shift, props.links, props.things))
     })
   }
@@ -132,7 +147,9 @@ export function ShiftSheet(props: Props) {
   function onComplete() {
     if (blockedByOpenSession) return
     void guarded(async () => {
-      await saveWorkday(item, shift, draft, props.links, props.things, writers, { forceShiftTouch: true })
+      await saveWorkday(item, shift, draft, props.links, props.things, props.expenses, writers, {
+        forceShiftTouch: true,
+      })
       await props.onUpdateItem({ state: 'done' })
     })
   }

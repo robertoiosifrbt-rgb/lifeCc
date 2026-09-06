@@ -109,6 +109,24 @@ deschise (vezi `docs/STAREA.md`). Repararea celor 15 sesiuni și aplicarea lui
 `0600` rămân decizii separate, explicite, ale proprietarului — nu s-a făcut
 nimic din astea aici.
 
+`20260907010000_workday_vehicle_uses_link` **nu** este aplicată live și nu
+apare în tabelul de mai sus. Reparație de audit D1: relația Workday→Vehicul
+folosea kind-ul generic `about` (același folosit și de un fuel Expense către
+Vehicul), ceea ce permitea confuzia unei mențiuni oarecare cu Vehiculul chiar
+folosit. Adaugă `uses` la `links_kind` și rescrie `pin_shift_rates()` să
+rezolve Vehiculul doar după o legătură `uses`. Fără date live de migrat — nicio
+legătură Workday→Vehicul (de orice fel) nu a fost încă exercitată pe live.
+
+`20260907020000_road_cost_expenses` **nu** este aplicată live și nu apare în
+tabelul de mai sus. Altă reparație de audit D1: `parking`/`tolls`/`other_cost`
+trăiau ca numere pe `shifts` (din `20260905190000_from_the_reference`, deja
+live) — al doilea adevăr financiar interzis de contract. Adaugă `parking` și
+`tolls` la enumul de categorii al `expenses`, ca aceste costuri să poată deveni
+Expense-uri reale, legate de Workday prin `about`. Coloanele vechi de pe
+`shifts` **nu sunt atinse și nu sunt șterse** — pot avea deja valori reale pe
+live; vezi `docs/STAREA.md` pentru regula dual-path (Expense legat câștigă
+peste coloana veche, niciodată conversie automată).
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat

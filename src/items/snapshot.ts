@@ -18,6 +18,7 @@ import {
   shiftsOf,
   thingsOf,
   vehicleCostRatesOf,
+  withRoadCostExpenses,
 } from '../repository/items'
 import type {
   Area,
@@ -75,7 +76,7 @@ export async function readSnapshot(owner: string): Promise<Snapshot> {
     quickActionsOf(owner),
   ])
   return {
-    items, areas, shifts, expenses, costs, vehicleCostRates, taxYears,
-    things, links, platforms, journal, quickActions,
+    items, areas, shifts: withRoadCostExpenses(shifts, expenses, links), expenses, costs,
+    vehicleCostRates, taxYears, things, links, platforms, journal, quickActions,
   }
 }

@@ -7,6 +7,8 @@
 // a shift's parts wholesale, which is the sync strategy the migration
 // declares.
 
+import type { Expense } from './expense'
+import type { Link } from './link'
 import { asRecord, optionalNumber, optionalText, requiredText } from './row'
 
 /**
@@ -70,15 +72,17 @@ export type Shift = {
    * earning. Null means none was set aside, not that none happened.
    */
   personal_km: number | null
-  /**
-   * What the day brought in beyond the platforms and the tips, and what it
-   * cost on the road.
-   *
-   * Parking and tolls are here rather than in `expenses` because they are
-   * spent inside one shift, never have a receipt worth filing, and belong to
-   * that day's own profit rather than to the month's pile of bills.
-   */
+  /** What the day brought in beyond the platforms and the tips. */
   bonuses: number | null
+  /**
+   * Parking, tolls and whatever else the day cost on the road.
+   *
+   * Historically a plain number on this row; now the *effective* value —
+   * a linked Expense's amount when this field has a real one, otherwise the
+   * legacy column itself, still real data from before Expense-linking
+   * existed. `withRoadCostExpenses` is the one place that merge happens;
+   * this field always already carries the answer. See `ROAD_COST_FIELDS`.
+   */
   parking: number | null
   tolls: number | null
   other_cost: number | null
@@ -89,18 +93,21 @@ export type Shift = {
 }
 
 export type ShiftPatch = Partial<
-  Pick<
-    Shift,
-    | 'odo_start'
-    | 'odo_end'
-    | 'tips'
-    | 'personal_km'
-    | 'bonuses'
-    | 'parking'
-    | 'tolls'
-    | 'other_cost'
-  >
+  Pick<Shift, 'odo_start' | 'odo_end' | 'tips' | 'personal_km' | 'bonuses'>
 >
+
+/**
+ * The three road-cost fields, each keyed to its own Expense category — never
+ * written to `shifts.parking`/`tolls`/`other_cost` any more (see
+ * `withRoadCostExpenses` below for why those columns still exist and are
+ * still read).
+ */
+export const ROAD_COST_FIELDS = {
+  parking: 'parking',
+  tolls: 'tolls',
+  other_cost: 'other',
+} as const
+export type RoadCostField = keyof typeof ROAD_COST_FIELDS
 
 function requiredMomentText(raw: Record<string, unknown>, key: string): string {
   const value = requiredText(raw, key)
@@ -249,8 +256,61 @@ function pence(amount: number | null): number {
  *
  * Apart from the fuel and the wear, which are worked out per kilometre from a
  * rate. These are money that actually left a pocket on the day, so they are
- * counted as they were paid.
+ * counted as they were paid — each one now a real Expense (or, for a field
+ * untouched since before that existed, the legacy figure), never a second
+ * financial truth living only on this row.
  */
 export function directCostsPence(shift: Shift): number {
   return pence(shift.parking) + pence(shift.tolls) + pence(shift.other_cost)
+}
+
+/**
+ * The Expense, if any, an `about` link ties to this shift for one road-cost
+ * category — never more than one is expected, the same "resolved, not
+ * assumed" shape every other Vehicle/link lookup in this codebase already
+ * uses. More than one existing (only possible through direct database
+ * tampering, never through this app's own writes) is read as the first
+ * found rather than guessed between, since there is no "current" concept
+ * for a plain Expense the way there is for a rate.
+ */
+export function roadCostExpenseOf(
+  links: readonly Link[],
+  expenses: readonly Expense[],
+  shiftItemId: string,
+  category: Expense['category'],
+): Expense | null {
+  for (const l of links) {
+    if (l.kind !== 'about' || l.to_id !== shiftItemId) continue
+    const expense = expenses.find((e) => e.item_id === l.from_id && e.category === category)
+    if (expense !== undefined) return expense
+  }
+  return null
+}
+
+/**
+ * Shifts with each road-cost field replaced by its linked Expense's amount,
+ * when one exists — the one place this merge happens, so every reader
+ * downstream (`takeHome`, every screen, every weekly/monthly total) sees the
+ * same effective number without knowing an Expense is involved at all.
+ *
+ * A Workday whose field has never been touched since road costs moved to
+ * Expense keeps showing whatever `shifts.parking`/`tolls`/`other_cost`
+ * already held — real figures from before this change, on live data, that
+ * nothing here may guess into a fabricated Expense. The moment a real
+ * Expense exists for that category, it wins outright; the legacy column is
+ * never read again for that field, and never written to either.
+ */
+export function withRoadCostExpenses(
+  shifts: readonly Shift[],
+  expenses: readonly Expense[],
+  links: readonly Link[],
+): Shift[] {
+  return shifts.map((shift) => {
+    const patch: Partial<Shift> = {}
+    for (const [field, category] of Object.entries(ROAD_COST_FIELDS) as [RoadCostField, Expense['category']][]) {
+      const linked = roadCostExpenseOf(links, expenses, shift.item_id, category)
+      if (linked !== null) patch[field] = linked.amount
+    }
+    return Object.keys(patch).length === 0 ? shift : { ...shift, ...patch }
+  })
 }

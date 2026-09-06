@@ -140,6 +140,10 @@ export function AppShell({ session }: Props) {
           }
           onLink={(to_id, kind) => data.link(openItem.id, to_id, kind)}
           onUnlink={(id) => data.unlink(id)}
+          onSetRoadCost={(field, amount, existingExpenseItemId, day) =>
+            data.setRoadCost(openItem.id, field, amount, existingExpenseItemId, day)
+          }
+          onRemoveRoadCost={(expenseItem) => data.removeRoadCost(expenseItem)}
           onClose={closeItem}
         />
       )}

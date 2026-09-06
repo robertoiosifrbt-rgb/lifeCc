@@ -46,7 +46,7 @@ export type { Category, Expense } from './expense'
 export { CATEGORIES, CATEGORY_NAMES, fillsOf } from './expense'
 export { fuelRate } from './fuel'
 export type { Fill, FuelRate } from './fuel'
-export { expensesOf, recordExpense, removeExpense } from './expenses'
+export { expensesOf, recordExpense, removeExpense, setRoadCost } from './expenses'
 export type { RunningCosts } from './settings'
 export { costsFor, hasCosts } from './settings'
 export {
@@ -74,7 +74,11 @@ export {
   minutesWorked,
   PLATFORM_NAMES,
   PLATFORMS,
+  roadCostExpenseOf,
+  ROAD_COST_FIELDS,
+  withRoadCostExpenses,
 } from './shift'
+export type { RoadCostField } from './shift'
 export {
   canCompleteWorkday,
   canDeleteWorkday,

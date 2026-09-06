@@ -537,6 +537,38 @@ Ce rămâne neschimbat de această rundă: D2 (payout/cash-out/settlement) și D
 Fuel/Performance) nu sunt implementate. Criteriul Multi-App Delivery din
 `docs/PROGRESS.md` rămâne `PARTIAL`, nu `DONE`.
 
+### Audit D1 (ChatGPT) — blocaje reparate după fundația de mai sus
+
+Auditul complet cerut de contractul din `docs/DELIVERY_MASTER_BACKLOG.md` a
+găsit blocaje reale, în afara celor de mai sus:
+
+- **Vehicul folosit via `about`, nu `uses`** — `about` era același kind
+  folosit și de o mențiune oarecare (ex. un fuel Expense, sau un task despre
+  o reînnoire de asigurare legat de aceeași mașină), deci putea fi confundat
+  cu Vehiculul chiar folosit de Workday. Reparat: `links_kind` are acum și
+  `uses`, iar `pin_shift_rates()`/`vehicleLinkOf` (repository) cer explicit
+  kind-ul — Workday-ul citește/scrie `uses`, un fuel Expense rămâne pe
+  `about`. Migrație nouă: `20260907010000_workday_vehicle_uses_link` (neaplicată live).
+- **`parking`/`tolls`/`other_cost` erau al doilea adevăr financiar** —
+  numere direct pe `shifts`, nu Expense-uri. Reparat cu o regulă dual-path,
+  aleasă explicit de proprietar: coloanele vechi de pe `shifts` rămân
+  neatinse (pot avea deja valori reale, live, din `from_the_reference`) și
+  se citesc doar ca fallback; din momentul în care un câmp e atins din nou,
+  scrierea merge exclusiv pe un Expense real, legat de Workday prin `about`
+  (categoria `parking`/`tolls`, sau `other` pentru „altceva”). Nicio
+  conversie automată a valorilor vechi — asta ar fi ghicit un titlu și un
+  `business_pct` pe care nimeni nu le-a introdus. Îmbinarea „ce e efectiv
+  valabil acum” se face într-un singur loc, `withRoadCostExpenses`
+  (`repository/shift.ts`), apelat din `items/snapshot.ts` — restul motorului
+  de calcul (`takeHome`, toate ecranele) citește `shift.parking` exact ca
+  înainte, fără să știe că un Expense e implicat. Migrație nouă:
+  `20260907020000_road_cost_expenses` (extinde enumul de categorii,
+  neaplicată live).
+
+Verificat mecanic (Postgres local construit manual, fără Docker în acest
+sandbox): toate migrațiile aplicate în ordine, `check:rls` — 90/90 cazuri;
+typecheck, lint, 634 teste unitare — toate verzi.
+
 ### Command Centre — partea existentă
 
 Rezumatul din Today poate arăta date reale pentru:

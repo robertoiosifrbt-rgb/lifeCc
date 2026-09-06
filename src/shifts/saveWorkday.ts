@@ -4,13 +4,26 @@
 // reason for it — can be tested with injected writers, the same way
 // `runSessionRecovery`/`runStartSessionSafely` already are for clocking on.
 
-import type { Entity, Item, Link, LinkKind, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
+import type {
+  Entity,
+  Expense,
+  Item,
+  Link,
+  LinkKind,
+  Patch,
+  Platform,
+  RoadCostField,
+  Shift,
+  ShiftPatch,
+} from '../repository/items'
 import type { Draft } from './draft'
 import {
   breaksPatchOf,
   earningsPatchOf,
   earningsToRemoveOf,
   itemPatchOf,
+  roadCostPatchOf,
+  roadCostsToRemoveOf,
   sessionsToRemoveOf,
   shiftPatchOf,
   vehicleLinkPatchOf,
@@ -25,6 +38,15 @@ export type WorkdayWriters = {
   onDropSession: (sessionId: string) => Promise<void>
   onLink: (to_id: string, kind: LinkKind) => Promise<void>
   onUnlink: (id: string) => Promise<void>
+  /** A road-cost field's typed amount — updates the Expense already backing
+   *  it when `existingExpenseItemId` names one, otherwise creates a fresh
+   *  one and links it to the Workday. */
+  onSetRoadCost: (
+    field: RoadCostField,
+    amount: number,
+    existingExpenseItemId: string | null,
+  ) => Promise<void>
+  onRemoveRoadCost: (expenseItemId: string) => Promise<void>
 }
 
 /**
@@ -54,6 +76,7 @@ export async function saveWorkday(
   draft: Draft,
   links: readonly Link[],
   entities: readonly Entity[],
+  expenses: readonly Expense[],
   writers: WorkdayWriters,
   opts: { forceShiftTouch?: boolean } = {},
 ): Promise<{ item: Item; shift: Shift }> {
@@ -63,6 +86,8 @@ export async function saveWorkday(
   const earningsPatch = earningsPatchOf(shift, draft)
   const earningsRemoved = earningsToRemoveOf(shift, draft)
   const breaksPatch = breaksPatchOf(shift, draft)
+  const roadCostPatch = roadCostPatchOf(shift, draft, expenses, links)
+  const roadCostsRemoved = roadCostsToRemoveOf(shift, draft, expenses, links)
   // Defensive, not just the sheet's own promise: a still-open session named
   // here would be malformed draft data, and it is never deleted regardless.
   const sessionsRemoved = sessionsToRemoveOf(shift, draft)
@@ -87,11 +112,19 @@ export async function saveWorkday(
   for (const platform of earningsRemoved) await writers.onRemoveEarning(platform)
   for (const { sessionId, minutes } of breaksPatch) await writers.onSetBreak(sessionId, minutes)
   for (const sessionId of sessionsRemoved) await writers.onDropSession(sessionId)
+  for (const { field, amount, existingExpenseItemId } of roadCostPatch) {
+    await writers.onSetRoadCost(field, amount, existingExpenseItemId)
+  }
+  for (const { expenseItemId } of roadCostsRemoved) await writers.onRemoveRoadCost(expenseItemId)
 
   const nextItem: Item = { ...item, ...itemPatch }
+  const roadCostPatchByField: Partial<Record<RoadCostField, number | null>> = {}
+  for (const { field } of roadCostsRemoved) roadCostPatchByField[field] = null
+  for (const { field, amount } of roadCostPatch) roadCostPatchByField[field] = amount
   const nextShift: Shift = {
     ...shift,
     ...shiftPatch,
+    ...roadCostPatchByField,
     earnings: shift.earnings
       .filter((earning) => !earningsPatch.some((changed) => changed.platform === earning.platform))
       .filter((earning) => earning.platform === null || !earningsRemoved.includes(earning.platform))

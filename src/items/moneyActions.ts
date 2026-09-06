@@ -19,10 +19,12 @@ import {
   removeExpense,
   removePlatformEarning as removeShiftPlatformEarning,
   removeSession as removeShiftSession,
+  ROAD_COST_FIELDS,
   runStartDeliveryWork,
   setSessionBreak,
   saveRunningCosts,
   saveShift,
+  setRoadCost as setShiftRoadCost,
   saveTaxYear,
   saveVehicleCostRate,
   setEarning,
@@ -33,6 +35,7 @@ import type {
   Category,
   Item,
   Platform,
+  RoadCostField,
   ShiftPatch,
   TaxYearPatch,
 } from '../repository/items'
@@ -82,6 +85,19 @@ export type MoneyActions = {
    *  instead of the legacy hardcoded name. */
   setPlatformPaid: (item_id: string, platform_item_id: string, amount: number) => Promise<void>
   removePlatformEarning: (item_id: string, platform_item_id: string) => Promise<void>
+  /** A road-cost field's amount, as a real linked Expense — never a number
+   *  on the shift row. Updates the Expense already backing it when one is
+   *  named, otherwise creates and links a fresh one. */
+  setRoadCost: (
+    shiftItemId: string,
+    field: RoadCostField,
+    amount: number,
+    existingExpenseItemId: string | null,
+    day: string,
+  ) => Promise<void>
+  /** A road-cost Expense taken back outright — the same `unspend` used for
+   *  any other Expense, since this is that same shared object. */
+  removeRoadCost: (item: Item) => Promise<void>
 }
 
 export function moneyActions(owner: string, write: Write): MoneyActions {
@@ -152,5 +168,10 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
     write(() => setShiftPlatformEarning(owner, item_id, platform_item_id, amount)),
   removePlatformEarning: (item_id, platform_item_id) =>
     write(() => removeShiftPlatformEarning(owner, item_id, platform_item_id)),
+  setRoadCost: (shiftItemId, field, amount, existingExpenseItemId, day) =>
+    write(() =>
+      setShiftRoadCost(owner, shiftItemId, ROAD_COST_FIELDS[field], amount, existingExpenseItemId, day),
+    ),
+  removeRoadCost: (item) => write(() => removeExpense(owner, item, new Date())),
   }
 }

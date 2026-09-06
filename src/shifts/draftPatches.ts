@@ -7,8 +7,8 @@
 // everything would overwrite a field changed from another device in the time
 // this sheet has been open.
 
-import type { Entity, Item, Link, Patch, Platform, Shift, ShiftPatch } from '../repository/items'
-import { PLATFORMS, vehicleLinkIdsOf } from '../repository/items'
+import type { Entity, Expense, Item, Link, Patch, Platform, RoadCostField, Shift, ShiftPatch } from '../repository/items'
+import { PLATFORMS, ROAD_COST_FIELDS, roadCostExpenseOf, vehicleLinkIdsOf } from '../repository/items'
 import type { Draft, ParsedField } from './draft'
 import { parseBreak, parseMoney, parseReading } from './draft'
 
@@ -72,10 +72,57 @@ export function shiftPatchOf(shift: Shift, draft: Draft): ShiftPatch {
   maybe('personal_km', parseReading(draft.personal_km), shift.personal_km)
   maybe('tips', parseMoney(draft.tips), shift.tips)
   maybe('bonuses', parseMoney(draft.bonuses), shift.bonuses)
-  maybe('parking', parseMoney(draft.parking), shift.parking)
-  maybe('tolls', parseMoney(draft.tolls), shift.tolls)
-  maybe('other_cost', parseMoney(draft.other_cost), shift.other_cost)
   return patch
+}
+
+/**
+ * A road-cost field's typed amount, changed from what is effectively there
+ * now (an Expense's amount, or a legacy `shifts` column — `shift.field`
+ * already carries whichever applies, see `withRoadCostExpenses`) — each
+ * ready for its own write, against whatever Expense already backs it, if
+ * one does.
+ *
+ * Never a write to `shifts.parking`/`tolls`/`other_cost` any more: the
+ * moment a field is touched, it becomes (or updates) a real linked Expense,
+ * one shared financial object instead of a second one living on the shift.
+ */
+export function roadCostPatchOf(
+  shift: Shift,
+  draft: Draft,
+  expenses: readonly Expense[],
+  links: readonly Link[],
+): { field: RoadCostField; amount: number; existingExpenseItemId: string | null }[] {
+  const changed: { field: RoadCostField; amount: number; existingExpenseItemId: string | null }[] = []
+  for (const [field, category] of Object.entries(ROAD_COST_FIELDS) as [RoadCostField, Expense['category']][]) {
+    const parsed = parseMoney(draft[field])
+    if (!parsed.ok || parsed.value === null) continue
+    if (parsed.value === shift[field]) continue
+    const existing = roadCostExpenseOf(links, expenses, shift.item_id, category)
+    changed.push({ field, amount: parsed.value, existingExpenseItemId: existing?.item_id ?? null })
+  }
+  return changed
+}
+
+/**
+ * The road-cost fields cleared to blank whose Expense must actually be
+ * removed — blank, not zero, the same distinction `earningsToRemoveOf`
+ * already draws. A field that was never backed by an Expense (only ever a
+ * legacy column, untouched) has nothing here to remove.
+ */
+export function roadCostsToRemoveOf(
+  shift: Shift,
+  draft: Draft,
+  expenses: readonly Expense[],
+  links: readonly Link[],
+): { field: RoadCostField; expenseItemId: string }[] {
+  const removed: { field: RoadCostField; expenseItemId: string }[] = []
+  for (const [field, category] of Object.entries(ROAD_COST_FIELDS) as [RoadCostField, Expense['category']][]) {
+    const parsed = parseMoney(draft[field])
+    if (!parsed.ok || parsed.value !== null) continue
+    const existing = roadCostExpenseOf(links, expenses, shift.item_id, category)
+    if (existing !== null) removed.push({ field, expenseItemId: existing.item_id })
+  }
+  return removed
 }
 
 /** The platforms whose typed amount changed, each ready for its own write. */
@@ -155,6 +202,7 @@ export function isDirty(
   draft: Draft,
   links: readonly Link[],
   entities: readonly Entity[],
+  expenses: readonly Expense[],
 ): boolean {
   return (
     Object.keys(itemPatchOf(item, draft)).length > 0 ||
@@ -163,6 +211,8 @@ export function isDirty(
     earningsToRemoveOf(shift, draft).length > 0 ||
     breaksPatchOf(shift, draft).length > 0 ||
     sessionsToRemoveOf(shift, draft).length > 0 ||
+    roadCostPatchOf(shift, draft, expenses, links).length > 0 ||
+    roadCostsToRemoveOf(shift, draft, expenses, links).length > 0 ||
     vehicleLinkPatchOf(links, entities, item.id, draft) !== null
   )
 }

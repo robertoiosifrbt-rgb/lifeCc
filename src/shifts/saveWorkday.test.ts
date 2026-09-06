@@ -105,6 +105,14 @@ function writers(order: string[]): WorkdayWriters {
       order.push('unlink')
       return Promise.resolve()
     }),
+    onSetRoadCost: vi.fn(() => {
+      order.push('set-road-cost')
+      return Promise.resolve()
+    }),
+    onRemoveRoadCost: vi.fn(() => {
+      order.push('remove-road-cost')
+      return Promise.resolve()
+    }),
   }
 }
 
@@ -114,7 +122,7 @@ describe('saveWorkday — write order', () => {
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), area_id: 'area-2', tips: '5' }
-    await saveWorkday(anchor, day, draft, [], [], writers(order))
+    await saveWorkday(anchor, day, draft, [], [], [], writers(order))
     expect(order.indexOf('item')).toBeLessThan(order.indexOf('shift'))
   })
 
@@ -123,7 +131,7 @@ describe('saveWorkday — write order', () => {
     const anchor = item()
     const day = shift()
     const w = writers(order)
-    await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], w)
+    await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], [], w)
     expect(order).toEqual([])
     expect(w.onSaveShiftParts).not.toHaveBeenCalled()
   })
@@ -134,7 +142,7 @@ describe('saveWorkday — write order', () => {
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), title: 'Renamed' }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, [], [], w)
+    await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(order).toEqual(['item'])
     expect(w.onSaveShiftParts).not.toHaveBeenCalled()
   })
@@ -144,7 +152,7 @@ describe('saveWorkday — write order', () => {
     const anchor = item()
     const day = shift()
     const w = writers(order)
-    await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], w, { forceShiftTouch: true })
+    await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], [], w, { forceShiftTouch: true })
     expect(w.onSaveShiftParts).toHaveBeenCalledExactlyOnceWith({})
   })
 
@@ -154,7 +162,7 @@ describe('saveWorkday — write order', () => {
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), tips: '5' }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, [], [], w, { forceShiftTouch: true })
+    await saveWorkday(anchor, day, draft, [], [], [], w, { forceShiftTouch: true })
     expect(w.onSaveShiftParts).toHaveBeenCalledTimes(1)
     expect(w.onSaveShiftParts).toHaveBeenCalledWith({ tips: 5 })
   })
@@ -166,7 +174,7 @@ describe('saveWorkday — write order', () => {
     const base = draftFrom(anchor, day, [], [])
     const draft = { ...base, earnings: { ...base.earnings, uber_eats: '' } }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, [], [], w)
+    await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(w.onRemoveEarning).toHaveBeenCalledExactlyOnceWith('uber_eats')
     expect(w.onSetPaid).not.toHaveBeenCalled()
   })
@@ -178,7 +186,7 @@ describe('saveWorkday — write order', () => {
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(anchor, day, [], []), removedSessions: ['s1'] }
     const w = writers(order)
-    const settled = await saveWorkday(anchor, day, draft, [], [], w)
+    const settled = await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(w.onDropSession).toHaveBeenCalledExactlyOnceWith('s1')
     expect(w.onSetBreak).not.toHaveBeenCalled()
     expect(settled.shift.sessions).toEqual([])
@@ -191,7 +199,7 @@ describe('saveWorkday — write order', () => {
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(anchor, day, [], []), removedSessions: ['s1'] }
     const w = writers(order)
-    const settled = await saveWorkday(anchor, day, draft, [], [], w)
+    const settled = await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(w.onDropSession).not.toHaveBeenCalled()
     expect(settled.shift.sessions).toEqual([session])
   })
@@ -201,7 +209,7 @@ describe('saveWorkday — write order', () => {
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), tips: '5', title: 'Renamed' }
-    const settled = await saveWorkday(anchor, day, draft, [], [], writers(order))
+    const settled = await saveWorkday(anchor, day, draft, [], [], [], writers(order))
     expect(settled.item.title).toBe('Renamed')
     expect(settled.shift.tips).toBe(5)
   })
@@ -220,13 +228,13 @@ describe('saveWorkday — write order', () => {
       title: 'Tuesday shift',
       due: '2026-09-08',
     }
-    const settled = await saveWorkday(anchor, day, draft, [], [], writers([]))
+    const settled = await saveWorkday(anchor, day, draft, [], [], [], writers([]))
     const reopened = draftFrom(settled.item, settled.shift, [], [])
     expect(reopened.odo_end).toBe('160')
     expect(reopened.tips).toBe('12.50')
     expect(reopened.title).toBe('Tuesday shift')
     expect(reopened.due).toBe('2026-09-08')
-    expect(isDirty(settled.item, settled.shift, reopened, [], [])).toBe(false)
+    expect(isDirty(settled.item, settled.shift, reopened, [], [], [])).toBe(false)
   })
 })
 
@@ -237,7 +245,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), vehicle_item_id: 'v1' }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, [], [], w)
+    await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v1', 'uses')
     expect(w.onUnlink).not.toHaveBeenCalled()
     expect(order.indexOf('link')).toBeLessThan(order.length)
@@ -251,7 +259,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const entities = [vehicle('v1'), vehicle('v2')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: 'v2' }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, links, entities, w)
+    await saveWorkday(anchor, day, draft, links, entities, [], w)
     expect(w.onUnlink).toHaveBeenCalledExactlyOnceWith('l1')
     expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v2', 'uses')
   })
@@ -264,7 +272,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const entities = [vehicle('v1')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: '' }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, links, entities, w)
+    await saveWorkday(anchor, day, draft, links, entities, [], w)
     expect(w.onUnlink).toHaveBeenCalledExactlyOnceWith('l1')
     expect(w.onLink).not.toHaveBeenCalled()
   })
@@ -277,7 +285,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const entities = [vehicle('v1')]
     const draft = draftFrom(anchor, day, links, entities)
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, links, entities, w)
+    await saveWorkday(anchor, day, draft, links, entities, [], w)
     expect(w.onLink).not.toHaveBeenCalled()
     expect(w.onUnlink).not.toHaveBeenCalled()
   })
@@ -292,7 +300,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     // persisted state is ambiguous — but did change the title.
     const draft = { ...draftFrom(anchor, day, links, entities), title: 'Renamed' }
     const w = writers(order)
-    await saveWorkday(anchor, day, draft, links, entities, w)
+    await saveWorkday(anchor, day, draft, links, entities, [], w)
     expect(w.onLink).not.toHaveBeenCalled()
     expect(w.onUnlink).not.toHaveBeenCalled()
   })
