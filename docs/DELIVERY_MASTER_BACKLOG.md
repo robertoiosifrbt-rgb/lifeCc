@@ -1396,9 +1396,11 @@ At creation of this backlog (2026-09-06):
   Expense can now actually be cleared (writes a real £0 Expense over it,
   never the frozen legacy column); two doc contradictions (0600's status in
   STAREA.md, the Platform foundation's live status in PROGRESS.md) fixed.
-  Two new migrations, not yet live:
-  `20260907090000_completed_item_anchor_guard`,
-  `20260907100000_atomic_item_patch`.
+  The two migrations above
+  (`20260907090000_completed_item_anchor_guard`,
+  `20260907100000_atomic_item_patch`) are now **LIVE** — run manually by
+  the owner via the Supabase SQL Editor, same day. Same CLI drift as every
+  other manually-run migration above.
 - committed on `main`, not pushed — still requires the owner's literal
   `push`.
 

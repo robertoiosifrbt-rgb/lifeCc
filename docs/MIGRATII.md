@@ -52,16 +52,11 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260907060000_save_workday_rpc` | funcția `save_workday(payload jsonb)` — RPC atomic pentru Save draft/Complete Workday | 7 sep 2026 (manual, vezi drift) |
 | `20260907070000_completed_expense_guard_and_scoped_save` | gardă Completed pe Expense-uri de cost-de-drum + `links`; `save_workday()` verifică apartenența id-urilor la Workday-ul salvat | 7 sep 2026 (manual, vezi drift) |
 | `20260907080000_platform_rules_payout_destination` | `platform_rules.payout_destination_reference` | 7 sep 2026 (manual, vezi drift) |
+| `20260907090000_completed_item_anchor_guard` | trigger nou pe `items`, refuză title/due/area_id/state/kind pe un Workday Completed | 7 sep 2026 (manual, vezi drift) |
+| `20260907100000_atomic_item_patch` | `save_workday()`: item patch + `expected_version`, în aceeași tranzacție | 7 sep 2026 (manual, vezi drift) |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
-
-`20260907090000_completed_item_anchor_guard` (trigger nou pe `items`, refuză
-schimbarea title/due/area_id/state/kind pe un Workday Completed) și
-`20260907100000_atomic_item_patch` (`create or replace` pe `save_workday`:
-item patch + `expected_version`, în aceeași tranzacție) **nu sunt aplicate
-live** — scrise ca reparație la runda a doua a auditului D1, vezi
-`docs/STAREA.md`.
 
 ### Notă despre versiunea din istoricul live pentru `quick_actions`
 
@@ -294,6 +289,25 @@ manuale de mai sus:
 
 Aceeași remediere rămâne necesară înainte de orice `db push` viitor, pe toate
 cele unsprezece migrații rulate manual până acum. Nu s-a făcut aici.
+
+### `20260907090000_completed_item_anchor_guard` și `20260907100000_atomic_item_patch` — rulate manual, nu prin CLI
+
+Confirmate aplicate live (7 sep 2026, rulate de proprietar prin SQL Editor
+Supabase, ca un singur bloc concatenat). Același drift ca toate migrațiile
+manuale de mai sus:
+
+- rulate din SQL Editor Supabase pe `tasks-calendar`, nu prin `supabase db
+  push`/CLI — **nu apar** în `supabase_migrations.schema_migrations`;
+- prima are `create function`/`create trigger` fără `or replace`; a doua
+  este un `create or replace function` peste `save_workday` deja existentă,
+  deci idempotentă ca atare — dar tot nu apare în istoricul CLI, așa că un
+  `db push` viitor tot ar încerca s-o reaplice după ce ar fi eșuat deja pe
+  migrațiile de dinaintea ei;
+- ordinea standard de migrații pune toate cele unsprezece de mai sus
+  înaintea acestora — un `db push` viitor eșuează întâi acolo.
+
+Aceeași remediere rămâne necesară înainte de orice `db push` viitor, pe toate
+cele treisprezece migrații rulate manual până acum. Nu s-a făcut aici.
 
 ### `reserves`
 

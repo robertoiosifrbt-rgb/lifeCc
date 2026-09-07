@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE (not declared applied in docs/MIGRATII.md until it is).
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit blocker: Save draft/Complete Workday was atomic for everything
 -- `save_workday` already covered, but the item's own title/due/area_id patch

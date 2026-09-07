@@ -787,10 +787,10 @@ Un al doilea audit cumulativ, pe HEAD-ul de după runda anterioară, a găsit
   `shift_earnings.platform_item_id`) e neaplicată live, deși `MIGRATII.md` o
   declara deja aplicată manual. Ambele corectate.
 
-Migrație nouă: `20260907090000_completed_item_anchor_guard` (garda pe
-`items`) și `20260907100000_atomic_item_patch` (`create or replace` pe
-`save_workday`, cu item patch + `expected_version`) — **nu sunt aplicate
-live încă**.
+Migrații: `20260907090000_completed_item_anchor_guard` (garda pe `items`) și
+`20260907100000_atomic_item_patch` (`create or replace` pe `save_workday`, cu
+item patch + `expected_version`) — **aplicate live** (rulate manual de
+proprietar, 7 sep 2026, vezi `docs/MIGRATII.md` pentru drift-ul CLI rezultat).
 
 Verificat mecanic: toate migrațiile (inclusiv acestea două) aplicate în
 ordine pe un Postgres 16 local; `check:rls` — 104/104 cazuri, incluzând șase

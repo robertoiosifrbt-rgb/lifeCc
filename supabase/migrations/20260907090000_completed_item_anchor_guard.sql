@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE (not declared applied in docs/MIGRATII.md until it is).
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit blocker: `reject_write_to_completed_shift` guards `shifts`/
 -- `shift_sessions`/`shift_earnings`, `reject_write_to_completed_linked_expense`
