@@ -728,8 +728,9 @@ găsit patru probleme reale în plus:
   title/date pot rămâne salvate fără restul; un Save repetat rezolvă).
 
 Migrații: `20260907070000_completed_expense_guard_and_scoped_save`,
-`20260907080000_platform_rules_payout_destination` — **nu sunt aplicate
-live** încă (vezi `docs/MIGRATII.md`).
+`20260907080000_platform_rules_payout_destination` — **aplicate live** acum
+(rulate manual de proprietar, 7 sep 2026, vezi `docs/MIGRATII.md` pentru
+drift-ul CLI rezultat).
 
 Verificat mecanic: aceleași migrații de mai sus plus acestea două, aplicate în
 ordine pe un Postgres 16 local (construit manual, fără Docker); `check:rls` —

@@ -1378,9 +1378,10 @@ At creation of this backlog (2026-09-06):
   gained `payout_destination_reference`. Left open, by the owner's own
   choice: Save draft/Complete Workday's item patch (title/date/Area) still
   lands outside the atomic `save_workday` RPC — see `docs/STAREA.md`.
-- two new migrations, not yet live:
-  `20260907070000_completed_expense_guard_and_scoped_save`,
-  `20260907080000_platform_rules_payout_destination`.
+- the two migrations above (`20260907070000_completed_expense_guard_and_scoped_save`,
+  `20260907080000_platform_rules_payout_destination`) are now **LIVE** —
+  run manually by the owner via the Supabase SQL Editor, same day. Same CLI
+  drift as every other manually-run migration above.
 - committed on `main`, not pushed — still requires the owner's literal
   `push`.
 

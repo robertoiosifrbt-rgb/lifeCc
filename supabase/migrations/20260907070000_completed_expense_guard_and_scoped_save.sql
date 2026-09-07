@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE (not declared applied in docs/MIGRATII.md until it is).
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- Two D1 audit blockers found against the state after the six migrations
 -- above, both about a payload trusting an id too much:

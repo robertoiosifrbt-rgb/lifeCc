@@ -50,6 +50,8 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260907040000_platform_item_kind` | trigger `require_item_kind()` pe `shift_earnings`/`platform_rules` | 7 sep 2026 (manual, vezi drift) |
 | `20260907050000_pin_rate_by_workday_date` | `pin_shift_rates()` pinuiește după `items.due`, nu după `now()` | 7 sep 2026 (manual, vezi drift) |
 | `20260907060000_save_workday_rpc` | funcția `save_workday(payload jsonb)` — RPC atomic pentru Save draft/Complete Workday | 7 sep 2026 (manual, vezi drift) |
+| `20260907070000_completed_expense_guard_and_scoped_save` | gardă Completed pe Expense-uri de cost-de-drum + `links`; `save_workday()` verifică apartenența id-urilor la Workday-ul salvat | 7 sep 2026 (manual, vezi drift) |
+| `20260907080000_platform_rules_payout_destination` | `platform_rules.payout_destination_reference` | 7 sep 2026 (manual, vezi drift) |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
@@ -143,8 +145,10 @@ Toate șase sunt reparațiile de audit D1 descrise în `docs/STAREA.md`, secțiu
 Fără date live de migrat pentru niciuna dintre ele.
 
 `20260907070000_completed_expense_guard_and_scoped_save` și
-`20260907080000_platform_rules_payout_destination` **nu sunt aplicate live** —
-scrise după cele șase de mai sus, ca reparație la un audit D1 ulterior:
+`20260907080000_platform_rules_payout_destination` sunt acum în tabelul de mai
+sus, **aplicate live** (rulate manual de proprietar, prin SQL Editor Supabase,
+7 sep 2026, vezi drift mai jos) — scrise după cele șase de mai sus, ca
+reparație la un audit D1 ulterior:
 
 - gardă nouă, la nivel de trigger, pe `expenses`: un Expense de cost-de-drum
   legat `about` de un Workday Completed nu mai poate fi modificat/șters prin
@@ -264,6 +268,25 @@ rulate pe 7 sep 2026:
 Aceeași remediere ca mai sus rămâne necesară înainte de orice `db push`
 viitor, pe toate cele nouă migrații rulate manual până acum (`0600`, cele
 două de mai sus, plus aceste șase). Nu s-a făcut aici.
+
+### `20260907070000_completed_expense_guard_and_scoped_save` și `20260907080000_platform_rules_payout_destination` — rulate manual, nu prin CLI
+
+Confirmate aplicate live (7 sep 2026, rulate de proprietar prin SQL Editor
+Supabase, ca un singur bloc concatenat). Același drift ca toate migrațiile
+manuale de mai sus:
+
+- rulate din SQL Editor Supabase pe `tasks-calendar`, nu prin `supabase db
+  push`/CLI — **nu apar** în `supabase_migrations.schema_migrations`;
+- fișierele n-au `if not exists`/`or replace` pe structurile noi
+  (`create function`/`create trigger` pe prima, `alter table ... add column`
+  pe a doua) — un `db push` viitor, în ordinea normală a fișierelor, va
+  încerca să le reaplice și va eșua;
+- ordinea standard de migrații pune toate cele nouă de mai sus înaintea
+  acestora — un `db push` viitor eșuează întâi acolo, indiferent dacă se
+  ajunge sau nu la acestea două.
+
+Aceeași remediere rămâne necesară înainte de orice `db push` viitor, pe toate
+cele unsprezece migrații rulate manual până acum. Nu s-a făcut aici.
 
 ### `reserves`
 

@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE (not declared applied in docs/MIGRATII.md until it is).
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit blocker: `docs/PLAN.md`'s own list of what the Platform data
 -- foundation must be able to represent names "payout destination account"
