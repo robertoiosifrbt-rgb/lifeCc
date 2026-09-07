@@ -9,8 +9,6 @@
 
 import { A, B, CONSTRAINT, DENIED } from './rls-context.mjs'
 
-/** Refusal: a composite key with nothing to point at. */
-const FOREIGN_KEY = '23503'
 /** Refusal: the item_patch's expected_version no longer matches. */
 const VERSION_CONFLICT = '40001'
 
@@ -129,12 +127,17 @@ export const CASES = [
   },
   {
     group: 'negative',
+    // Caught by the same kind/ownership guard finding #14 added (see
+    // `rls-save-workday-guards.mjs`), not by the
+    // `shifts` FK any more: the two used to read as different failures
+    // (someone else's shift vs. the caller's own wrong-kind anchor) when
+    // they are the same refusal — "this is not a Workday of yours".
     name: 'save_workday cannot touch a shift owned by somebody else',
     run: async (t) => {
       const theirs = await shiftOwnedBy(t, B)
       const payload = { ...EMPTY_PAYLOAD, item_id: theirs, force_shift_touch: true }
       await t.asA(() =>
-        t.denied(FOREIGN_KEY, 'select public.save_workday($1::jsonb)', [JSON.stringify(payload)]),
+        t.denied(DENIED, 'select public.save_workday($1::jsonb)', [JSON.stringify(payload)]),
       )
     },
   },

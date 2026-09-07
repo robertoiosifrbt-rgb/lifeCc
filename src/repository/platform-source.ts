@@ -20,6 +20,20 @@ export async function supabasePlatformRules(): Promise<unknown[]> {
   return response.data as unknown[]
 }
 
+/**
+ * A new Platform's anchor and extension, written in one transaction — see
+ * `20260907130000_record_platform_rpc` for what the function itself does.
+ * Two separate inserts left a connection dropped between them free to leave
+ * an orphan `items` row of kind='platform' with no matching `platforms`
+ * extension row behind, the same "torn write" class Save Workday's own
+ * atomic fix already closed.
+ */
+export async function supabaseRecordPlatform(title: string): Promise<unknown> {
+  const response = await supabase().rpc('record_platform', { p_title: title })
+  if (response.error !== null) fail('Recording the platform', response.error)
+  return response.data
+}
+
 export function supabasePlatformWriter(owner: string) {
   return {
     async save(values: Record<string, unknown>) {

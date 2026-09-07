@@ -101,7 +101,7 @@ describe('costBasisOf', () => {
       links,
       entities,
       vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
-      today: TODAY,
+      asOf: TODAY,
     })
     expect(costBasis).toEqual({ fuel_per_km: 0.1, vehicle_per_km: 0.05 })
   })
@@ -116,7 +116,7 @@ describe('costBasisOf', () => {
       links: [],
       entities: [],
       vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
-      today: TODAY,
+      asOf: TODAY,
     })
     expect(costBasis).toEqual({ fuel_per_km: 0.9, vehicle_per_km: 0.9 })
   })
@@ -133,7 +133,7 @@ describe('costBasisOf', () => {
       links: [],
       entities: [],
       vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
-      today: TODAY,
+      asOf: TODAY,
     })
     const forAmbiguous = costBasisOf({
       shift: day,
@@ -143,7 +143,7 @@ describe('costBasisOf', () => {
       links,
       entities,
       vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
-      today: TODAY,
+      asOf: TODAY,
     })
     expect(forNone.costBasis).toEqual({ fuel_per_km: null, vehicle_per_km: null })
     expect(forAmbiguous.costBasis).toEqual({ fuel_per_km: null, vehicle_per_km: null })
@@ -159,7 +159,7 @@ describe('costBasisOf', () => {
       links: [],
       entities: [],
       vehicleCostRates: [costRate('v1', '2026-01-01', 0.05)],
-      today: TODAY,
+      asOf: TODAY,
     })
     expect(costBasis.fuel_per_km).toBeNull()
     expect(costBasis.vehicle_per_km).toBe(0.05)
@@ -180,7 +180,7 @@ describe('costBasisOf', () => {
       links: [],
       entities: [],
       vehicleCostRates: rates,
-      today: TODAY,
+      asOf: TODAY,
     })
     expect(costBasis.vehicle_per_km).toBe(0.09)
   })

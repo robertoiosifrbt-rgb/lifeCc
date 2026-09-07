@@ -10,11 +10,15 @@ import type { Item } from './item'
 import type { Income, TaxFigures } from './hmrc'
 import { figuresOf, incomeOf, yearIn } from './hmrc-year'
 import type { TaxYearRow } from './hmrc-year'
+import type { Link } from './link'
+import { ROAD_COST_FIELDS } from './road-cost'
 import { reserveFor } from './reserve'
 import { directCostsPence, earnedPence } from './shift'
 import type { Shift } from './shift'
 import { taxYearOf } from './taxyear'
 import type { TaxYear } from './taxyear'
+
+const ROAD_COST_CATEGORIES: readonly Expense['category'][] = Object.values(ROAD_COST_FIELDS)
 
 export type Period = {
   /** Everything the platforms and the tips brought in. */
@@ -68,6 +72,9 @@ export function periodMoney(input: {
   items: readonly Item[]
   shifts: readonly Shift[]
   expenses: readonly Expense[]
+  /** Needed only to keep a road-cost Expense from being counted twice — see
+   *  below. */
+  links: readonly Link[]
   from: string
   to: string
   /** The tax year's figures, or null when it has not been set up. */
@@ -77,7 +84,7 @@ export function periodMoney(input: {
   /** Trading profit of the year before this stretch began. */
   beforePence?: number
 }): Period {
-  const { items, shifts, expenses, from, to } = input
+  const { items, shifts, expenses, links, from, to } = input
   const figures = input.figures ?? null
   const income = input.income ?? null
 
@@ -87,6 +94,21 @@ export function periodMoney(input: {
       inside.set(item.id, item)
     }
   }
+
+  // `shifts` here already carries a road-cost Expense's amount in place of
+  // the legacy column (`withRoadCostExpenses`, applied once for the whole
+  // snapshot) — real money, but the same money `directCostsPence` below
+  // and the Expense loop after it would otherwise both count. A road-cost
+  // category Expense linked `about` an in-range shift is skipped in the
+  // Expense loop for exactly that reason: it is already inside `directPence`.
+  const roadCostExpenseIds = new Set(
+    expenses
+      .filter((expense) => (ROAD_COST_CATEGORIES as readonly string[]).includes(expense.category))
+      .filter((expense) =>
+        links.some((link) => link.kind === 'about' && link.from_id === expense.item_id && inside.has(link.to_id)),
+      )
+      .map((expense) => expense.item_id),
+  )
 
   let grossPence = 0
   let directPence = 0
@@ -113,6 +135,7 @@ export function periodMoney(input: {
   let spentPence = 0
   for (const expense of expenses) {
     if (!inside.has(expense.item_id)) continue
+    if (roadCostExpenseIds.has(expense.item_id)) continue
     spentPence += Math.round((expense.amount * expense.business_pct) / 100 * 100)
   }
 
@@ -152,6 +175,7 @@ export function currentYearMoney(input: {
   items: readonly Item[]
   shifts: readonly Shift[]
   expenses: readonly Expense[]
+  links: readonly Link[]
   taxYears: readonly TaxYearRow[]
   today: string
 }): { year: TaxYear; money: Period } {
@@ -161,6 +185,7 @@ export function currentYearMoney(input: {
     items: input.items,
     shifts: input.shifts,
     expenses: input.expenses,
+    links: input.links,
     from: year.from,
     to: year.to,
     figures: settings === null ? null : figuresOf(settings),

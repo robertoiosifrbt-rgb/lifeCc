@@ -18,6 +18,7 @@ import type {
   VehicleCostRate,
 } from '../repository/items'
 import type { Draft } from './draft'
+import { workdayDayOf } from './draft'
 import { validateCompletion } from './draftValidate'
 import { costBasisOf, liveSummaryOf, sliceFor, vehicleIdOf, vehicleKeyOf } from './liveSummary'
 
@@ -41,6 +42,11 @@ export function useWorkdayComputations(input: {
   const vehicleKey = vehicleKeyOf(vehicleLink)
   const vehicles = vehiclesOf(input.items, input.things)
 
+  // The rate in force on the Workday's own day, not on whichever day it is
+  // typed up, so a retrospective Draft's preview never disagrees with what
+  // Complete Workday is actually about to pin.
+  const asOf = workdayDayOf(item, draft, input.today)
+
   // The two expensive parts — each a scan over the whole account — only
   // redone when what they actually depend on changes: the Vehicle (and the
   // fuel/cost data behind it), and the date. `vehicleKey`, not `vehicleLink`
@@ -56,10 +62,10 @@ export function useWorkdayComputations(input: {
         links: input.links,
         entities: input.things,
         vehicleCostRates: input.vehicleCostRates,
-        today: input.today,
+        asOf,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- vehicleKey stands in for vehicleLink on purpose
-    [shift, completed, vehicleKey, input.expenses, input.links, input.things, input.vehicleCostRates, input.today],
+    [shift, completed, vehicleKey, input.expenses, input.links, input.things, input.vehicleCostRates, asOf],
   )
   const slice = useMemo(
     () =>
@@ -69,9 +75,10 @@ export function useWorkdayComputations(input: {
         items: input.items,
         shifts: input.shifts,
         expenses: input.expenses,
+        links: input.links,
         taxYears: input.taxYears,
       }),
-    [item, draft.due, input.items, input.shifts, input.expenses, input.taxYears],
+    [item, draft.due, input.items, input.shifts, input.expenses, input.links, input.taxYears],
   )
   const { sum, worked, km } = liveSummaryOf(shift, draft, costBasis, slice)
 

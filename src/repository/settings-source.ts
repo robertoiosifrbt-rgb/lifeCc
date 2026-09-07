@@ -58,11 +58,15 @@ export function supabaseSettingsWriter() {
       if (response.error !== null) fail('Writing the running costs', response.error)
       return response.data as unknown
     },
-    /** The trigger's own cache, not the screen's — nothing here reads it back. */
+    /** The trigger's own cache, not the screen's — nothing here reads it back.
+     *  `deleted_at` is always sent as `null`: an upsert only updates the
+     *  columns it names, so a rate previously invalidated by
+     *  `clearVehicleFuelRate` would otherwise stay soft-deleted forever —
+     *  reactivated by name here, never left to whatever it was before. */
     async saveVehicleFuelRate(values: { vehicle_item_id: string; fuel_per_km: number }) {
       const response = await supabase()
         .from('vehicle_fuel_rates')
-        .upsert(values, { onConflict: 'vehicle_item_id' })
+        .upsert({ ...values, deleted_at: null }, { onConflict: 'vehicle_item_id' })
         .select(ALL)
         .single()
       if (response.error !== null) fail('Writing the vehicle fuel rate', response.error)

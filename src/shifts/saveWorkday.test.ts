@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Entity } from '../repository/entity'
+import type { Expense } from '../repository/expense'
 import type { Item } from '../repository/item'
 import type { Link } from '../repository/link'
 import type { SaveWorkdayPayload } from '../repository/save-workday'
@@ -38,6 +39,18 @@ function vehicle(itemId: string): Entity {
 
 function uses(id: string, from_id: string, to_id: string): Link {
   return { id, owner: 'me', from_id, to_id, kind: 'uses', created_at: '2026-09-01T00:00:00Z' }
+}
+
+function about(id: string, from_id: string, to_id: string): Link {
+  return { id, owner: 'me', from_id, to_id, kind: 'about', created_at: '2026-09-01T00:00:00Z' }
+}
+
+function expense(item_id: string, category: Expense['category'], amount: number): Expense {
+  return {
+    item_id, owner: 'me', amount, category,
+    odo: null, full_tank: null, litres: null,
+    covers_from: null, covers_to: null, business_pct: 100,
+  }
 }
 
 function writers(): WorkdayWriters {
@@ -182,6 +195,21 @@ describe('saveWorkday — the item patch, inside the same commit as everything e
     expect(reopened.title).toBe('Tuesday shift')
     expect(reopened.due).toBe('2026-09-08')
     expect(isDirty(settled.item, settled.shift, reopened, [], [], [])).toBe(false)
+  })
+
+  it('carries an already-linked road-cost Expense along when only the Workday date moves, so its own day never drifts', async () => {
+    const anchor = item()
+    const day = shift({ parking: 20 })
+    const links = [about('l1', 'e1', 'i1')]
+    const expenses = [expense('e1', 'parking', 20)]
+    const draft = { ...draftFrom(anchor, day, links, []), due: '2026-09-08' }
+    const w = writers()
+    await saveWorkday(anchor, day, draft, links, [], expenses, w)
+    const payload = committed(w)
+    expect(payload.item_patch).toEqual({ due: '2026-09-08' })
+    expect(payload.road_cost_set).toEqual([
+      { category: 'parking', title: 'Parking', day: '2026-09-08', amount: 20, existing_expense_item_id: 'e1' },
+    ])
   })
 })
 

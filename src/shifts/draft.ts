@@ -74,6 +74,18 @@ function readingText(value: number | null): string {
  * candidates. Either way nothing about the link itself is written until
  * Save draft or Complete actually runs; this only reads it.
  */
+/**
+ * The Workday's own day — the draft's typed date, falling back to the
+ * item's saved one, falling back to `today` only when genuinely undated.
+ * The same `coalesce(workday_due, today)` fallback `pin_shift_rates()`
+ * itself uses to pick a Vehicle cost rate — a live preview using a
+ * different fallback than the database is about to could show a rate the
+ * write then disagrees with.
+ */
+export function workdayDayOf(item: Item, draft: Pick<Draft, 'due'>, today: string): string {
+  return draft.due !== '' ? draft.due : item.due ?? today
+}
+
 export function draftFrom(
   item: Item,
   shift: Shift,

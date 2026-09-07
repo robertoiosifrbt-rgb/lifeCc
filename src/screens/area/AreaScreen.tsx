@@ -64,6 +64,7 @@ export function AreaScreen() {
     items: mine,
     shifts: data.shifts,
     expenses: data.expenses,
+    links: data.links,
     ...monthRange(month),
   })
   const worked = sum.shifts > 0 || sum.spentPence > 0

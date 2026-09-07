@@ -5,6 +5,7 @@
 // business, and the whole reason one arrow can join a task to a car, to a
 // company and to the money that paid for it.
 
+import type { Item } from './item'
 import { asRecord, requiredMoment, requiredText } from './row'
 
 /**
@@ -91,4 +92,24 @@ export function neighboursOf(links: readonly Link[], itemId: string): Neighbour[
     }
   }
   return found
+}
+
+/**
+ * The same, minus a neighbour whose other end is gone.
+ *
+ * Soft-delete never touches `links` itself: removing an item leaves any
+ * arrow that named it still sitting in the table, dangling. Every reader
+ * that matters for money or a Vehicle's resolution already checks the item
+ * at the other end is still there before trusting one of these — this is
+ * the same check, for the one place that would otherwise show a stale
+ * arrow as if it were still real.
+ */
+export function liveNeighboursOf(
+  links: readonly Link[],
+  items: readonly Item[],
+  itemId: string,
+): Neighbour[] {
+  return neighboursOf(links, itemId).filter((neighbour) =>
+    items.some((item) => item.id === neighbour.otherId && item.deleted_at === null),
+  )
 }

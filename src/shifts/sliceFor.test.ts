@@ -98,6 +98,7 @@ describe('sliceFor', () => {
       items: [anchor, bigEarlyProfit],
       shifts: [bigEarlyShift],
       expenses: [],
+      links: [],
       taxYears: [YEAR],
     }
     // Moved earlier than the big month: none of it counts as "before".
@@ -114,6 +115,7 @@ describe('sliceFor', () => {
       items: [anchor],
       shifts: [],
       expenses: [],
+      links: [],
       taxYears: [YEAR],
     })
     expect(slice.figures).toBeNull()
@@ -128,6 +130,7 @@ describe('sliceFor', () => {
       items: [anchor],
       shifts: [],
       expenses: [],
+      links: [],
       taxYears: [YEAR],
     })
     expect(dated.figures).not.toBeNull()
@@ -137,6 +140,7 @@ describe('sliceFor', () => {
       items: [anchor],
       shifts: [],
       expenses: [],
+      links: [],
       taxYears: [YEAR],
     })
     expect(cleared.figures).toBeNull()
@@ -153,6 +157,7 @@ describe('sliceFor', () => {
       due: '2026-09-20',
       shifts: [day],
       expenses: [],
+      links: [],
       taxYears: [YEAR],
     }
     expect(sliceFor({ ...base, items: [anchor] })).toEqual(sliceFor({ ...base, items: [] }))
@@ -189,7 +194,7 @@ describe('liveSummaryOf', () => {
       links: [],
       entities: [],
       vehicleCostRates: [],
-      today: '2026-09-05',
+      asOf: '2026-09-05',
     })
     const result = liveSummaryOf(day, draft, costBasis, { figures: null, income: null, beforePence: 0 })
     expect(result.sum.missing).toContain('costs')

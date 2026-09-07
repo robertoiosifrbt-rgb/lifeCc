@@ -31,6 +31,7 @@ export function MoneyScreen() {
     items: data.items,
     shifts: data.shifts,
     expenses: data.expenses,
+    links: data.links,
     taxYears: data.taxYears,
     today,
   })

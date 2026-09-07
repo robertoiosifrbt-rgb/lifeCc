@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { linkFromRow, neighboursOf } from './link'
+import type { Item } from './item'
+import { linkFromRow, liveNeighboursOf, neighboursOf } from './link'
 import type { Link } from './link'
 
 function link(id: string, from_id: string, to_id: string, kind = 'about'): Link {
@@ -47,5 +48,31 @@ describe('what one item is joined to', () => {
 
   it('says nothing for an item nothing points at', () => {
     expect(neighboursOf(links, 'lonely')).toEqual([])
+  })
+})
+
+describe('liveNeighboursOf — a dangling arrow is not a live one', () => {
+  function item(id: string, over: Partial<Item> = {}): Item {
+    return {
+      id, owner: 'a', kind: 'entity', state: 'active', title: id, due: null,
+      done_at: null, area_id: null, waiting_since: null, version: 1,
+      created_at: '2026-09-05T00:00:00Z', updated_at: '2026-09-05T00:00:00Z',
+      deleted_at: null,
+      ...over,
+    }
+  }
+
+  it('drops a neighbour whose own item was soft-deleted, even though the link row survives it', () => {
+    // Soft-delete never touches `links` itself, so the renewal's own arrow
+    // to the car is still sitting there after the car is gone.
+    const links = [link('l1', 'renewal', 'car')]
+    const items = [item('renewal'), item('car', { deleted_at: '2026-09-06T00:00:00Z' })]
+    expect(liveNeighboursOf(links, items, 'renewal')).toEqual([])
+  })
+
+  it('keeps a neighbour whose item is still there', () => {
+    const links = [link('l1', 'renewal', 'car')]
+    const items = [item('renewal'), item('car')]
+    expect(liveNeighboursOf(links, items, 'renewal').map((n) => n.otherId)).toEqual(['car'])
   })
 })

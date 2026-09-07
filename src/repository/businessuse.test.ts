@@ -81,6 +81,7 @@ describe('the business share of a bill', () => {
       items: [anchor],
       shifts: [],
       expenses: [{ ...expense, business_pct }],
+      links: [],
       from: '2026-08-01',
       to: '2026-08-31',
     }).spentPence

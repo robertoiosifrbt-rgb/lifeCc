@@ -22,6 +22,7 @@ import {
   itemPatchOf,
   platformEarningsPatchOf,
   platformEarningsToRemoveOf,
+  roadCostDayRefreshOf,
   roadCostPatchOf,
   roadCostsToRemoveOf,
   sessionsToRemoveOf,
@@ -93,6 +94,21 @@ export async function saveWorkday(
   // here would be malformed draft data, and it is never deleted regardless.
   const sessionsRemoved = sessionsToRemoveOf(shift, draft)
 
+  // The Workday's own date is changing this save: every already-linked
+  // road-cost Expense not otherwise touched above still needs its `due`
+  // brought along, or it drifts to whichever day it was first created on.
+  const roadCostDayRefresh = Object.hasOwn(itemPatch, 'due')
+    ? roadCostDayRefreshOf(
+        shift,
+        expenses,
+        links,
+        new Set([
+          ...roadCostPatch.map(({ field }) => field),
+          ...roadCostsRemoved.map(({ field }) => field),
+        ]),
+      )
+    : []
+
   const forceShiftTouch = opts.forceShiftTouch === true
   const hasCommit =
     Object.keys(itemPatch).length > 0 ||
@@ -106,6 +122,7 @@ export async function saveWorkday(
     sessionsRemoved.length > 0 ||
     roadCostPatch.length > 0 ||
     roadCostsRemoved.length > 0 ||
+    roadCostDayRefresh.length > 0 ||
     forceShiftTouch
 
   if (hasCommit) {
@@ -124,7 +141,7 @@ export async function saveWorkday(
       platform_earnings_remove: platformEarningsRemoved,
       breaks_set: breaksPatch.map(({ sessionId, minutes }) => ({ session_id: sessionId, minutes })),
       sessions_remove: sessionsRemoved,
-      road_cost_set: roadCostPatch.map(({ field, amount, existingExpenseItemId }) => ({
+      road_cost_set: [...roadCostPatch, ...roadCostDayRefresh].map(({ field, amount, existingExpenseItemId }) => ({
         category: ROAD_COST_FIELDS[field],
         title: CATEGORY_NAMES[ROAD_COST_FIELDS[field]],
         day,

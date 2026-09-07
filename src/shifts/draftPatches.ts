@@ -119,6 +119,33 @@ export function roadCostPatchOf(
 }
 
 /**
+ * A linked road-cost Expense's own day tracks the Workday's date. Save draft
+ * already sends `day` for a field the amount changed on — but a Workday whose
+ * date moves without its parking/tolls/other amount also changing (the
+ * ordinary case: you drove the same route, just typed it up a day late) left
+ * every already-linked Expense dated wherever it was first created, drifting
+ * out of the month or tax year the Workday itself now falls in. Every road-
+ * cost field not already in `roadCostPatch` (a real amount change) or
+ * `roadCostsRemoved` (being deleted this save) gets a same-amount entry here,
+ * so `save_workday` still has a `day` to write its `due` from.
+ */
+export function roadCostDayRefreshOf(
+  shift: Shift,
+  expenses: readonly Expense[],
+  links: readonly Link[],
+  skip: ReadonlySet<RoadCostField>,
+): { field: RoadCostField; amount: number; existingExpenseItemId: string | null }[] {
+  const refreshed: { field: RoadCostField; amount: number; existingExpenseItemId: string | null }[] = []
+  for (const [field, category] of Object.entries(ROAD_COST_FIELDS) as [RoadCostField, Expense['category']][]) {
+    if (skip.has(field)) continue
+    const existing = roadCostExpenseOf(links, expenses, shift.item_id, category)
+    if (existing === null) continue
+    refreshed.push({ field, amount: existing.amount, existingExpenseItemId: existing.item_id })
+  }
+  return refreshed
+}
+
+/**
  * The road-cost fields cleared to blank whose Expense must actually be
  * removed — blank, not zero, the same distinction `earningsToRemoveOf`
  * already draws. A field that was never backed by an Expense (only ever a

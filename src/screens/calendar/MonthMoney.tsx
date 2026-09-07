@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
 
 import { monthRange, periodMoney, sliceOfYear } from '../../repository/items'
-import type { Expense, Item, Shift, TaxYearRow } from '../../repository/items'
+import type { Expense, Item, Link, Shift, TaxYearRow } from '../../repository/items'
 import { hoursAndMinutes, pounds } from '../../shifts/money'
 import './MonthMoney.css'
 
@@ -10,6 +10,7 @@ type Props = {
   items: Item[]
   shifts: Shift[]
   expenses: Expense[]
+  links: Link[]
   taxYears: TaxYearRow[]
 }
 
@@ -29,6 +30,7 @@ export function MonthMoney({
   items,
   shifts,
   expenses,
+  links,
   taxYears,
 }: Props) {
   const range = monthRange(month)
@@ -36,9 +38,10 @@ export function MonthMoney({
     items,
     shifts,
     expenses,
+    links,
     ...range,
     // What this month adds to the year's bill, not a slice of a flat rate.
-    ...sliceOfYear({ items, shifts, expenses, taxYears, from: range.from }),
+    ...sliceOfYear({ items, shifts, expenses, links, taxYears, from: range.from }),
   })
   if (sum.shifts === 0 && sum.spentPence === 0) return null
 
@@ -64,9 +67,9 @@ export function MonthMoney({
             nowhere else they could be edited without saying two things. */}
         <div className="money-row">
           <dt>
-            <Link className="money-open" to="/hmrc">
+            <RouterLink className="money-open" to="/hmrc">
               Tax and NI
-            </Link>
+            </RouterLink>
           </dt>
           <dd>{sum.missingRates ? '—' : `−${pounds(reserve)}`}</dd>
         </div>
@@ -84,7 +87,7 @@ export function MonthMoney({
       {sum.missingRates && (
         <p className="money-note">
           This year&rsquo;s figures are not set, so what is owed on the month is
-          unknown — not nothing. Put them in on <Link to="/hmrc">HMRC</Link>.
+          unknown — not nothing. Put them in on <RouterLink to="/hmrc">HMRC</RouterLink>.
         </p>
       )}
 

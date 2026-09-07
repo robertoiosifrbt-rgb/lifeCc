@@ -84,9 +84,13 @@ export type CostBasisInfo = {
  * Vehicle leaves both unknown rather than guessed.
  *
  * Completed uses exactly what the shift itself was pinned to, frozen; a
- * Draft uses the current rate for whichever Vehicle is currently chosen —
- * the same numbers `DrivingCostBasis` shows a Draft, never a stale one left
- * behind by fuel data or a configuration that has since moved on.
+ * Draft uses the rate in force on the Workday's own day (`asOf` — the same
+ * `coalesce(workday_due, today)` fallback `pin_shift_rates()` itself uses,
+ * never the real "today" a retrospective entry is merely being typed on) for
+ * whichever Vehicle is currently chosen — the same numbers `DrivingCostBasis`
+ * shows a Draft, and the same rate Complete Workday is actually about to
+ * pin, never a preview that could disagree with what the database is about
+ * to freeze.
  */
 export function costBasisOf(input: {
   shift: Shift
@@ -96,12 +100,14 @@ export function costBasisOf(input: {
   links: readonly Link[]
   entities: readonly Entity[]
   vehicleCostRates: readonly VehicleCostRate[]
-  today: string
+  /** The Workday's own day (draft due, falling back to the item's, falling
+   *  back to today only if genuinely undated) — never simply "today". */
+  asOf: string
 }): CostBasisInfo {
   const { shift, completed, vehicle } = input
   const vehicleItemId = vehicle.kind === 'one' ? vehicle.vehicleItemId : null
   const fuelRate = fuelRateForVehicle(input.expenses, input.links, input.entities, vehicleItemId)
-  const currentVehicleCost = currentVehicleCostRateOf(input.vehicleCostRates, vehicleItemId, input.today)
+  const currentVehicleCost = currentVehicleCostRateOf(input.vehicleCostRates, vehicleItemId, input.asOf)
   const costBasis: CostBasis = completed
     ? { fuel_per_km: shift.rate_fuel_per_km, vehicle_per_km: shift.rate_vehicle_per_km }
     : { fuel_per_km: fuelRate.perKm, vehicle_per_km: currentVehicleCost }
@@ -127,6 +133,7 @@ export function sliceFor(input: {
   items: readonly Item[]
   shifts: readonly Shift[]
   expenses: readonly Expense[]
+  links: readonly Link[]
   taxYears: readonly TaxYearRow[]
 }): Slice {
   if (input.due === '') return { figures: null, income: null, beforePence: 0 }
@@ -135,6 +142,7 @@ export function sliceFor(input: {
     items: othersItems,
     shifts: input.shifts,
     expenses: input.expenses,
+    links: input.links,
     taxYears: input.taxYears,
     from: input.due,
   })

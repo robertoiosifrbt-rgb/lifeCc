@@ -13,6 +13,7 @@ import {
   itemPatchOf,
   platformEarningsPatchOf,
   platformEarningsToRemoveOf,
+  roadCostDayRefreshOf,
   roadCostPatchOf,
   roadCostsToRemoveOf,
   sessionsToRemoveOf,
@@ -234,6 +235,30 @@ describe('isDirty / patches — Save draft only writes what changed', () => {
       const day = shift({ parking: 0 })
       const draft = { ...draftFrom(item(), day, [], []), parking: '' }
       expect(roadCostPatchOf(day, draft, [], [])).toEqual([])
+    })
+
+    describe('roadCostDayRefreshOf — an already-linked Expense still needs its day, even unchanged', () => {
+      it('brings a same-amount entry for every linked road-cost Expense not otherwise touched', () => {
+        const day = shift({ parking: 20, tolls: 5 })
+        const links = [about('l1', 'e1', 'i1'), about('l2', 'e2', 'i1')]
+        const expenses = [expenseFor('e1', 'parking', 20), expenseFor('e2', 'tolls', 5)]
+        expect(roadCostDayRefreshOf(day, expenses, links, new Set())).toEqual([
+          { field: 'parking', amount: 20, existingExpenseItemId: 'e1' },
+          { field: 'tolls', amount: 5, existingExpenseItemId: 'e2' },
+        ])
+      })
+
+      it('skips a field already carried by an amount change or a removal, so its day is not sent twice', () => {
+        const day = shift({ parking: 20, tolls: 5 })
+        const links = [about('l1', 'e1', 'i1'), about('l2', 'e2', 'i1')]
+        const expenses = [expenseFor('e1', 'parking', 20), expenseFor('e2', 'tolls', 5)]
+        expect(roadCostDayRefreshOf(day, expenses, links, new Set(['parking', 'tolls']))).toEqual([])
+      })
+
+      it('has nothing to refresh for a field only ever backed by the legacy column', () => {
+        const day = shift({ parking: 20 })
+        expect(roadCostDayRefreshOf(day, [], [], new Set())).toEqual([])
+      })
     })
   })
 

@@ -19,6 +19,8 @@ import { CASES as SHIFT_INVARIANT_CASES } from './lib/rls-shift-invariants.mjs'
 import { CASES as LINK_CASES } from './lib/rls-links.mjs'
 import { CASES as UPSERT_CASES } from './lib/rls-upsert.mjs'
 import { CASES as SAVE_WORKDAY_CASES } from './lib/rls-save-workday.mjs'
+import { CASES as SAVE_WORKDAY_GUARD_CASES } from './lib/rls-save-workday-guards.mjs'
+import { CASES as RECORD_PLATFORM_CASES } from './lib/rls-record-platform.mjs'
 import { CASES as COMPLETED_ITEM_CASES } from './lib/rls-completed-item.mjs'
 import { A, B, contextFor } from './lib/rls-context.mjs'
 
@@ -33,6 +35,8 @@ const CASES = [
   ...EXPENSE_CASES,
   ...UPSERT_CASES,
   ...SAVE_WORKDAY_CASES,
+  ...SAVE_WORKDAY_GUARD_CASES,
+  ...RECORD_PLATFORM_CASES,
   ...COMPLETED_ITEM_CASES,
   ...LINK_CASES,
   ...JOURNAL_CASES,

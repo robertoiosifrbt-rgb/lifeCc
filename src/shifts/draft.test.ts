@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Item } from '../repository/item'
 import type { Shift } from '../repository/shift'
-import { draftFrom, previewShiftOf } from './draft'
+import { draftFrom, previewShiftOf, workdayDayOf } from './draft'
 
 const NO_COSTS = { fuel_per_km: null, vehicle_per_km: null }
 
@@ -44,6 +44,20 @@ function shift(over: Partial<Shift> = {}): Shift {
     ...over,
   }
 }
+
+describe('workdayDayOf', () => {
+  it('follows the typed date over the saved one', () => {
+    expect(workdayDayOf(item({ due: '2026-09-05' }), { due: '2026-09-08' }, '2026-09-20')).toBe('2026-09-08')
+  })
+
+  it('falls back to the saved date when nothing is typed', () => {
+    expect(workdayDayOf(item({ due: '2026-09-05' }), { due: '' }, '2026-09-20')).toBe('2026-09-05')
+  })
+
+  it('falls back to today only when genuinely undated both ways', () => {
+    expect(workdayDayOf(item({ due: null }), { due: '' }, '2026-09-20')).toBe('2026-09-20')
+  })
+})
 
 describe('draftFrom', () => {
   it('starts exactly at what is already saved', () => {

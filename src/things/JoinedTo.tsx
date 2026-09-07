@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { LINK_KINDS, LINK_NAMES, neighboursOf } from '../repository/items'
+import { LINK_KINDS, LINK_NAMES, liveNeighboursOf } from '../repository/items'
 import type { Item, Link, LinkKind } from '../repository/items'
 import './JoinedTo.css'
 
@@ -31,7 +31,7 @@ export function JoinedTo(props: Props) {
   const [kind, setKind] = useState<LinkKind>('about')
   const [to, setTo] = useState('')
 
-  const neighbours = neighboursOf(props.links, props.itemId)
+  const neighbours = liveNeighboursOf(props.links, props.items, props.itemId)
   const titleOf = (id: string) =>
     props.items.find((item) => item.id === id)?.title ?? 'Something deleted'
 

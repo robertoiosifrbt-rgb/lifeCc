@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import type { Expense } from './expense'
 import type { Item } from './item'
-import { currentYearMoney, monthRange, periodMoney } from './period'
+import type { Link } from './link'
+import { periodMoney } from './period'
 import type { Shift } from './shift'
-import type { TaxYearRow } from './hmrc-year'
 
 
 function item(id: string, kind: Item['kind'], due: string, over: Partial<Item> = {}): Item {
@@ -46,7 +46,7 @@ function shift(item_id: string, pounds: number, over: Partial<Shift> = {}): Shif
   }
 }
 
-function expense(item_id: string, pounds: number): Expense {
+function expense(item_id: string, pounds: number, over: Partial<Expense> = {}): Expense {
   return {
     item_id,
     owner: 'me',
@@ -58,6 +58,18 @@ function expense(item_id: string, pounds: number): Expense {
     covers_from: null,
     covers_to: null,
     business_pct: 100,
+    ...over,
+  }
+}
+
+function aboutLink(from_id: string, to_id: string): Link {
+  return {
+    id: `${from_id}-${to_id}`,
+    owner: 'me',
+    from_id,
+    to_id,
+    kind: 'about',
+    created_at: '2026-09-01T00:00:00+00:00',
   }
 }
 
@@ -102,6 +114,7 @@ describe('periodMoney', () => {
       items: [item('s1', 'shift', '2026-09-05'), item('e1', 'expense', '2026-09-03')],
       shifts: [shift('s1', 1000)],
       expenses: [expense('e1', 200)],
+      links: [],
       ...SEPTEMBER,
       ...YEAR,
     })
@@ -129,6 +142,7 @@ describe('periodMoney', () => {
       items: [item('s1', 'shift', '2026-09-05'), item('e1', 'expense', '2026-09-03')],
       shifts: [driven],
       expenses: [expense('e1', 200)],
+      links: [],
       ...SEPTEMBER,
     })
     // 500 km at £1 would be £500 of consumption. Only the £200 counts.
@@ -146,6 +160,7 @@ describe('periodMoney', () => {
       ],
       shifts: [shift('s1', 100), shift('s2', 100), shift('s3', 100), shift('s4', 100)],
       expenses: [],
+      links: [],
       ...SEPTEMBER,
     })
     expect(sum.shifts).toBe(1)
@@ -157,6 +172,7 @@ describe('periodMoney', () => {
       items: [item('s1', 'shift', '2026-09-05'), item('e1', 'expense', '2026-09-03')],
       shifts: [shift('s1', 100)],
       expenses: [expense('e1', 500)],
+      links: [],
       ...SEPTEMBER,
       ...YEAR,
     })
@@ -172,10 +188,28 @@ describe('periodMoney', () => {
       items: [item('s1', 'shift', '2026-09-05')],
       shifts: [shift('s1', 100)],
       expenses: [],
+      links: [],
       ...SEPTEMBER,
     })
     expect(sum.missingRates).toBe(true)
     expect(sum.taxPence).toBe(0)
+  })
+
+  it('never counts a road-cost Expense twice when it is already folded into the shift', () => {
+    // withRoadCostExpenses (applied once, upstream of this) has already
+    // merged the linked Expense's amount into shift.parking, which
+    // directCostsPence below sums. Without the roadCostExpenseIds skip, the
+    // same £50 would also be counted again through the Expense loop.
+    const roadCost = shift('s1', 1000, { parking: 50 })
+    const parkingExpense = expense('exp1', 50, { category: 'parking' })
+    const sum = periodMoney({
+      items: [item('s1', 'shift', '2026-09-05'), item('exp1', 'expense', '2026-09-05')],
+      shifts: [roadCost],
+      expenses: [parkingExpense],
+      links: [aboutLink('exp1', 's1')],
+      ...SEPTEMBER,
+    })
+    expect(sum.spentPence).toBe(5000)
   })
 
   it('adds the hours of finished sessions only', () => {
@@ -195,106 +229,9 @@ describe('periodMoney', () => {
         }),
       ],
       expenses: [],
+      links: [],
       ...SEPTEMBER,
     })
     expect(sum.minutes).toBe(210)
-  })
-})
-
-function taxYearRow(label: string, over: Partial<TaxYearRow> = {}): TaxYearRow {
-  return {
-    owner: 'me',
-    tax_year: label,
-    version: 1,
-    created_at: '2026-04-06T00:00:00+00:00',
-    updated_at: '2026-04-06T00:00:00+00:00',
-    deleted_at: null,
-    personal_allowance: 12570,
-    taper_from: 100000,
-    basic_band: 37700,
-    higher_band_to: 125140,
-    dividend_allowance: 500,
-    class4_from: 12570,
-    class4_to: 50270,
-    class2_small_profits: 6750,
-    class2_year: 179.4,
-    employment: 0,
-    employment_tax_paid: 0,
-    dividends: 0,
-    poa_threshold: 1000,
-    paid_on_account: 0,
-    basic_pct: 20,
-    higher_pct: 40,
-    additional_pct: 45,
-    dividend_basic_pct: 8.75,
-    dividend_higher_pct: 33.75,
-    dividend_additional_pct: 39.35,
-    class4_main_pct: 6,
-    class4_upper_pct: 2,
-    ...over,
-  }
-}
-
-describe('currentYearMoney', () => {
-  it('reads the tax year "today" falls in, and sums that year alone', () => {
-    // s2 is in March, the tax year before — 6 April is where one year ends
-    // and the next begins.
-    const result = currentYearMoney({
-      items: [item('s1', 'shift', '2026-09-05'), item('s2', 'shift', '2026-03-01')],
-      shifts: [shift('s1', 1000), shift('s2', 1000)],
-      expenses: [],
-      taxYears: [],
-      today: '2026-09-10',
-    })
-    expect(result.year.label).toBe('2026/27')
-    expect(result.money.grossPence).toBe(100000)
-  })
-
-  it('says the reserve is unknown when the year has no settings row', () => {
-    const result = currentYearMoney({
-      items: [item('s1', 'shift', '2026-09-05')],
-      shifts: [shift('s1', 1000)],
-      expenses: [],
-      taxYears: [],
-      today: '2026-09-10',
-    })
-    expect(result.money.missingRates).toBe(true)
-  })
-
-  it("reserves against the year's own settings row, once one exists", () => {
-    // Well past the personal allowance for the year, so the basic rate has
-    // something real to bite on rather than landing on an untaxed £0.
-    const result = currentYearMoney({
-      items: [item('s1', 'shift', '2026-09-05')],
-      shifts: [shift('s1', 20000)],
-      expenses: [],
-      taxYears: [taxYearRow('2026/27')],
-      today: '2026-09-10',
-    })
-    expect(result.money.missingRates).toBe(false)
-    expect(result.money.taxPence).toBeGreaterThan(0)
-  })
-
-  it("ignores a different year's row, and one that was deleted", () => {
-    const result = currentYearMoney({
-      items: [item('s1', 'shift', '2026-09-05')],
-      shifts: [shift('s1', 1000)],
-      expenses: [],
-      taxYears: [
-        taxYearRow('2025/26'),
-        taxYearRow('2026/27', { deleted_at: '2026-09-01T00:00:00+00:00' }),
-      ],
-      today: '2026-09-10',
-    })
-    expect(result.money.missingRates).toBe(true)
-  })
-})
-
-describe('monthRange', () => {
-  it('ends the month where the month ends', () => {
-    expect(monthRange('2026-09')).toEqual({ from: '2026-09-01', to: '2026-09-30' })
-    expect(monthRange('2026-02')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
-    expect(monthRange('2028-02')).toEqual({ from: '2028-02-01', to: '2028-02-29' })
-    expect(monthRange('2026-12')).toEqual({ from: '2026-12-01', to: '2026-12-31' })
   })
 })

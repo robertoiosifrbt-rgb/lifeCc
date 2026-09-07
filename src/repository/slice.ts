@@ -11,6 +11,7 @@ import type { TaxYearRow } from './hmrc-year'
 import type { Income, TaxFigures } from './hmrc'
 import type { Expense } from './expense'
 import type { Item } from './item'
+import type { Link } from './link'
 import { periodMoney } from './period'
 import type { Shift } from './shift'
 import { taxYearOf } from './taxyear'
@@ -40,6 +41,7 @@ export function sliceOfYear(input: {
   items: readonly Item[]
   shifts: readonly Shift[]
   expenses: readonly Expense[]
+  links: readonly Link[]
   taxYears: readonly TaxYearRow[]
   /** The first day of the slice, which is also the day that names the year. */
   from: string
@@ -57,6 +59,7 @@ export function sliceOfYear(input: {
           items: input.items,
           shifts: input.shifts,
           expenses: input.expenses,
+          links: input.links,
           from: year.from,
           to: dayBefore(input.from),
         }).profitPence

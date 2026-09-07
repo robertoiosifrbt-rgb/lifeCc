@@ -266,7 +266,7 @@ export {
   dueOn,
 } from './entity'
 export type { Link, LinkKind, Neighbour } from './link'
-export { LINK_KINDS, LINK_NAMES, neighboursOf } from './link'
+export { LINK_KINDS, LINK_NAMES, liveNeighboursOf, neighboursOf } from './link'
 export type { Vehicle, VehicleLink } from './vehicle'
 export { fuelRateForVehicle, vehicleLinkIdsOf, vehicleLinkOf, vehiclesOf } from './vehicle'
 export {

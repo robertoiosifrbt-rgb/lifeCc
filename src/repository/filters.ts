@@ -20,13 +20,18 @@ const byDue = (a: Item, b: Item) =>
   (a.due ?? '').localeCompare(b.due ?? '') || byCreated(a, b)
 
 /**
- * Neither a thing (entity) nor a journal entry — both exist whether or not
- * you do anything about them, and neither is ever a next action. A car
- * counted as a task would sit in "undated" for ever; a journal entry counted
- * the same way would sit right beside it, under a heading that means work.
+ * Neither a thing (entity), a journal entry, nor a Platform record — none of
+ * the three is ever a next action, and none carries a `due` that would let
+ * it leave "undated" on its own. A car counted as a task would sit in
+ * "undated" for ever; a journal entry counted the same way would sit right
+ * beside it, under a heading that means work; a Platform (Uber Eats, a
+ * courier firm) is a record you configure once, not a thing you complete —
+ * counting it here would let it be opened in the generic ItemSheet and put
+ * Waiting, marked done or deleted, exactly what a configuration record must
+ * never be.
  */
 function isTaskable(item: Item): boolean {
-  return item.kind !== 'entity' && item.kind !== 'journal'
+  return item.kind !== 'entity' && item.kind !== 'journal' && item.kind !== 'platform'
 }
 
 export type TodayGroups = {

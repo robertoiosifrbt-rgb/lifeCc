@@ -33,6 +33,7 @@ export function HmrcScreen() {
     items: data.items,
     shifts: data.shifts,
     expenses: data.expenses,
+    links: data.links,
     from: year.from,
     to: year.to,
   })

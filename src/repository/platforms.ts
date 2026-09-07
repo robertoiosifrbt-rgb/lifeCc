@@ -12,6 +12,7 @@ import {
   supabasePlatformRuleWriter,
   supabasePlatforms,
   supabasePlatformWriter,
+  supabaseRecordPlatform,
 } from './platform-source'
 import { platformStore } from './platform-store'
 import { settingsStore } from './settings-store'
@@ -55,18 +56,14 @@ export async function platformRulesOf(owner: string): Promise<PlatformRule[]> {
  *
  * Its anchor carries no date, the same reason a Vehicle's does not: a
  * Platform is not an event, it is a thing an owner sets up once and reuses.
+ *
+ * One RPC, not two separate inserts: the anchor and its extension are written
+ * in the same transaction, so a connection dropped between them can never
+ * leave an orphan `items` row of kind='platform' with nothing behind it.
  */
 export async function recordPlatform(owner: string, title: string): Promise<Item> {
   await requireAccount(owner)
-  const anchor = fromItemRow(
-    await supabaseWriter<Patch>(ITEMS, owner).insert({
-      title,
-      kind: 'platform',
-      state: 'active',
-      area_id: null,
-    }),
-  )
-  await supabasePlatformWriter(owner).save({ item_id: anchor.id })
+  const anchor = fromItemRow(await supabaseRecordPlatform(title))
   await store.upsert(owner, [anchor], null)
   await syncPlatforms(owner)
   return anchor
