@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { House, LayoutGrid, ListChecks, Plus, Wallet } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 import { CaptureSheet } from '../items/CaptureSheet'
 import { ItemSheet } from '../items/ItemSheet'
@@ -13,6 +15,16 @@ import { MoreSheet } from './MoreSheet'
 import { ShellHeader } from './ShellHeader'
 import { journalEntryPath, opensInJournal, SCREENS, tabInfoFor } from './screens'
 import './AppShell.css'
+
+// One icon per bar tab, keyed by its path — the label itself stays the
+// header's title and the nav button's accessible name; the icon is purely
+// the visual layer on top of it.
+const NAV_ICONS: Record<string, LucideIcon> = {
+  '/today': House,
+  '/plan': ListChecks,
+  '/areas': LayoutGrid,
+  '/money': Wallet,
+}
 
 type Props = { session: Session }
 
@@ -74,22 +86,26 @@ export function AppShell({ session }: Props) {
           fifth slot. */}
       <div className="shell-bottom">
         <nav className="shell-nav" aria-label="Screens">
-          {SCREENS.map((screen) => (
-            <NavLink
-              key={screen.path}
-              to={screen.path}
-              // React Router's own match lights the tab for its own URL and
-              // anything nested under it (an area's own page under Areas).
-              // The `||` adds the one case it cannot see: a screen reached
-              // by name rather than by URL nesting — Calendar under Plan,
-              // Tax under Money — still lights its parent tab.
-              className={({ isActive }) =>
-                `shell-nav-button${isActive || tab?.tabPath === screen.path ? ' active' : ''}`
-              }
-            >
-              {screen.label}
-            </NavLink>
-          ))}
+          {SCREENS.map((screen) => {
+            const Icon = NAV_ICONS[screen.path]
+            return (
+              <NavLink
+                key={screen.path}
+                to={screen.path}
+                // React Router's own match lights the tab for its own URL and
+                // anything nested under it (an area's own page under Areas).
+                // The `||` adds the one case it cannot see: a screen reached
+                // by name rather than by URL nesting — Calendar under Plan,
+                // Tax under Money — still lights its parent tab.
+                className={({ isActive }) =>
+                  `shell-nav-button${isActive || tab?.tabPath === screen.path ? ' active' : ''}`
+                }
+              >
+                {Icon !== undefined && <Icon aria-hidden="true" size={22} strokeWidth={2} />}
+                <span className="sr-only">{screen.label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
 
         <button
@@ -99,7 +115,7 @@ export function AppShell({ session }: Props) {
           aria-label="Capture"
           onClick={() => setCapturing(true)}
         >
-          +
+          <Plus aria-hidden="true" size={24} strokeWidth={2.5} />
         </button>
       </div>
 

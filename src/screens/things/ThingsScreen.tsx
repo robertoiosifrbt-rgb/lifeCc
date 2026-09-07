@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Building2, Car, ChevronRight, Home as HomeIcon, Plus, User } from 'lucide-react'
 
 import { useScreen } from '../../items/context'
 import {
@@ -21,6 +22,18 @@ const SECTION_NAMES: Record<EntityKind, string> = {
   property: 'Properties',
   vehicle: 'Vehicles',
 }
+
+/** One icon per kind — what it is, not a decorative guess. */
+const KIND_ICONS: Record<EntityKind, typeof Car> = {
+  vehicle: Car,
+  company: Building2,
+  person: User,
+  property: HomeIcon,
+}
+
+/** A rotation of decorative tints for the icon avatar — position only, never
+ *  a stored preference (no such field exists on Entity). */
+const TINTS = ['tint-1', 'tint-2', 'tint-3', 'tint-4'] as const
 
 /**
  * Directory: the people, companies, vehicles and properties your life is
@@ -80,9 +93,10 @@ export function ThingsScreen() {
             <ul className="things-list">
               {alive
                 .filter((thing) => thing.entity_kind === one)
-                .map((thing) => {
+                .map((thing, index) => {
                   const due = nextDue(thing)
                   const overdue = due !== null && due.includes('ran out')
+                  const Icon = KIND_ICONS[one]
                   return (
                     <li key={thing.item_id}>
                       <button
@@ -91,19 +105,25 @@ export function ThingsScreen() {
                         className="things-row"
                         onClick={() => setOpen(thing.item_id)}
                       >
-                        <span className="things-name">
-                          {byId.get(thing.item_id)?.title ?? ''}
+                        <span className={`things-icon ${TINTS[index % TINTS.length]}`}>
+                          <Icon aria-hidden="true" size={20} strokeWidth={2} />
                         </span>
-                        {thing.registration !== null && (
-                          <span className="things-reg">{thing.registration}</span>
-                        )}
-                        {due !== null && (
-                          <span
-                            className={`things-due${overdue ? ' things-due-past' : ''}`}
-                          >
-                            {due}
+                        <span className="things-text">
+                          <span className="things-name">
+                            {byId.get(thing.item_id)?.title ?? ''}
                           </span>
-                        )}
+                          {thing.registration !== null && (
+                            <span className="things-reg">{thing.registration}</span>
+                          )}
+                          {due !== null && (
+                            <span
+                              className={`things-due${overdue ? ' things-due-past' : ''}`}
+                            >
+                              {due}
+                            </span>
+                          )}
+                        </span>
+                        <ChevronRight aria-hidden="true" size={20} className="things-chevron" />
                       </button>
                     </li>
                   )
@@ -176,6 +196,7 @@ export function ThingsScreen() {
           className="things-add"
           onClick={() => setAdding(true)}
         >
+          <Plus aria-hidden="true" size={18} strokeWidth={2.5} />
           Add to Directory
         </button>
       )}

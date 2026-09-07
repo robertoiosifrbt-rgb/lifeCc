@@ -1,9 +1,29 @@
 import { useState } from 'react'
+import { ChevronRight, Folder, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { useScreen } from '../../items/context'
-import { treeOf } from '../../repository/items'
+import { countUnder, subtreeOf, treeOf } from '../../repository/items'
+import type { Area } from '../../repository/items'
 import './AreasScreen.css'
+
+/** How many living items sit under this area, at any depth — the same
+ *  "under" `countUnder` already means for sub-areas, applied to items. */
+function itemsUnder(items: readonly { area_id: string | null; deleted_at: string | null }[], areas: readonly Area[], id: string): number {
+  const ids = new Set(subtreeOf(areas, id))
+  return items.filter((item) => item.deleted_at === null && item.area_id !== null && ids.has(item.area_id)).length
+}
+
+/** "3 areas · 5 items", or just "5 items" when there is nothing under it. */
+function subtitleFor(subAreas: number, items: number): string {
+  const itemsPart = `${items} ${items === 1 ? 'item' : 'items'}`
+  if (subAreas === 0) return itemsPart
+  return `${subAreas} ${subAreas === 1 ? 'area' : 'areas'} · ${itemsPart}`
+}
+
+/** A rotation of decorative tints for a card's icon avatar — position only,
+ *  never a stored preference (no such field exists on Area). */
+const TINTS = ['tint-1', 'tint-2', 'tint-3', 'tint-4'] as const
 
 /**
  * The tree, and the two things you do to it: add under, or go in.
@@ -51,14 +71,23 @@ export function AreasScreen() {
       )}
 
       <ul className="areas-tree">
-        {rows.map(({ area, depth }) => (
+        {rows.map(({ area, depth }, index) => (
           <li
             key={area.id}
             className="areas-row"
             style={{ paddingLeft: `calc(${depth} * var(--space-4))` }}
           >
-            <Link className="areas-name" to={`/areas/${area.id}`}>
-              {area.name}
+            <Link className="areas-card" to={`/areas/${area.id}`}>
+              <span className={`areas-icon ${TINTS[index % TINTS.length]}`}>
+                <Folder aria-hidden="true" size={20} strokeWidth={2} />
+              </span>
+              <span className="areas-card-text">
+                <span className="areas-name">{area.name}</span>
+                <span className="areas-subtitle">
+                  {subtitleFor(countUnder(data.areas, area.id), itemsUnder(data.items, data.areas, area.id))}
+                </span>
+              </span>
+              <ChevronRight aria-hidden="true" size={20} className="areas-chevron" />
             </Link>
             <button
               type="button"
@@ -67,7 +96,7 @@ export function AreasScreen() {
               aria-label={`Add an area under ${area.name}`}
               onClick={() => startAdding(area.id)}
             >
-              +
+              <Plus aria-hidden="true" size={18} strokeWidth={2.5} />
             </button>
           </li>
         ))}
@@ -120,6 +149,7 @@ export function AreasScreen() {
           className="areas-add-root"
           onClick={() => startAdding(null)}
         >
+          <Plus aria-hidden="true" size={18} strokeWidth={2.5} />
           Add an area
         </button>
       )}

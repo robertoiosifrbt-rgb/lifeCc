@@ -28,6 +28,18 @@
   --accent-wash: #f7ebd6;
   --danger: #a8362a;
   --danger-wash: #f8e6e2;
+  /* Decorative only, never a stored preference: a small rotation of tints
+     for an icon avatar that otherwise has nothing of its own to say which
+     colour it is (an area, a Directory entity kind) — chosen by position,
+     not by any field on the row itself. */
+  --tint-1-wash: #e3ecf8;
+  --tint-1-ink: #2f5fa8;
+  --tint-2-wash: #e3f3e8;
+  --tint-2-ink: #2f7a4a;
+  --tint-3-wash: #f1e6f7;
+  --tint-3-ink: #7a4aa8;
+  --tint-4-wash: #e6f2f3;
+  --tint-4-ink: #2a7d85;
   --shadow-soft: 0 1px 2px rgb(27 25 23 / 6%), 0 4px 12px rgb(27 25 23 / 5%);
   --shadow-lift: 0 -1px 0 rgb(27 25 23 / 5%), 0 -12px 32px rgb(27 25 23 / 8%);
   --veil: rgb(27 25 23 / 32%);
@@ -71,6 +83,14 @@
     --accent-wash: #2c2317;
     --danger: #e58274;
     --danger-wash: #33201d;
+    --tint-1-wash: #1d2733;
+    --tint-1-ink: #8fb4e6;
+    --tint-2-wash: #1c2b20;
+    --tint-2-ink: #8fd1a4;
+    --tint-3-wash: #291f30;
+    --tint-3-ink: #cc9fe8;
+    --tint-4-wash: #1a2c2d;
+    --tint-4-ink: #7fd4dc;
     --shadow-soft: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px rgb(0 0 0 / 30%);
     --shadow-lift: 0 -1px 0 rgb(255 255 255 / 4%), 0 -14px 34px rgb(0 0 0 / 45%);
     --veil: rgb(0 0 0 / 58%);

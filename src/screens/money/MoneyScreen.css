@@ -12,6 +12,59 @@
   font-size: var(--text-s);
 }
 
+.money-hub-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.money-hub-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.money-hub-stat-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-s);
+}
+
+.money-hub-stat-earn {
+  background: var(--tint-2-wash);
+}
+
+.money-hub-stat-earn .money-hub-stat-icon {
+  background: var(--bg-raised);
+  color: var(--tint-2-ink);
+}
+
+.money-hub-stat-spend {
+  background: var(--danger-wash);
+}
+
+.money-hub-stat-spend .money-hub-stat-icon {
+  background: var(--bg-raised);
+  color: var(--danger);
+}
+
+.money-hub-stat-label {
+  font-size: var(--text-s);
+  color: var(--text-dim);
+}
+
+.money-hub-stat-amount {
+  font-size: var(--text-l);
+  font-weight: 650;
+}
+
 .money-hub-sums {
   display: flex;
   flex-direction: column;

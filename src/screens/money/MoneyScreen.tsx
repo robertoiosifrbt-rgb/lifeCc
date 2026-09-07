@@ -1,3 +1,4 @@
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { currentYearMoney } from '../../repository/items'
@@ -37,6 +38,23 @@ export function MoneyScreen() {
   return (
     <div className="money-hub">
       <p className="money-hub-year">{year.label}</p>
+
+      <div className="money-hub-stats" aria-label="Earnings and expenses this tax year">
+        <div className="money-hub-stat money-hub-stat-earn">
+          <span className="money-hub-stat-icon">
+            <ArrowUpRight aria-hidden="true" size={18} strokeWidth={2.5} />
+          </span>
+          <span className="money-hub-stat-label">Earnings</span>
+          <span className="money-hub-stat-amount">{pounds(soFar.grossPence)}</span>
+        </div>
+        <div className="money-hub-stat money-hub-stat-spend">
+          <span className="money-hub-stat-icon">
+            <ArrowDownRight aria-hidden="true" size={18} strokeWidth={2.5} />
+          </span>
+          <span className="money-hub-stat-label">Expenses</span>
+          <span className="money-hub-stat-amount">{pounds(soFar.spentPence)}</span>
+        </div>
+      </div>
 
       <dl className="money-hub-sums" aria-label="The tax year so far">
         <div>
