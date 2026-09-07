@@ -58,6 +58,21 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
 
+## Scrise, neaplicate încă pe live (audit D1, a treia rundă)
+
+Patru fișiere noi, scrise în această rundă, niciunul rulat încă pe live —
+proprietarul nu le-a aplicat.
+
+| Migrație | Rol | Stare |
+|---|---|---|
+| `20260907110000_vehicle_fuel_rate_reactivation.sql` | grant lipsă (`insert (deleted_at)`) pe `vehicle_fuel_rates`, altfel reactivarea unei rate invalidate eșua tăcut | NOT APPLIED LIVE |
+| `20260907120000_road_cost_expense_day_tracks_workday.sql` | `save_workday()`: branch-ul de Expense existent pentru cost-de-drum actualizează acum `due` la fiecare scriere, nu doar la creare | NOT APPLIED LIVE |
+| `20260907130000_record_platform_rpc.sql` | funcția `record_platform(p_title text)` — inserează `items`+`platforms` într-o singură tranzacție | NOT APPLIED LIVE |
+| `20260907140000_save_workday_kind_guards.sql` | `save_workday()` verifică explicit `kind='shift'` pe `item_id` și că `vehicle_link_to` e un Vehicul real | NOT APPLIED LIVE |
+
+Detalii pentru fiecare, în `docs/STAREA.md`, secțiunea „Audit D1 — a treia
+rundă”.
+
 ### Notă despre versiunea din istoricul live pentru `quick_actions`
 
 Istoricul de migrații Supabase înregistrează această migrație ca

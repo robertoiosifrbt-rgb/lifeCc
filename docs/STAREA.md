@@ -1,6 +1,6 @@
 # Starea curentă
 
-**Actualizat:** 6 septembrie 2026.
+**Actualizat:** 7 septembrie 2026.
 
 Documentul ăsta spune numai ce există și ce lipsește **acum**. Nu ține istorie,
 procente de progres sau explicații despre cum s-a ajuns aici.
@@ -799,6 +799,95 @@ garda Completed pe `items`, ștergerea încă permisă pe un Workday Completed);
 lint/typecheck/662 teste unitare/build/structure/reachable/`check:drops` —
 toate verzi. `check:layout`/`check:quick-actions-row` nu au putut rula în
 acest sandbox (fără server real de Supabase Auth).
+
+### Audit D1 — a treia rundă (7 sep 2026, după runda de mai sus)
+
+Un al treilea audit cumulativ, pe HEAD-ul de după runda a doua, a găsit încă
+blocaje reale. Reparate, cu patru migrații noi — **niciuna aplicată încă pe
+live**, proprietarul nu le-a rulat:
+
+- **Item-urile de Platformă apăreau ca sarcini** — `isTaskable()`
+  (`src/repository/filters.ts`) excludea `'entity'`/`'journal'`, dar nu și
+  `'platform'`, deci ancora unei Platforme configurabile putea apărea în
+  liste orientate pe sarcini unde nu are ce căuta. Reparat: `'platform'`
+  exclus și el. Nicio migrație — pur TypeScript.
+- **Baza de cost a Vehiculului folosea rata de azi, nu ziua Workday-ului
+  însuși** — `costBasisOf()` primea mereu „azi” ca dată, chiar și pentru un
+  Draft retrospectiv (scris azi, despre o zi anterioară). Reparat: un
+  `workdayDayOf()` nou (`src/shifts/draft.ts`) rezolvă ziua de care e vorba
+  Workday-ul — `draft.due`, apoi `item.due` persistat, abia apoi azi —
+  trecut ca `asOf` în `useWorkdayComputations`. Nicio migrație — pur
+  TypeScript.
+- **Reactivarea unei rate de combustibil invalidate eșua tăcut** —
+  `saveVehicleFuelRate` făcea upsert fără să șteargă un `deleted_at` anterior,
+  deci `.upsert()` compila într-un `ON CONFLICT DO UPDATE` pe care grant-ul de
+  `deleted_at` nu-l acoperea pentru INSERT. Reparat pe partea de client
+  (valorile includ acum `deleted_at: null`) și cu o migrație care adaugă
+  grant-ul lipsă (`insert (deleted_at)`). Migrație:
+  `20260907110000_vehicle_fuel_rate_reactivation.sql`.
+- **`due`-ul unui Expense de cost-de-drum nu urmărea data mutată a
+  Workday-ului** — `save_workday()`'s branch pentru un Expense de cost-de-drum
+  deja existent actualiza suma/categoria/business_pct, dar nu și `due`-ul
+  item-ului — numai un Expense *nou creat* primea `day`-ul corect. Mutarea
+  datei unui Workday deja salvat lăsa Expense-ul legat datat tot pe ziua
+  veche, ieșind tăcut din luna/anul fiscal în care Workday-ul chiar cade acum.
+  Reparat: `due`-ul se actualizează acum la fiecare scriere de
+  `road_cost_set`, inclusiv o intrare de „refresh” cu aceeași sumă pe care
+  clientul (`roadCostDayRefreshOf`, `src/shifts/draftPatches.ts`) o trimite
+  acum pentru fiecare Expense de cost-de-drum deja legat, de fiecare dată când
+  data Workday-ului se schimbă, chiar dacă suma însăși nu s-a schimbat.
+  Migrație: `20260907120000_road_cost_expense_day_tracks_workday.sql`.
+- **Înregistrarea unei Platforme noi nu era atomică** — două cereri de rețea
+  separate (insert în `items`, apoi insert în `platforms`), care puteau lăsa
+  un rând `items` orfan de `kind='platform'` dacă legătura pica între ele.
+  Reparat cu o funcție nouă, `record_platform(p_title text) returns
+  public.items`, care face ambele inserturi într-o singură tranzacție.
+  `recordPlatform()` din `src/repository/platforms.ts` și noua
+  `supabaseRecordPlatform` din `src/repository/platform-source.ts` cheamă
+  acum acest RPC. Migrație: `20260907130000_record_platform_rpc.sql`.
+- **`save_workday()` nu verifica felul item-ului la `item_id`/Vehicul** —
+  proprietatea era deja impusă prin FK, dar nimic nu verifica explicit că
+  `payload.item_id` chiar numește un item de `kind='shift'`, nici că
+  `vehicle_link_to` chiar numește un Vehicul real, viu. Reparat: ambele
+  verificate explicit, refuzate cu `errcode 42501` dacă greșite. Migrație:
+  `20260907140000_save_workday_kind_guards.sql`.
+- **Money/Tax numărau de două ori un cost de drum** — `periodMoney()`/
+  `currentYearMoney()`/`sliceOfYear()`/`sliceFor()` (din `src/repository/
+  period.ts`, `slice.ts` și `src/shifts/liveSummary.ts`) treceau printr-o
+  buclă separată de „cheltuit”, care mai număra o dată un Expense de categorie
+  cost-de-drum deja împăturit în `directCostsPence`-ul propriu al turei, prin
+  `withRoadCostExpenses()`. Reparat: toate patru funcțiile cer acum un
+  parametru `links` obligatoriu și sar peste un asemenea Expense în bucla
+  separată; toate punctele de apel din aplicație au fost actualizate. Nicio
+  migrație — pur TypeScript.
+- **Legături rămase agățate după un soft-delete** — soft-delete pe un item
+  (de exemplu `removeExpense()`) nu atingea niciodată tabelul `links`, deci o
+  săgeată agățată putea încă apărea în UI-ul generic „Joined to”
+  (`src/things/JoinedTo.tsx`) cu un titlu rezolvabil, dar învechit. Reparat la
+  nivel de citire: un helper nou, `liveNeighboursOf()`
+  (`src/repository/link.ts`), filtrează orice vecin al cărui item de la
+  celălalt capăt e soft-deleted. Nu s-a adăugat cascade-delete la nivel de
+  bază pe `links` — a fost respins deliberat, ca să nu intre în conflict cu
+  garanția existentă din runda a doua („un Workday Completed poate fi încă
+  soft-deleted”, `reject_link_change_on_completed_shift`). E o reparație
+  aleasă, mai îngustă decât ideal, dar suficientă pentru UI.
+- **O „extra detail” a auditului anterior, verificată, nu era un bug real** —
+  `done_at`/`waiting_since` rămân tehnic scriibile pe un Workday Completed
+  (garda `items_reject_completed_shift_write` verifică doar title/due/
+  area_id/state/kind), dar niciun cod din calea Workday/shift nu le citește
+  sau le scrie vreodată — apar doar ca valori de fixture în teste. Coloană
+  inertă, nu un bug viu; nu s-a schimbat nimic. Exceptarea lui `deleted_at`
+  de sub aceeași gardă rămâne, separat, deliberată.
+
+Verificat mecanic: Postgres local reconstruit din toate migrațiile din repo,
+în ordine (0 erori); `check:rls` — 109/109 cazuri, incluzând cazurile noi din
+`scripts/lib/rls-record-platform.mjs` și
+`scripts/lib/rls-save-workday-guards.mjs`; `npm run check`
+(lint/typecheck/672 teste unitare/build/structure/reachable/drops) —
+toate verzi.
+
+Cele patru migrații de mai sus rămân **NOT APPLIED LIVE** — proprietarul nu
+le-a rulat încă. Vezi `docs/MIGRATII.md` pentru ledger.
 
 ### Command Centre — partea existentă
 

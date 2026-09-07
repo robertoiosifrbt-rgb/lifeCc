@@ -1404,6 +1404,51 @@ At creation of this backlog (2026-09-06):
 - committed on `main`, not pushed — still requires the owner's literal
   `push`.
 
+**Update (2026-09-07, third D1 audit round):**
+
+- a third cumulative D1 audit found several more real issues, fixed this
+  session: `isTaskable()` (`src/repository/filters.ts`) now also excludes
+  `kind === 'platform'`, so a configurable Platform's anchor stops showing up
+  in task-oriented lists; a new `workdayDayOf()` (`src/shifts/draft.ts`)
+  resolves the day a Vehicle's cost basis should actually price against
+  (`draft.due`, else the persisted `item.due`, else today) instead of always
+  using today, even for a retrospective Draft; reactivating an invalidated
+  `vehicle_fuel_rates` row via `saveVehicleFuelRate` no longer silently fails
+  (it now clears `deleted_at` explicitly, and a missing `insert (deleted_at)`
+  grant is added); `save_workday()`'s existing-road-cost-Expense branch now
+  updates the Expense's own `due` on every write (not only at creation), so a
+  moved Workday date no longer leaves a linked parking/tolls/other Expense
+  dated on the old day; recording a new configurable Platform is now one
+  atomic RPC (`record_platform`) instead of two separate inserts that could
+  leave an orphan `items` row; `save_workday()` now explicitly checks that
+  `payload.item_id` names a `kind='shift'` item and that `vehicle_link_to`
+  names a real Vehicle Entity, refused with `42501` otherwise. Four new
+  migrations: `20260907110000_vehicle_fuel_rate_reactivation`,
+  `20260907120000_road_cost_expense_day_tracks_workday`,
+  `20260907130000_record_platform_rpc`, `20260907140000_save_workday_kind_guards`
+  — all **NOT LIVE**, not yet run by the owner.
+- also fixed, application code only (no migration): Money/Tax
+  (`periodMoney`/`currentYearMoney`/`sliceOfYear`/`sliceFor`) no longer
+  double-counts a road-cost category Expense already folded into a shift's
+  own `directCostsPence`; a soft-deleted item's `links` rows no longer show
+  up as a resolvable-but-stale neighbour in the generic "Joined to" UI
+  (`liveNeighboursOf`, read-layer filter — no DB-level cascade-delete on
+  `links`, deliberately, to avoid conflicting with the round-2 guarantee that
+  a Completed Workday can still be soft-deleted).
+- investigated and confirmed not a real bug: `done_at`/`waiting_since` are
+  technically writable on a Completed shift item (the anchor guard only
+  checks title/due/area_id/state/kind), but neither is ever read or written
+  anywhere in the shift/Workday code path — an inert column, not a live bug.
+- verified mechanically: local Postgres rebuilt from every migration file in
+  order (0 errors); full RLS suite 109/109 cases green (including new cases
+  in `scripts/lib/rls-record-platform.mjs` and
+  `scripts/lib/rls-save-workday-guards.mjs`); `npm run check`
+  (lint/typecheck/672 unit tests/build/structure/reachable/drops) fully
+  green.
+- still committed on `main` only where applicable, still no push authorized;
+  the four new migrations above remain unapplied on live pending the
+  owner's own decision.
+
 ---
 
 # 18. NEXT ACTION
