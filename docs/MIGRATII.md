@@ -138,6 +138,34 @@ Toate șase sunt reparațiile de audit D1 descrise în `docs/STAREA.md`, secțiu
 
 Fără date live de migrat pentru niciuna dintre ele.
 
+`20260907070000_completed_expense_guard_and_scoped_save` și
+`20260907080000_platform_rules_payout_destination` **nu sunt aplicate live** —
+scrise după cele șase de mai sus, ca reparație la un audit D1 ulterior:
+
+- gardă nouă, la nivel de trigger, pe `expenses`: un Expense de cost-de-drum
+  legat `about` de un Workday Completed nu mai poate fi modificat/șters prin
+  nicio cale (inclusiv un ecran general de Expenses, nu doar prin sheet-ul
+  Workday-ului) — același principiu deja aplicat pe `shifts`/`shift_sessions`/
+  `shift_earnings`/`links`, extins acum și la Expense-ul legat;
+- garda de pe `links` (`reject_link_change_on_completed_shift`) verifică acum
+  ambele capete ale legăturii, nu doar `from_id` — o legătură `about` cu tura
+  la `to_id` (cazul Expense-urilor de drum) era neacoperită înainte;
+- `save_workday()` verifică acum că fiecare id din payload (link de Vehicul,
+  sesiune, Expense existent) chiar aparține Workday-ului salvat, nu doar
+  aceluiași owner — un payload care numește un id real, dar al altui Draft al
+  aceluiași om, este ignorat (link/sesiune) sau refuzat explicit (Expense),
+  nu mai aplicat orbește;
+- `platform_rules` primește coloana `payout_destination_reference` (text
+  simplu, ca `cashout_settlement`) — fundația de date nu putea reprezenta deloc
+  o referință de destinație a payout-ului, deși `docs/PLAN.md` o cere explicit
+  în lista de câmpuri ale unei Platforme.
+
+Verificat mecanic: toate migrațiile (inclusiv acestea două) aplicate în ordine
+pe un Postgres 16 local construit manual (fără Docker în acest sandbox, schemă
+`auth` minimală); `check:rls` — 100/100 cazuri, incluzând patru cazuri noi
+pentru exact aceste reparații; lint/typecheck/659 teste/build/structure/
+reachable/drops — toate verzi.
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat

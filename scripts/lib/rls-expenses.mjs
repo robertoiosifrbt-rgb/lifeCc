@@ -7,7 +7,7 @@
  * join the fuel legs and move the rate.
  */
 
-import { B, CONSTRAINT, DENIED } from './rls-context.mjs'
+import { A, B, CONSTRAINT, DENIED } from './rls-context.mjs'
 
 const FOREIGN_KEY = '23503'
 
@@ -18,6 +18,40 @@ async function expenseAnchor(t, owner, day = 'current_date') {
     [owner],
   )
   return rows[0].id
+}
+
+/** A road-cost Expense already linked `about` a Completed (done) Workday of
+ *  its own owner — set up directly as the administrator, the shape
+ *  `save_workday`'s own road-cost writes leave behind. */
+async function completedWorkdayExpense(t, owner) {
+  // Built the way save_workday's own writes leave it: the Expense and its
+  // `about` link land while the shift is still active — the guard under
+  // test would refuse them otherwise — and only then does the shift itself
+  // move to done, the same order Complete Workday's own two-call sequence
+  // already runs in (save_workday, then the item patch to state='done').
+  const { rows: shiftRows } = await t.q(
+    `insert into public.items (owner, title, kind, state, due)
+     values ($1, 'Shift', 'shift', 'active', current_date) returning id`,
+    [owner],
+  )
+  const shiftId = shiftRows[0].id
+  const { rows: expenseRows } = await t.q(
+    `insert into public.items (owner, title, kind, state, due)
+     values ($1, 'Parking', 'expense', 'active', current_date) returning id`,
+    [owner],
+  )
+  const expenseId = expenseRows[0].id
+  await t.q(
+    "insert into public.expenses (item_id, owner, amount, category, business_pct) values ($1, $2, 5, 'parking', 100)",
+    [expenseId, owner],
+  )
+  await t.q("insert into public.links (from_id, to_id, kind, owner) values ($1, $2, 'about', $3)", [
+    expenseId,
+    shiftId,
+    owner,
+  ])
+  await t.q("update public.items set state = 'done' where id = $1", [shiftId])
+  return { shiftId, expenseId }
 }
 
 export const CASES = [
@@ -73,6 +107,31 @@ export const CASES = [
         const gone = await t.q('delete from public.expenses where item_id = $1', [id])
         t.require(gone.rowCount === 1, `deleted ${gone.rowCount} rows, expected 1`)
       }),
+  },
+  {
+    group: 'negative',
+    name: "a Completed Workday's linked road-cost Expense cannot be updated or deleted, even by its own owner",
+    run: async (t) => {
+      const { expenseId } = await completedWorkdayExpense(t, A)
+      await t.asA(async () => {
+        await t.denied(DENIED, 'update public.expenses set amount = 999 where item_id = $1', [expenseId])
+        await t.denied(DENIED, 'delete from public.expenses where item_id = $1', [expenseId])
+      })
+    },
+  },
+  {
+    group: 'negative',
+    name: "the `about` link from a Completed Workday's Expense cannot be severed",
+    run: async (t) => {
+      const { shiftId, expenseId } = await completedWorkdayExpense(t, A)
+      await t.asA(() =>
+        t.denied(
+          DENIED,
+          "delete from public.links where from_id = $1 and to_id = $2 and kind = 'about'",
+          [expenseId, shiftId],
+        ),
+      )
+    },
   },
   {
     group: 'constraint',

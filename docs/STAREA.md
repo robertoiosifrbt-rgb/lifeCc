@@ -678,13 +678,70 @@ Verificat mecanic (Postgres local construit manual, fără Docker în acest
 sandbox): toate migrațiile aplicate în ordine, `check:rls` — 96/96 cazuri
 (incluzând un caz nou care demonstrează direct atomicitatea: un payload cu o
 parte refuzată nu lasă nimic scris); typecheck, lint, build, structure,
-reachable, 655 teste unitare — toate verzi. `check:drops` semnalează 7
-coloane vechi ale lui `platforms` (drop-ate de `20260907030000_platform_rules`,
-blocajul anterior) ca „încă numite” în `platform-record.ts` — fals pozitiv
-preexistent, verificatorul nu leagă numele de coloană de tabelul lui: acele
-nume sunt cele ale tabelului nou `platform_rules`, nu ale coloanelor șterse
-din `platforms`. Nu a fost atins acum; semnalat aici ca să nu fie confundat
-cu o regresie a acestui task.
+reachable, 655 teste unitare — toate verzi. La momentul acestei runde,
+`check:drops` semnala 7 coloane vechi ale lui `platforms` (drop-ate de
+`20260907030000_platform_rules`) ca „încă numite” în `platform-record.ts` —
+fals pozitiv, verificatorul nu lega numele de coloană de tabelul lui.
+**Reparat ulterior** (`scripts/lib/drops.mjs`: `dropsIn()` exclude acum orice
+nume pe care aceeași migrație îl (re)dă unei alte tabele) — `check:drops`
+trece azi curat pe `main`.
+
+### Audit D1 (a doua rundă) — blocaje reparate
+
+Un audit ulterior, pe starea reală de după cele șase migrații de mai sus, a
+găsit patru probleme reale în plus:
+
+- **Un Expense de cost-de-drum legat de un Workday Completed nu era protejat
+  la nivel de bază** — `shifts`/`shift_sessions`/`shift_earnings`/`links`
+  refuză toate o scriere odată ce tura e `done` (fundația D1 de mai sus), dar
+  `expenses` nu era în listă: un Expense legat `about` de o tură terminată
+  putea fi modificat sau șters prin orice cale generală de Expenses, nu doar
+  prin sheet-ul Workday-ului (care deja refuza să-l deschidă pentru editare,
+  dar asta e grijă de UI, nu o constrângere). Reparat cu un trigger nou pe
+  `expenses` (`reject_write_to_completed_linked_expense`), simetric cu cel de
+  pe `shifts`; garda de pe `links` a fost și ea lărgită să verifice ambele
+  capete ale legăturii (`from_id` sau `to_id`), nu doar `from_id` — o legătură
+  `about` cu tura la `to_id` (cazul Expense-urilor de drum) nu era acoperită.
+- **`save_workday()` verifica doar `owner`, niciodată că id-ul chiar aparține
+  Workday-ului salvat** — un link de Vehicul, o sesiune sau un Expense
+  existent, numite în payload, erau șterse/actualizate doar pe baza
+  `owner = auth.uid()`; un id real al aceluiași om, dar al altui Draft, trecea
+  identic. Reparat: fiecare ștergere/actualizare e acum condiționată explicit
+  de apartenența la `v_item_id` (Workday-ul curent) — un link/sesiune al altui
+  Workday e pur și simplu ignorat (nu găsit), iar un Expense al altui Workday
+  e refuzat explicit (eroare), nu rescris orbește.
+- **Lipsea payout destination reference** — `docs/PLAN.md` cere explicit ca
+  fundația de date a unei Platforme să poată reprezenta o „payout destination
+  account”, alături de earning cycle/payout schedule/cash-out; `platform_rules`
+  nu avea niciun câmp pentru asta. Adăugat `payout_destination_reference`
+  (text simplu, ca `cashout_settlement` — nicio Platformă nu are încă vreun
+  ecran de configurare, execuția rămâne D2/D3).
+- **Save Draft/Complete Workday se poate încă rupe în două, într-un caz rar** —
+  item patch-ul (titlu/dată/Arie) rulează separat, înaintea RPC-ului atomic
+  `save_workday`; dacă RPC-ul eșuează după ce item patch-ul a reușit deja,
+  title/date/Arie rămân salvate, numerele Workday-ului nu. Investigat, nu
+  reparat: ordinea e deliberată — `pin_shift_rates()` citește `items.due` la
+  momentul scrierii turei, deci dacă data s-a schimbat în același Save, item
+  patch-ul trebuie să lande primul ca rata să se pinuiască pe ziua corectă, nu
+  pe cea veche. O simplă inversare a ordinii ar introduce alt bug (rata pinuită
+  pe data greșită); reparația completă ar cere mutarea patch-ului de item în
+  interiorul RPC-ului SQL, cu propriul version-check duplicat acolo, pierzând
+  calea generică `applyPatch` folosită de orice item din aplicație — decizie
+  arhitecturală pe care proprietarul a ales explicit s-o lase neschimbată
+  pentru acum. Rămâne o gaură reală, dar rară (necesită eșec de rețea chiar
+  între cele două scrieri) și recuperabilă (numerele nu se corup, doar
+  title/date pot rămâne salvate fără restul; un Save repetat rezolvă).
+
+Migrații: `20260907070000_completed_expense_guard_and_scoped_save`,
+`20260907080000_platform_rules_payout_destination` — **nu sunt aplicate
+live** încă (vezi `docs/MIGRATII.md`).
+
+Verificat mecanic: aceleași migrații de mai sus plus acestea două, aplicate în
+ordine pe un Postgres 16 local (construit manual, fără Docker); `check:rls` —
+100/100 cazuri, incluzând patru cazuri noi (garda de Completed pe Expense și
+pe link, plus cross-Workday pe link de Vehicul și pe Expense existent);
+lint/typecheck/659 teste unitare/build/structure/reachable/`check:drops` —
+toate verzi.
 
 ### Command Centre — partea existentă
 

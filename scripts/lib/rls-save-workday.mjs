@@ -7,7 +7,7 @@
  * part leaves nothing written rather than the first half of it.
  */
 
-import { A, B, CONSTRAINT } from './rls-context.mjs'
+import { A, B, CONSTRAINT, DENIED } from './rls-context.mjs'
 
 /** Refusal: a composite key with nothing to point at. */
 const FOREIGN_KEY = '23503'
@@ -132,6 +132,73 @@ export const CASES = [
       await t.asA(() =>
         t.denied(FOREIGN_KEY, 'select public.save_workday($1::jsonb)', [JSON.stringify(payload)]),
       )
+    },
+  },
+  {
+    group: 'negative',
+    // Same owner on both Workdays, unlike the case above — RLS alone would
+    // let this through. The payload names a link id that is real and A's
+    // own, just not this Workday's, which only an item_id-scoped delete
+    // catches.
+    name: "save_workday cannot unlink a Vehicle link belonging to a different Workday of the same owner",
+    run: async (t) => {
+      const ownWorkday = await shiftOwnedBy(t, A)
+      const otherWorkday = await shiftOwnedBy(t, A)
+      const vehicleId = await vehicleOwnedBy(t, A)
+      const { rows } = await t.q(
+        "insert into public.links (from_id, to_id, kind, owner) values ($1, $2, 'uses', $3) returning id",
+        [otherWorkday, vehicleId, A],
+      )
+      const otherWorkdaysLinkId = rows[0].id
+
+      const payload = { ...EMPTY_PAYLOAD, item_id: ownWorkday, vehicle_unlink_ids: [otherWorkdaysLinkId] }
+      await t.asA(() => t.q('select public.save_workday($1::jsonb)', [JSON.stringify(payload)]))
+
+      const stillThere = await t.q('select 1 from public.links where id = $1', [otherWorkdaysLinkId])
+      t.require(stillThere.rows.length === 1, "the other Workday's Vehicle link was removed")
+    },
+  },
+  {
+    group: 'negative',
+    name: 'save_workday refuses a road-cost expense id that belongs to a different Workday',
+    run: async (t) => {
+      const otherWorkday = await shiftOwnedBy(t, A)
+      const setupPayload = {
+        ...EMPTY_PAYLOAD,
+        item_id: otherWorkday,
+        road_cost_set: [
+          { category: 'parking', title: 'Parking', day: '2026-09-05', amount: 5, existing_expense_item_id: null },
+        ],
+      }
+      await t.asA(() => t.q('select public.save_workday($1::jsonb)', [JSON.stringify(setupPayload)]))
+      const { rows } = await t.q(
+        `select e.item_id from public.expenses e
+           join public.links l on l.from_id = e.item_id and l.kind = 'about'
+         where l.to_id = $1`,
+        [otherWorkday],
+      )
+      const othersExpenseId = rows[0].item_id
+
+      const ownWorkday = await shiftOwnedBy(t, A)
+      const attackPayload = {
+        ...EMPTY_PAYLOAD,
+        item_id: ownWorkday,
+        road_cost_set: [
+          {
+            category: 'parking',
+            title: 'Parking',
+            day: '2026-09-05',
+            amount: 999,
+            existing_expense_item_id: othersExpenseId,
+          },
+        ],
+      }
+      await t.asA(() =>
+        t.denied(DENIED, 'select public.save_workday($1::jsonb)', [JSON.stringify(attackPayload)]),
+      )
+
+      const untouched = await t.q('select amount from public.expenses where item_id = $1', [othersExpenseId])
+      t.require(Number(untouched.rows[0].amount) === 5, "the other Workday's Expense was rewritten")
     },
   },
 ]

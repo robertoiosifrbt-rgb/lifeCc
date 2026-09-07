@@ -70,6 +70,10 @@ export type PlatformRule = Omit<Row, 'id'> & {
   cashout_settlement: string | null
   cashout_fee_type: CashoutFeeType | null
   cashout_fee_value: number | null
+  /** Where a payout actually lands — a bank account, a card, whatever the
+   *  Platform pays out to. Plain text: no payout-destination screen exists
+   *  yet (D2/D3), and no bank-account entity kind exists to link instead. */
+  payout_destination_reference: string | null
 }
 
 export type PlatformRulePatch = Partial<
@@ -100,6 +104,7 @@ export function platformRuleFromRow(row: unknown): PlatformRule {
     cashout_settlement: optionalText(raw, 'cashout_settlement'),
     cashout_fee_type: feeTypeOf(raw),
     cashout_fee_value: optionalNumber(raw, 'cashout_fee_value'),
+    payout_destination_reference: optionalText(raw, 'payout_destination_reference'),
     ...stampsOf(raw),
   }
 }
