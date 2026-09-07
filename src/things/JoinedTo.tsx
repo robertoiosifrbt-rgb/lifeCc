@@ -77,7 +77,7 @@ export function JoinedTo(props: Props) {
       {adding ? (
         <div className="joined-form">
           <label className="joined-field">
-            <span className="joined-label">This one</span>
+            <span className="joined-label">Relationship</span>
             <select
               className="joined-input"
               name="link-kind"
@@ -93,7 +93,7 @@ export function JoinedTo(props: Props) {
           </label>
 
           <label className="joined-field">
-            <span className="joined-label">That one</span>
+            <span className="joined-label">Link to</span>
             <select
               className="joined-input"
               name="link-to"
