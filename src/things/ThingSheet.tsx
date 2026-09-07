@@ -1,34 +1,58 @@
 import { useState } from 'react'
+import { Building2, Car, Home as HomeIcon, User } from 'lucide-react'
 
 import {
   ENTITY_KIND_NAMES,
   FUELS,
   FUEL_NAMES,
   VEHICLE_DATES,
+  currentVehicleCostRateOf,
   dueOn,
+  fuelRateForVehicle,
 } from '../repository/items'
 import type {
   Entity,
   EntityPatch,
+  Expense,
   Fuel,
   Item,
   Link,
   LinkKind,
+  VehicleCostRate,
 } from '../repository/items'
+import { DrivingCostBasis } from '../shifts/DrivingCostBasis'
 import { JoinedTo } from './JoinedTo'
 import { Sheet } from '../ui/Sheet'
 import './ThingSheet.css'
+
+/** One icon per kind — the same mapping the Directory list uses. */
+const KIND_ICONS: Record<Entity['entity_kind'], typeof Car> = {
+  vehicle: Car,
+  company: Building2,
+  person: User,
+  property: HomeIcon,
+}
 
 type Props = {
   item: Item
   entity: Entity
   /** Every item, so the far end of an arrow can be named rather than numbered. */
   items: readonly Item[]
+  /** Every entity, so a Vehicle's own fuel rate can be worked out — the same
+   *  input `fuelRateForVehicle` already takes wherever a Workday reads it. */
+  things: readonly Entity[]
   links: readonly Link[]
+  expenses: readonly Expense[]
+  vehicleCostRates: readonly VehicleCostRate[]
   today: string
   onSave: (patch: EntityPatch) => Promise<void>
   onLink: (to_id: string, kind: LinkKind) => Promise<void>
   onUnlink: (id: string) => Promise<void>
+  onSaveVehicleCost: (
+    vehicle_item_id: string,
+    effective_from: string,
+    vehicle_per_km: number,
+  ) => Promise<void>
   onDrop: () => Promise<void>
   onClose: () => void
 }
@@ -59,6 +83,7 @@ export function ThingSheet(props: Props) {
   const { entity, item, onClose } = props
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [savingVehicleCost, setSavingVehicleCost] = useState(false)
 
   function run(body: () => Promise<void>) {
     setBusy(true)
@@ -88,9 +113,19 @@ export function ThingSheet(props: Props) {
 
   const isVehicle = entity.entity_kind === 'vehicle'
   const due = isVehicle ? dueOn(entity, props.today) : []
+  const fuelRate = fuelRateForVehicle(props.expenses, props.links, props.things, item.id)
+  const currentVehicleCost = currentVehicleCostRateOf(props.vehicleCostRates, item.id, props.today)
+  const Icon = KIND_ICONS[entity.entity_kind]
 
   return (
     <Sheet title={`${ENTITY_KIND_NAMES[entity.entity_kind]} · ${item.title}`} onClose={onClose}>
+      <div className="thing-hero">
+        <span className="thing-hero-icon">
+          <Icon aria-hidden="true" size={28} strokeWidth={2} />
+        </span>
+        <span className="thing-hero-title">{item.title}</span>
+      </div>
+
       {error !== null && <p className="thing-error">{error}</p>}
 
       {due.length > 0 && (
@@ -200,6 +235,22 @@ export function ThingSheet(props: Props) {
             </label>
           ))}
         </section>
+      )}
+
+      {isVehicle && (
+        <DrivingCostBasis
+          fuelRate={fuelRate}
+          vehicleCost={currentVehicleCost}
+          pinned={null}
+          busy={busy || savingVehicleCost}
+          readOnly={false}
+          onConfigureVehicle={(vehicle_per_km) => {
+            setSavingVehicleCost(true)
+            return props
+              .onSaveVehicleCost(item.id, props.today, vehicle_per_km)
+              .finally(() => setSavingVehicleCost(false))
+          }}
+        />
       )}
 
       <JoinedTo

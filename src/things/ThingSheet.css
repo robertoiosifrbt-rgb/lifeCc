@@ -1,5 +1,30 @@
 /* Imported by exactly one .tsx in this directory: ThingSheet.tsx */
 
+.thing-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.thing-hero-icon {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--tint-1-wash);
+  color: var(--tint-1-ink);
+}
+
+.thing-hero-title {
+  font-size: var(--text-l);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
 .thing-error {
   margin: 0 0 var(--space-3);
   color: var(--danger);

@@ -206,11 +206,17 @@ export function ThingsScreen() {
           item={openItem}
           entity={openThing}
           items={data.items}
+          things={data.things}
           links={data.links}
+          expenses={data.expenses}
+          vehicleCostRates={data.vehicleCostRates}
           today={today}
           onSave={(patch) => data.saveThing(openThing, patch)}
           onLink={(to_id, kind) => data.link(openThing.item_id, to_id, kind)}
           onUnlink={(id) => data.unlink(id)}
+          onSaveVehicleCost={(vehicle_item_id, effective_from, vehicle_per_km) =>
+            data.saveVehicleCost(vehicle_item_id, effective_from, vehicle_per_km)
+          }
           onDrop={async () => {
             await data.dropThing(openItem)
             setOpen(null)

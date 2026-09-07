@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import type { FuelRate } from '../repository/items'
 import { rateOf } from './money'
+import './DrivingCostBasis.css'
 
 /** Exactly what a Completed workday was pinned to — never today's rate. */
 export type PinnedBasis = { fuel_per_km: number | null; vehicle_per_km: number | null }
@@ -80,12 +81,12 @@ export function DrivingCostBasis(props: Props) {
   }
 
   return (
-    <section className="shift-block">
-      <h3 className="shift-heading">Driving cost basis</h3>
+    <section className="cost-block">
+      <h3 className="cost-heading">Driving cost basis</h3>
 
-      <div className="shift-paid">
-        <span className="shift-platform">Fuel cost</span>
-        <span className="shift-cost-value">
+      <div className="cost-row">
+        <span className="cost-label">Fuel cost</span>
+        <span className="cost-value">
           {props.pinned !== null
             ? rateText(props.pinned.fuel_per_km)
             : fuelKnown
@@ -94,9 +95,9 @@ export function DrivingCostBasis(props: Props) {
         </span>
       </div>
 
-      <div className="shift-paid">
-        <span className="shift-platform">Vehicle cost</span>
-        <span className="shift-cost-value">
+      <div className="cost-row">
+        <span className="cost-label">Vehicle cost</span>
+        <span className="cost-value">
           {props.pinned !== null
             ? rateText(props.pinned.vehicle_per_km)
             : props.vehicleCost === null
@@ -109,7 +110,7 @@ export function DrivingCostBasis(props: Props) {
         <button
           type="button"
           name="configure-vehicle-cost"
-          className="shift-button"
+          className="cost-button"
           disabled={props.busy}
           onClick={openEditor}
         >
@@ -118,10 +119,10 @@ export function DrivingCostBasis(props: Props) {
       )}
 
       {!props.readOnly && open && (
-        <div className="shift-paid">
-          <span className="shift-platform">Vehicle £/km</span>
+        <div className="cost-row">
+          <span className="cost-label">Vehicle £/km</span>
           <input
-            className="shift-amount"
+            className="cost-amount"
             name="vehicle_per_km"
             inputMode="decimal"
             value={typed}
@@ -131,7 +132,7 @@ export function DrivingCostBasis(props: Props) {
           <button
             type="button"
             name="save-vehicle-cost"
-            className="shift-button"
+            className="cost-button"
             disabled={saving}
             onClick={onSave}
           >
@@ -140,7 +141,7 @@ export function DrivingCostBasis(props: Props) {
         </div>
       )}
 
-      {error !== null && <p className="shift-error">{error}</p>}
+      {error !== null && <p className="cost-error">{error}</p>}
     </section>
   )
 }

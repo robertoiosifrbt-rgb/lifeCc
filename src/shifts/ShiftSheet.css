@@ -293,12 +293,6 @@
   font-size: var(--text-s);
 }
 
-.shift-cost-value {
-  font-size: var(--text-m);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-dim);
-}
-
 .shift-actions {
   display: flex;
   flex-direction: column;

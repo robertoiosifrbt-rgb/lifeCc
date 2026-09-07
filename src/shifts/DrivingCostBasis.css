@@ -1,0 +1,85 @@
+/* Imported by exactly one .tsx in this directory: DrivingCostBasis.tsx */
+/* A copy of ShiftSheet.css's own .shift-* row style, under its own names —
+   DrivingCostBasis is rendered from things/ThingSheet.tsx too, and
+   check-structure.mjs refuses a .css imported from outside its own
+   directory, so it cannot just reuse ShiftSheet.css. */
+
+.cost-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cost-heading {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.cost-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding-left: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-s);
+}
+
+.cost-label {
+  flex: 1;
+  font-size: var(--text-m);
+}
+
+.cost-value {
+  font-size: var(--text-m);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.cost-amount {
+  width: 40%;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--text-m);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+.cost-amount:focus-visible,
+.cost-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.cost-button {
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--text-m);
+}
+
+.cost-button:active {
+  transform: translateY(1px);
+}
+
+.cost-button:disabled {
+  opacity: 0.55;
+}
+
+.cost-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-s);
+}
