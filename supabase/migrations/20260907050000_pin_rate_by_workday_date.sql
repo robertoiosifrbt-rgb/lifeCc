@@ -1,4 +1,6 @@
--- NOT APPLIED LIVE. D1 audit blocker: `pin_shift_rates()` pinned
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section). D1 audit
+-- blocker: `pin_shift_rates()` pinned
 -- `vehicle_cost_rates.vehicle_per_km` by comparing `effective_from` against
 -- `now()` — the moment the Draft is saved, not the day the Workday is for.
 -- A Workday entered or edited after the fact (a day worked last week, typed

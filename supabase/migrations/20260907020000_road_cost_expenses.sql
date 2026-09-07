@@ -1,4 +1,6 @@
--- NOT APPLIED LIVE. D1 audit blocker: parking/tolls/other_cost lived as
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section). D1 audit
+-- blocker: parking/tolls/other_cost lived as
 -- numeric columns directly on `shifts` (from `20260905190000_from_the_reference`,
 -- already live) — a second financial truth the frozen contract forbids for
 -- new writes. Widens the Expense category enum so a parking or toll cost can

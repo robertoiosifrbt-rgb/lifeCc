@@ -1,4 +1,6 @@
--- NOT APPLIED LIVE. D1 audit blocker: D1.F requires "effective-dated/
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section). D1 audit
+-- blocker: D1.F requires "effective-dated/
 -- versioned financial rule semantics" in the Platform data foundation, but
 -- `platforms` (already live, from `20260907000000_delivery_data_foundation`)
 -- keeps earning cycle/payout/cash-out as a single mutable row — the same

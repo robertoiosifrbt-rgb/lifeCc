@@ -1,4 +1,6 @@
--- NOT APPLIED LIVE. D1 audit blocker: `platform_item_id` (on `shift_earnings`
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section). D1 audit
+-- blocker: `platform_item_id` (on `shift_earnings`
 -- and `platform_rules`, both `20260907000000_delivery_data_foundation` /
 -- `20260907030000_platform_rules`) only foreign-keys to `items (id, owner)` —
 -- the same check every anchor's own extension table uses to prove it belongs

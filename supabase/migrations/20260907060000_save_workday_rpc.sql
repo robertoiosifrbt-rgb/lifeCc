@@ -1,4 +1,6 @@
--- NOT APPLIED LIVE. D1 audit blocker: Save draft / Complete Workday wrote a
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section). D1 audit
+-- blocker: Save draft / Complete Workday wrote a
 -- shift's numbers, its earnings (legacy and configurable-Platform alike),
 -- its session breaks/drops, its Vehicle link and its road-cost Expenses as a
 -- sequence of separate network requests, one per changed part. A failure

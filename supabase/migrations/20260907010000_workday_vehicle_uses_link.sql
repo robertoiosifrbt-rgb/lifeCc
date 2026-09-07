@@ -1,4 +1,6 @@
--- NOT APPLIED LIVE. Fix for a D1 audit blocker: the Vehicle a Workday used
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section). Fix for a
+-- D1 audit blocker: the Vehicle a Workday used
 -- was resolved through an `about` link, the same generic kind a fuel Expense
 -- or a car-insurance-renewal task also uses to mention a Vehicle. `about` is
 -- deliberately loose — this migration gives the Workday's own cost basis a

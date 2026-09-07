@@ -548,7 +548,7 @@ găsit blocaje reale, în afara celor de mai sus:
   cu Vehiculul chiar folosit de Workday. Reparat: `links_kind` are acum și
   `uses`, iar `pin_shift_rates()`/`vehicleLinkOf` (repository) cer explicit
   kind-ul — Workday-ul citește/scrie `uses`, un fuel Expense rămâne pe
-  `about`. Migrație nouă: `20260907010000_workday_vehicle_uses_link` (neaplicată live).
+  `about`. Migrație: `20260907010000_workday_vehicle_uses_link` (aplicată live, 7 sep 2026, manual).
 - **`parking`/`tolls`/`other_cost` erau al doilea adevăr financiar** —
   numere direct pe `shifts`, nu Expense-uri. Reparat cu o regulă dual-path,
   aleasă explicit de proprietar: coloanele vechi de pe `shifts` rămân
@@ -561,9 +561,9 @@ găsit blocaje reale, în afara celor de mai sus:
   valabil acum” se face într-un singur loc, `withRoadCostExpenses`
   (`repository/shift.ts`), apelat din `items/snapshot.ts` — restul motorului
   de calcul (`takeHome`, toate ecranele) citește `shift.parking` exact ca
-  înainte, fără să știe că un Expense e implicat. Migrație nouă:
+  înainte, fără să știe că un Expense e implicat. Migrație:
   `20260907020000_road_cost_expenses` (extinde enumul de categorii,
-  neaplicată live).
+  aplicată live, 7 sep 2026, manual).
 - **Platforms neconectat în UI-ul de Earnings, plus un bug critic găsit pe
   drum** — `ShiftEarnings` arăta doar lista veche hardcodată (Uber Eats/
   Deliveroo/Just Eat/Other); o Platformă configurată n-avea cum să primească
@@ -578,10 +578,10 @@ găsit blocaje reale, în afara celor de mai sus:
   contractul D1.F cere explicit istoric versionat, exact ca la
   `vehicle_cost_rates`. Reparat: tabel nou `platform_rules` (o linie per
   Platformă per dată de la care regula a intrat în vigoare); `platforms`
-  rămâne doar identitate (`active`, `display_order`). Migrație nouă:
-  `20260907030000_platform_rules` (neaplicată live; nicio Platformă n-a avut
-  vreodată o valoare reală în coloanele scoase — niciun ecran de configurare
-  a Platformelor nu există încă, e D3).
+  rămâne doar identitate (`active`, `display_order`). Migrație:
+  `20260907030000_platform_rules` (aplicată live, 7 sep 2026, manual; nicio
+  Platformă n-a avut vreodată o valoare reală în coloanele scoase — niciun
+  ecran de configurare a Platformelor nu există încă, e D3).
 - **`platform_item_id` verifica doar proprietarul, nu felul item-ului** —
   FK-ul `(platform_item_id, owner) references items (id, owner)` pe
   `shift_earnings` și `platform_rules` dovedea doar că item-ul e al aceluiași
@@ -589,8 +589,8 @@ găsit blocaje reale, în afara celor de mai sus:
   sau altă ancoră a aceluiași om (o constrângere CHECK nu poate rula un
   subquery). Reparat cu un trigger generic, `require_item_kind()` (parametrizat
   cu numele coloanei și felul așteptat, la fel ca `pin()`), pus pe ambele
-  tabele. Migrație nouă: `20260907040000_platform_item_kind` (neaplicată
-  live). Gaură similară, nefixată aici — în afara acestui blocaj —:
+  tabele. Migrație: `20260907040000_platform_item_kind` (aplicată live,
+  7 sep 2026, manual). Gaură similară, nefixată aici — în afara acestui blocaj —:
   `vehicle_cost_rates.vehicle_item_id`/`vehicle_fuel_rates.vehicle_item_id` au
   exact aceeași limitare (FK pe owner, nu pe `entity_kind='vehicle'`).
 - **`vehicle_cost_rates` se pinea după data scrierii, nu după ziua turei** —
@@ -600,8 +600,8 @@ găsit blocaje reale, în afara celor de mai sus:
   acum `items.due` al turei înseși (aceeași coloană setată de
   `createDated`/`createShift`), cu fallback la data curentă doar dacă `due`
   ar lipsi. `vehicle_fuel_rates` nu are nevoie de aceeași reparație — e un
-  rând mutabil unic, fără istoric de date. Migrație nouă:
-  `20260907050000_pin_rate_by_workday_date` (neaplicată live).
+  rând mutabil unic, fără istoric de date. Migrație:
+  `20260907050000_pin_rate_by_workday_date` (aplicată live, 7 sep 2026, manual).
 - **„Download everything" excludea aproape tot, nu doar tabelele D1** —
   `exportAll`/`exportFile` citeau doar `items`, `journal_entries` și
   `quick_actions`; un shift, un Expense, un istoric de `vehicle_cost_rates`,
@@ -634,7 +634,7 @@ găsit blocaje reale, în afara celor de mai sus:
   `removeEarning`, `setPlatformEarning`, `removePlatformEarning`,
   `setSessionBreak`, `removeSession`, `setRoadCost`) nu au fost șterse —
   rămân primitive testate separat, doar nemaifolosite de acest flux.
-  Migrație nouă: `20260907060000_save_workday_rpc` (neaplicată live).
+  Migrație: `20260907060000_save_workday_rpc` (aplicată live, 7 sep 2026, manual).
 - **Reseed-ul draft-ului după Save citea `links`-ul dinainte de salvare, nu
   cel de după** — `ShiftSheet`'s `onSaveDraft` reconstruia draft-ul din
   rezultat cu `props.links`, care nu reflectă încă salvarea (resincronizarea
@@ -653,11 +653,21 @@ găsit blocaje reale, în afara celor de mai sus:
   LIVE (manually...)" și trimit la secțiunea de drift din `MIGRATII.md`
   pentru ce anume înseamnă asta (nu apar în
   `supabase_migrations.schema_migrations`, niciun `if not exists`/`or
-  replace`, un `db push` viitor le va încerca din nou și va eșua). Restul
-  fișierelor din `2026090[67]*` verificate: niciunul altul nu are aceeași
-  contradicție — cele ulterioare (`0710` până la `0760`) spun corect „NOT
-  APPLIED LIVE" despre ele însele, și `0730` menționează deja corect
-  `platforms` ca „already live". Nicio schimbare de comportament: doar text.
+  replace`, un `db push` viitor le va încerca din nou și va eșua). La
+  momentul acestui fix, celelalte șase migrații ale rundei D1 (`0710` până
+  la `0760`) spuneau încă, corect, „NOT APPLIED LIVE" despre ele însele —
+  toate șase au fost rulate manual pe live ulterior, în aceeași zi, și
+  antetele lor au primit aceeași corecție (vezi bulletul de mai jos despre
+  rularea lor). Nicio schimbare de comportament: doar text.
+- **Toate cele șase migrații de audit D1 de mai sus, aplicate pe live** —
+  proprietarul a rulat manual, prin SQL Editor Supabase, cele șase fișiere
+  `20260907010000_workday_vehicle_uses_link` până la
+  `20260907060000_save_workday_rpc`, într-un singur block, în ordine. Toate
+  șase apar acum ca aplicate în `docs/MIGRATII.md` (7 sep 2026, manual) și
+  au primit aceeași corecție de antet ca `0700`/D1 (`APPLIED LIVE`, cu
+  trimitere la secțiunea de drift). Consecință directă: Platforms
+  configurabile, atomicitatea Save Workday și restul reparațiilor de mai sus
+  sunt acum reale pe live, nu doar în cod.
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
 sandbox): toate migrațiile aplicate în ordine, `check:rls` — 96/96 cazuri

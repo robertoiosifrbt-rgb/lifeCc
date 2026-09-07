@@ -43,6 +43,12 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260906050000_quick_actions` | tabelul `quick_actions` | 6 sep 2026 |
 | `20260906070000_pin_while_draft` | `vehicle_fuel_rates` + `pin_shift_rates()` re-derivă rata de combustibil după Vehicul | 6 sep 2026 (manual, vezi drift) |
 | `20260907000000_delivery_data_foundation` | `vehicle_cost_rates`, `platforms`, imutabilitate Completed, `shift_earnings.platform_item_id` | 6 sep 2026 (manual, vezi drift) |
+| `20260907010000_workday_vehicle_uses_link` | `links_kind` + `uses`; `pin_shift_rates()` rezolvă Vehiculul doar prin `uses` | 7 sep 2026 (manual, vezi drift) |
+| `20260907020000_road_cost_expenses` | `expenses_category` extinsă cu `parking`/`tolls` | 7 sep 2026 (manual, vezi drift) |
+| `20260907030000_platform_rules` | tabelul `platform_rules` (effective-dated); scoate cele 7 coloane de regulă din `platforms` | 7 sep 2026 (manual, vezi drift) |
+| `20260907040000_platform_item_kind` | trigger `require_item_kind()` pe `shift_earnings`/`platform_rules` | 7 sep 2026 (manual, vezi drift) |
+| `20260907050000_pin_rate_by_workday_date` | `pin_shift_rates()` pinuiește după `items.due`, nu după `now()` | 7 sep 2026 (manual, vezi drift) |
+| `20260907060000_save_workday_rpc` | funcția `save_workday(payload jsonb)` — RPC atomic pentru Save draft/Complete Workday | 7 sep 2026 (manual, vezi drift) |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
@@ -109,58 +115,28 @@ deschise (vezi `docs/STAREA.md`). Repararea celor 15 sesiuni și aplicarea lui
 `0600` rămân decizii separate, explicite, ale proprietarului — nu s-a făcut
 nimic din astea aici.
 
-`20260907010000_workday_vehicle_uses_link` **nu** este aplicată live și nu
-apare în tabelul de mai sus. Reparație de audit D1: relația Workday→Vehicul
-folosea kind-ul generic `about` (același folosit și de un fuel Expense către
-Vehicul), ceea ce permitea confuzia unei mențiuni oarecare cu Vehiculul chiar
-folosit. Adaugă `uses` la `links_kind` și rescrie `pin_shift_rates()` să
-rezolve Vehiculul doar după o legătură `uses`. Fără date live de migrat — nicio
-legătură Workday→Vehicul (de orice fel) nu a fost încă exercitată pe live.
+`20260907010000_workday_vehicle_uses_link`, `20260907020000_road_cost_expenses`,
+`20260907030000_platform_rules`, `20260907040000_platform_item_kind`,
+`20260907050000_pin_rate_by_workday_date` și `20260907060000_save_workday_rpc`
+sunt acum în tabelul de mai sus, aplicate manual pe live (vezi drift mai jos).
+Toate șase sunt reparațiile de audit D1 descrise în `docs/STAREA.md`, secțiunea
+„Audit D1 (ChatGPT)”:
 
-`20260907020000_road_cost_expenses` **nu** este aplicată live și nu apare în
-tabelul de mai sus. Altă reparație de audit D1: `parking`/`tolls`/`other_cost`
-trăiau ca numere pe `shifts` (din `20260905190000_from_the_reference`, deja
-live) — al doilea adevăr financiar interzis de contract. Adaugă `parking` și
-`tolls` la enumul de categorii al `expenses`, ca aceste costuri să poată deveni
-Expense-uri reale, legate de Workday prin `about`. Coloanele vechi de pe
-`shifts` **nu sunt atinse și nu sunt șterse** — pot avea deja valori reale pe
-live; vezi `docs/STAREA.md` pentru regula dual-path (Expense legat câștigă
-peste coloana veche, niciodată conversie automată).
+- `uses` ca link kind propriu pentru relația Workday→Vehicul, în loc de
+  `about`-ul generic folosit și de un fuel Expense;
+- `parking`/`tolls` adăugate la enumul de categorii al `expenses`, ca aceste
+  costuri să poată deveni Expense-uri reale (coloanele vechi de pe `shifts`
+  rămân neatinse — vezi `docs/STAREA.md` pentru regula dual-path);
+- tabelul nou `platform_rules` (effective-dated, ca la `vehicle_cost_rates`)
+  și cele 7 coloane de regulă scoase din `platforms`;
+- trigger-ul `require_item_kind()`, care leagă `platform_item_id` de un item
+  chiar de kind `platform`, nu doar de același owner;
+- `pin_shift_rates()` rescrisă să pinuiască rata de cost după `items.due` al
+  turei, nu după `now()`;
+- funcția `save_workday(payload jsonb)`, un RPC apelat o singură dată în locul
+  secvenței de până la nouă scrieri separate ale Save draft/Complete Workday.
 
-`20260907030000_platform_rules` **nu** este aplicată live și nu apare în
-tabelul de mai sus. A treia reparație de audit D1: regulile unei Platforme
-(earning cycle, payout schedule, cash-out) stăteau ca o singură linie mutabilă
-pe `platforms` (deja live, din D1) — contractul cere effective-dating, exact
-ca la `vehicle_cost_rates`. Adaugă tabelul nou `platform_rules` (o linie per
-Platformă per dată de la care regula a intrat în vigoare) și scoate cele 7
-coloane de regulă din `platforms`, care rămâne doar identitate (`active`,
-`display_order`). Fără date live de migrat — nicio Platformă n-a avut vreodată
-o valoare reală în acele coloane, neexistând încă niciun ecran de configurare
-a Platformelor (D3).
-
-`20260907040000_platform_item_kind` **nu** este aplicată live și nu apare în
-tabelul de mai sus. A patra reparație de audit D1: `platform_item_id` (pe
-`shift_earnings` și `platform_rules`) verifica prin FK doar că item-ul
-referit e al aceluiași owner, niciodată că e chiar o Platformă — un CHECK nu
-poate rula un subquery, așa că e nevoie de un trigger. Adaugă
-`require_item_kind()`, un trigger generic (parametrizat, ca `pin()`), pus pe
-ambele tabele. Fără date live de migrat.
-
-`20260907050000_pin_rate_by_workday_date` **nu** este aplicată live și nu
-apare în tabelul de mai sus. A cincea reparație de audit D1:
-`pin_shift_rates()` compara `vehicle_cost_rates.effective_from` cu `now()` —
-momentul scrierii, nu ziua turei. O tură scrisă/editată mult după ziua
-lucrată primea rata curentă azi, nu rata în vigoare atunci. Rescrie
-comparația să folosească `items.due` al turei. Fără date live de migrat.
-
-`20260907060000_save_workday_rpc` **nu** este aplicată live și nu apare în
-tabelul de mai sus. A șasea reparație de audit D1: Save draft/Complete
-Workday scriau prin până la nouă cereri separate, secvențial — o cădere la
-mijloc lăsa scrise doar primele. Adaugă `save_workday(payload jsonb)`, o
-funcție Postgres apelată o singură dată prin RPC; o invocare de funcție e o
-singură tranzacție, deci totul reușește împreună sau nimic. Nu duplică nicio
-regulă existentă (`security invoker` rulează sub aceleași RLS/grant/trigger
-ca orice cerere directă). Fără date live de migrat.
+Fără date live de migrat pentru niciuna dintre ele.
 
 ## Schimbări manuale declarate
 
@@ -219,6 +195,27 @@ Același drift ca mai sus, pentru aceleași motive:
 Aceeași remediere ca mai sus rămâne necesară înainte de orice `db push`
 viitor: `supabase migration repair` (sau echivalent) pe ambele migrații, sau
 fișiere idempotente. Nu s-a făcut aici.
+
+### `20260907010000` - `20260907060000` — rulate manual, nu prin CLI
+
+Același drift, pentru aceleași motive, pe toate șase migrațiile de audit D1
+rulate pe 7 sep 2026:
+
+- rulate din SQL Editor Supabase pe `tasks-calendar`, nu prin `supabase db
+  push`/CLI — **nu apar** în `supabase_migrations.schema_migrations`;
+- majoritatea instrucțiunilor lor nu sunt idempotente (`alter table ... drop
+  constraint`/`add constraint` fără `if exists`, `create table
+  public.platform_rules` fără `if not exists`, `create function
+  require_item_kind()`/`create trigger ..._platform_kind` fără `or replace`)
+  — un `db push` viitor, în ordinea normală a fișierelor, va încerca să le
+  reaplice și va eșua pe cel puțin una dintre ele;
+- ordinea standard de migrații pune `0600` (`shift_invariants`, tot
+  neaplicată live) și cele două de mai sus înaintea tuturor — un `db push`
+  viitor eșuează mai întâi acolo, indiferent dacă se ajunge sau nu la acestea.
+
+Aceeași remediere ca mai sus rămâne necesară înainte de orice `db push`
+viitor, pe toate cele opt migrații rulate manual până acum (cele două de mai
+sus, plus aceste șase). Nu s-a făcut aici.
 
 ### `reserves`
 
