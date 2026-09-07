@@ -9,7 +9,6 @@ import type {
   Expense,
   Item,
   Link,
-  Patch,
   RoadCostField,
   SaveWorkdayPayload,
   Shift,
@@ -31,9 +30,9 @@ import {
 } from './draftPatches'
 
 export type WorkdayWriters = {
-  onUpdateItem: (patch: Patch) => Promise<void>
-  /** Everything else the sheet changed, in one transaction — see
-   *  `SaveWorkdayPayload`/`save_workday` for what each field becomes. */
+  /** Everything the sheet changed, in one transaction — the item's own
+   *  title/date/Area patch included. See `SaveWorkdayPayload`/`save_workday`
+   *  for what each field becomes. */
   onCommit: (payload: SaveWorkdayPayload) => Promise<void>
 }
 
@@ -42,14 +41,19 @@ export type WorkdayWriters = {
  * that reflect exactly what was just written — so the caller can settle a
  * fresh draft on the result without waiting for the next full sync.
  *
- * The item's own patch is written first, on its own version-checked call —
- * a different concern (a concurrent edit to the anchor) from everything
- * below it, which lands as a single `onCommit`, one Postgres transaction:
- * a Draft's cost basis (fuel and vehicle wear alike) is re-derived the
- * moment the `shifts` row is written, by a database trigger that resolves
- * "the" Vehicle by joining `links` — so a changed Vehicle link has to be
- * part of the same write as the shift row, never a separate one that could
- * land, or fail, on its own.
+ * The item's own patch (title/date/Area) rides inside the same `onCommit`
+ * transaction as everything else now, not a separate call ahead of it: a
+ * separate call meant a rejected commit could still leave the title or date
+ * changed with nothing else that was typed alongside it — a Workday saved
+ * in two torn pieces, which is exactly what "Save draft" must never be. The
+ * RPC itself still applies the item patch before the shift row: a Draft's
+ * cost basis (fuel and vehicle wear alike) is re-derived the moment the
+ * `shifts` row is written, by a database trigger that resolves "the" Vehicle
+ * by joining `links` and reads the day off `items.due` — so a changed date
+ * has to have already landed by then, same as a changed Vehicle link.
+ * `expected_version` keeps the same protection the old separate call gave a
+ * concurrent edit to the anchor, just as a check inside this one transaction
+ * instead of a second round trip.
  *
  * `forceShiftTouch` is for Complete Workday alone: a shift with nothing
  * operational typed this round would otherwise never issue a write to
@@ -89,10 +93,9 @@ export async function saveWorkday(
   // here would be malformed draft data, and it is never deleted regardless.
   const sessionsRemoved = sessionsToRemoveOf(shift, draft)
 
-  if (Object.keys(itemPatch).length > 0) await writers.onUpdateItem(itemPatch)
-
   const forceShiftTouch = opts.forceShiftTouch === true
   const hasCommit =
+    Object.keys(itemPatch).length > 0 ||
     vehiclePatch !== null ||
     Object.keys(shiftPatch).length > 0 ||
     earningsPatch.length > 0 ||
@@ -109,6 +112,8 @@ export async function saveWorkday(
     const day = draft.due !== '' ? draft.due : item.due ?? ''
     await writers.onCommit({
       item_id: item.id,
+      item_patch: itemPatch,
+      expected_version: item.version,
       force_shift_touch: forceShiftTouch,
       vehicle_unlink_ids: vehiclePatch?.toUnlink ?? [],
       vehicle_link_to: vehiclePatch?.toLinkVehicleId ?? null,

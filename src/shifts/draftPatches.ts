@@ -85,6 +85,15 @@ export function shiftPatchOf(shift: Shift, draft: Draft): ShiftPatch {
  * Never a write to `shifts.parking`/`tolls`/`other_cost` any more: the
  * moment a field is touched, it becomes (or updates) a real linked Expense,
  * one shared financial object instead of a second one living on the shift.
+ *
+ * Blanking a field that is only showing a legacy figure (no Expense backs
+ * it yet) is touching it too: a blank cannot remove what there is no
+ * Expense to delete (`roadCostsToRemoveOf` needs one), and the frozen
+ * legacy column may never be written to make it stop showing either — so
+ * "blank" here becomes a real £0 Expense instead, the same as if £0 had
+ * been typed. `withRoadCostExpenses` already prefers any real Expense over
+ * the legacy column outright, so this is enough to make the stale figure
+ * stop reappearing for good, without guessing what it should have said.
  */
 export function roadCostPatchOf(
   shift: Shift,
@@ -95,9 +104,15 @@ export function roadCostPatchOf(
   const changed: { field: RoadCostField; amount: number; existingExpenseItemId: string | null }[] = []
   for (const [field, category] of Object.entries(ROAD_COST_FIELDS) as [RoadCostField, Expense['category']][]) {
     const parsed = parseMoney(draft[field])
-    if (!parsed.ok || parsed.value === null) continue
-    if (parsed.value === shift[field]) continue
+    if (!parsed.ok) continue
     const existing = roadCostExpenseOf(links, expenses, shift.item_id, category)
+    if (parsed.value === null) {
+      if (existing === null && shift[field] !== null && shift[field] !== 0) {
+        changed.push({ field, amount: 0, existingExpenseItemId: null })
+      }
+      continue
+    }
+    if (parsed.value === shift[field]) continue
     changed.push({ field, amount: parsed.value, existingExpenseItemId: existing?.item_id ?? null })
   }
   return changed

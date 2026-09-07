@@ -206,10 +206,9 @@ registrului este refuzat și de baza de date (`check` pe coloană) și de
   arhitectura de sync deja existentă, la fel cum `NotCached` o face pentru
   celelalte scrieri; o a doua sesiune nu se pornește niciodată pe baza
   acestui semnal;
-- migrația din repo adaugă / schema țintă va impune, la nivel de schemă: cel
-  mult o tură vie pe owner+zi+arie, și cel mult o sesiune deschisă pe tură —
-  migrație separată, nu o editare a celei deja live (nu este încă aplicată
-  live — vezi mai jos);
+- schema impune acum, la nivel de bază: cel mult o tură vie pe owner+zi+arie,
+  și cel mult o sesiune deschisă pe tură — `20260906060000_shift_invariants`,
+  migrație separată, **aplicată live** (confirmat direct, vezi mai jos);
 - „Download everything" include acum și configurația Quick Actions întreagă
   (inclusiv rândurile șterse soft) — `exportFile`/`exportAll` citesc și
   `quick_actions`, alături de `items` și `journal_entries`, în același
@@ -711,21 +710,9 @@ găsit patru probleme reale în plus:
   nu avea niciun câmp pentru asta. Adăugat `payout_destination_reference`
   (text simplu, ca `cashout_settlement` — nicio Platformă nu are încă vreun
   ecran de configurare, execuția rămâne D2/D3).
-- **Save Draft/Complete Workday se poate încă rupe în două, într-un caz rar** —
-  item patch-ul (titlu/dată/Arie) rulează separat, înaintea RPC-ului atomic
-  `save_workday`; dacă RPC-ul eșuează după ce item patch-ul a reușit deja,
-  title/date/Arie rămân salvate, numerele Workday-ului nu. Investigat, nu
-  reparat: ordinea e deliberată — `pin_shift_rates()` citește `items.due` la
-  momentul scrierii turei, deci dacă data s-a schimbat în același Save, item
-  patch-ul trebuie să lande primul ca rata să se pinuiască pe ziua corectă, nu
-  pe cea veche. O simplă inversare a ordinii ar introduce alt bug (rata pinuită
-  pe data greșită); reparația completă ar cere mutarea patch-ului de item în
-  interiorul RPC-ului SQL, cu propriul version-check duplicat acolo, pierzând
-  calea generică `applyPatch` folosită de orice item din aplicație — decizie
-  arhitecturală pe care proprietarul a ales explicit s-o lase neschimbată
-  pentru acum. Rămâne o gaură reală, dar rară (necesită eșec de rețea chiar
-  între cele două scrieri) și recuperabilă (numerele nu se corup, doar
-  title/date pot rămâne salvate fără restul; un Save repetat rezolvă).
+- **Save Draft/Complete Workday se rupea în două — reparat acum, vezi runda a
+  doua de mai jos.** Item patch-ul (titlu/dată/Arie) a fost mutat înăuntrul
+  RPC-ului `save_workday`, cu propriul version-check.
 
 Migrații: `20260907070000_completed_expense_guard_and_scoped_save`,
 `20260907080000_platform_rules_payout_destination` — **aplicate live** acum
@@ -738,6 +725,80 @@ ordine pe un Postgres 16 local (construit manual, fără Docker); `check:rls` �
 pe link, plus cross-Workday pe link de Vehicul și pe Expense existent);
 lint/typecheck/659 teste unitare/build/structure/reachable/`check:drops` —
 toate verzi.
+
+### Audit D1 — a doua rundă (7 sep 2026, după runda de mai sus)
+
+Un al doilea audit cumulativ, pe HEAD-ul de după runda anterioară, a găsit
+încă 5 blocaje HIGH și 2 MEDIUM. Reparate:
+
+- **Platformele hardcodate încă puteau crea date noi** — `ShiftEarnings`
+  arăta necondiționat un câmp pentru fiecare din Uber Eats/Deliveroo/Just
+  Eat/Other, pe orice Draft, chiar unul complet nou, contrar contractului D1
+  („platforme finale = records configurabile, legacy = doar compatibilitate
+  istorică"). Reparat: un câmp legacy apare acum doar dacă tura *are deja* un
+  câștig real stocat pe acel platform (`legacyPlatformsInUse`, calculat din
+  `shift.earnings`, nu din draft) — un Draft nou oferă doar Platforme
+  configurabile.
+- **Un earning invalid pe o Platformă configurabilă se pierdea în tăcere** —
+  `validateDraft()` valida doar cele patru platforme legacy, niciodată
+  `draft.platformEarnings`; `platformEarningsPatchOf` sare peste o valoare
+  care nu se parsează, deci o valoare greșită dispărea fără eroare și fără
+  să oprească Save/Complete. Reparat: fiecare intrare din
+  `draft.platformEarnings` e validată la fel ca una legacy.
+- **Completed Workday nu era imutabil la nivelul propriei ancore `items`** —
+  garda exista pe `shifts`/`shift_sessions`/`shift_earnings`/`links`/Expense
+  legat, dar `authenticated` putea încă `UPDATE` `title`/`due`/`area_id`/
+  `state`/`kind` direct pe `items`, confirmat printr-o verificare read-only pe
+  live. Reparat: trigger nou, `items_reject_completed_shift_write` — refuză
+  orice schimbare pe acele coloane odată ce `state = 'done'`. `deleted_at`
+  rămâne explicit neafectat: ștergerea unui Workday Completed rămâne permisă,
+  la fel ca la un Draft.
+- **Un RPC reușit putea fi arătat ca eșec** — `saveWorkdayAtomic()` rula
+  `save_workday` (deja comis), apoi trei sincronizări; dacă una din ele
+  eșua, se arunca o eroare simplă, nu semnalul `SyncPending` deja folosit
+  pentru exact acest caz în altă parte (`clockOn`). Reparat: o sincronizare
+  eșuată după commit e acum `SyncPending`, tratată de `write()` ca succes
+  soft (numerele sunt pe server; doar dispozitivul n-a putut reciti), nu ca
+  motiv de reîncercare care ar fi putut crea un al doilea Expense de cost de
+  drum peste cel deja scris.
+- **Save Workday nu era atomic ca acțiune completă** — item patch-ul
+  (titlu/dată/Arie) rula separat, înaintea RPC-ului; un eșec al RPC-ului
+  după ce item patch-ul reușise lăsa un Workday salvat pe jumătate. Reparat:
+  item patch-ul e acum parte din aceeași tranzacție `save_workday`, scris
+  înaintea rândului din `shifts` (ordinea rămâne necesară — `pin_shift_rates()`
+  citește `items.due` la scrierea turei). Protecția la editare concurentă nu
+  s-a pierdut: `expected_version` verifică versiunea în aceeași tranzacție —
+  o versiune învechită respinge tot Save-ul (nimic parțial aplicat), cu un
+  mesaj clar, fără reîncercarea automată/merge-ul pe care `writeChecked` îl
+  oferă altor patch-uri de item.
+- **Un road cost legacy fără Expense legat nu putea fi golit** — dacă
+  `shifts.parking`/`tolls`/`other_cost` avea o valoare veche fără niciun
+  Expense legat, iar utilizatorul golea câmpul, nimic nu se scria (coloana
+  legacy nu mai poate fi scrisă niciodată, per `20260907020000`, iar
+  `roadCostsToRemoveOf` cere un Expense existent de șters) — valoarea
+  reapărea la redeschidere. Pe live, 0 astfel de valori neacoperite la
+  momentul auditului. Reparat: golirea unui asemenea câmp creează acum un
+  Expense real de £0, pe care `withRoadCostExpenses` îl preferă oricum în
+  fața coloanei legacy — valoarea veche nu mai reapare, fără să ghicească
+  vreun titlu/business_pct și fără să atingă vreodată coloana înghețată.
+- **Documentație contrazicea codul/live-ul** — `STAREA.md` mai spunea într-un
+  loc că `shift_invariants` nu e aplicată live (era, corect, mai jos);
+  `PROGRESS.md` spunea că fundația Platformelor (`platforms`,
+  `shift_earnings.platform_item_id`) e neaplicată live, deși `MIGRATII.md` o
+  declara deja aplicată manual. Ambele corectate.
+
+Migrație nouă: `20260907090000_completed_item_anchor_guard` (garda pe
+`items`) și `20260907100000_atomic_item_patch` (`create or replace` pe
+`save_workday`, cu item patch + `expected_version`) — **nu sunt aplicate
+live încă**.
+
+Verificat mecanic: toate migrațiile (inclusiv acestea două) aplicate în
+ordine pe un Postgres 16 local; `check:rls` — 104/104 cazuri, incluzând șase
+cazuri noi (item patch în aceeași comitere, versiune învechită refuzată,
+garda Completed pe `items`, ștergerea încă permisă pe un Workday Completed);
+lint/typecheck/662 teste unitare/build/structure/reachable/`check:drops` —
+toate verzi. `check:layout`/`check:quick-actions-row` nu au putut rula în
+acest sandbox (fără server real de Supabase Auth).
 
 ### Command Centre — partea existentă
 

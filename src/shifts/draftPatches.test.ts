@@ -217,10 +217,23 @@ describe('isDirty / patches — Save draft only writes what changed', () => {
       expect(roadCostPatchOf(day, draft, expenses, links)).toEqual([])
     })
 
-    it('clearing a field that was only ever a legacy column has nothing to remove', () => {
+    it('clearing a field that was only ever a legacy column has nothing to remove, but writes a real £0 Expense over it', () => {
       const day = shift({ parking: 20 })
       const draft = { ...draftFrom(item(), day, [], []), parking: '' }
       expect(roadCostsToRemoveOf(day, draft, [], [])).toEqual([])
+      // The frozen shifts.parking column may never be written again, so a
+      // blank cannot mean "gone" the way it does for an Expense-backed
+      // field — a £0 Expense is created instead, which withRoadCostExpenses
+      // then prefers outright, so the stale 20 never resurfaces.
+      expect(roadCostPatchOf(day, draft, [], [])).toEqual([
+        { field: 'parking', amount: 0, existingExpenseItemId: null },
+      ])
+    })
+
+    it('a legacy column already reading zero needs no override — there is nothing to shadow', () => {
+      const day = shift({ parking: 0 })
+      const draft = { ...draftFrom(item(), day, [], []), parking: '' }
+      expect(roadCostPatchOf(day, draft, [], [])).toEqual([])
     })
   })
 

@@ -1375,13 +1375,30 @@ At creation of this backlog (2026-09-06):
   `expenses`, plus the `links` guard widened to check both link ends);
   `save_workday()` now validates every id in its payload against the
   Workday actually being saved, not just against `owner`; `platform_rules`
-  gained `payout_destination_reference`. Left open, by the owner's own
-  choice: Save draft/Complete Workday's item patch (title/date/Area) still
-  lands outside the atomic `save_workday` RPC — see `docs/STAREA.md`.
+  gained `payout_destination_reference`. Save draft/Complete Workday's item
+  patch (title/date/Area) landing outside the atomic `save_workday` RPC was
+  left open here, by the owner's own choice — since fixed, see below.
 - the two migrations above (`20260907070000_completed_expense_guard_and_scoped_save`,
   `20260907080000_platform_rules_payout_destination`) are now **LIVE** —
   run manually by the owner via the Supabase SQL Editor, same day. Same CLI
   drift as every other manually-run migration above.
+- a third D1 audit (same day) found 5 more HIGH + 2 MEDIUM issues, all
+  fixed: legacy platforms (Uber Eats/Deliveroo/Just Eat/Other) no longer
+  offered for a fresh Draft, only once a real earning already exists on one;
+  a configurable Platform's invalid earning is now validated the same as a
+  legacy one, instead of silently dropped; Completed immutability now also
+  covers the Workday's own `items` anchor (title/due/area_id/state/kind),
+  not just its children tables; a sync failure after `save_workday` already
+  committed is now `SyncPending` (soft success), not a plain error; the item
+  patch itself moved inside the `save_workday` transaction with its own
+  `expected_version` check — Save Workday is now atomic as one action, the
+  gap left open two bullets above; a legacy road-cost field with no linked
+  Expense can now actually be cleared (writes a real £0 Expense over it,
+  never the frozen legacy column); two doc contradictions (0600's status in
+  STAREA.md, the Platform foundation's live status in PROGRESS.md) fixed.
+  Two new migrations, not yet live:
+  `20260907090000_completed_item_anchor_guard`,
+  `20260907100000_atomic_item_patch`.
 - committed on `main`, not pushed — still requires the owner's literal
   `push`.
 

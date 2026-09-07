@@ -56,6 +56,13 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
 
+`20260907090000_completed_item_anchor_guard` (trigger nou pe `items`, refuză
+schimbarea title/due/area_id/state/kind pe un Workday Completed) și
+`20260907100000_atomic_item_patch` (`create or replace` pe `save_workday`:
+item patch + `expected_version`, în aceeași tranzacție) **nu sunt aplicate
+live** — scrise ca reparație la runda a doua a auditului D1, vezi
+`docs/STAREA.md`.
+
 ### Notă despre versiunea din istoricul live pentru `quick_actions`
 
 Istoricul de migrații Supabase înregistrează această migrație ca

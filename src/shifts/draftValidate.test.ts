@@ -91,6 +91,12 @@ describe('validateDraft', () => {
     const day = shift({ odo_start: 100, odo_end: 150 })
     expect(validateDraft(day, draftFrom(item(), day, [], []))).toEqual([])
   })
+
+  it('refuses an invalid amount on a configurable Platform earning, the same as a legacy one', () => {
+    const day = shift()
+    const draft = { ...draftFrom(item(), day, [], []), platformEarnings: { p1: 'not a number' } }
+    expect(validateDraft(day, draft).map((e) => e.field)).toContain('platform-earning:p1')
+  })
 })
 
 describe('validateCompletion — what Complete Workday needs beyond a valid draft', () => {

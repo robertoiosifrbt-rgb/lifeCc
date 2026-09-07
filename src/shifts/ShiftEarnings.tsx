@@ -3,6 +3,11 @@ import type { NamedPlatform, Platform } from '../repository/items'
 
 type Props = {
   earnings: Record<Platform, string>
+  /** The legacy hardcoded platforms already carrying a real earning on this
+   *  Workday — historical compatibility only. A platform not in this set is
+   *  never offered for a fresh entry: new earnings belong on a configurable
+   *  Platform record, never the legacy enum. */
+  visibleLegacyPlatforms: ReadonlySet<Platform>
   /** Configurable Platforms — the owner's own records, never a hardcoded
    *  name — keyed by each one's own item id. */
   platforms: NamedPlatform[]
@@ -23,7 +28,7 @@ export function ShiftEarnings(props: Props) {
   return (
     <section className="shift-block">
       <h3 className="shift-heading">Paid</h3>
-      {PLATFORMS.map((platform) => (
+      {PLATFORMS.filter((platform) => props.visibleLegacyPlatforms.has(platform)).map((platform) => (
         <label key={platform} className={`shift-paid shift-${platform}`}>
           <span className="shift-platform">{PLATFORM_NAMES[platform]}</span>
           <input

@@ -35,6 +35,12 @@ export function ShiftSheet(props: Props) {
   const { item, onClose } = props
   const shift = props.shift ?? EMPTY_SHIFT
   const completed = item.state === 'done'
+  // Historical compatibility only, per D1: a legacy platform field is shown
+  // only once this Workday already has a real earning stored against it — a
+  // fresh Draft with no history offers configurable Platforms alone.
+  const legacyPlatformsInUse = new Set(
+    shift.earnings.flatMap((earning) => (earning.platform === null ? [] : [earning.platform])),
+  )
 
   const [draft, setDraft] = useState<Draft>(() => draftFrom(item, shift, props.links, props.things))
   const [error, setError] = useState<string | null>(null)
@@ -184,6 +190,7 @@ export function ShiftSheet(props: Props) {
 
       <ShiftEarnings
         earnings={draft.earnings}
+        visibleLegacyPlatforms={legacyPlatformsInUse}
         platforms={namedPlatforms}
         platformEarnings={draft.platformEarnings}
         tips={draft.tips}

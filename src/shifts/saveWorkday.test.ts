@@ -40,16 +40,9 @@ function uses(id: string, from_id: string, to_id: string): Link {
   return { id, owner: 'me', from_id, to_id, kind: 'uses', created_at: '2026-09-01T00:00:00Z' }
 }
 
-function writers(order: string[]): WorkdayWriters {
+function writers(): WorkdayWriters {
   return {
-    onUpdateItem: vi.fn(() => {
-      order.push('item')
-      return Promise.resolve()
-    }),
-    onCommit: vi.fn(() => {
-      order.push('commit')
-      return Promise.resolve()
-    }),
+    onCommit: vi.fn(() => Promise.resolve()),
   }
 }
 
@@ -61,66 +54,74 @@ function committed(w: WorkdayWriters): SaveWorkdayPayload {
   return calls[0]?.[0] as SaveWorkdayPayload
 }
 
-describe('saveWorkday — write order', () => {
-  it('writes the item before the commit, so a changed Area lands before the pin trigger reads it', async () => {
-    const order: string[] = []
+describe('saveWorkday — the item patch, inside the same commit as everything else', () => {
+  it('carries a changed Area in the same commit payload as the rest, so nothing lands as two torn writes', async () => {
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), area_id: 'area-2', tips: '5' }
-    await saveWorkday(anchor, day, draft, [], [], [], writers(order))
-    expect(order.indexOf('item')).toBeLessThan(order.indexOf('commit'))
+    const w = writers()
+    await saveWorkday(anchor, day, draft, [], [], [], w)
+    const payload = committed(w)
+    expect(payload.item_patch).toEqual({ area_id: 'area-2' })
+    expect(payload.shift_patch).toEqual({ tips: 5 })
+  })
+
+  it('sends the item as last seen, so a concurrent edit elsewhere is refused rather than overwritten', async () => {
+    const anchor = item({ version: 7 })
+    const day = shift()
+    const draft = { ...draftFrom(anchor, day, [], []), title: 'Renamed' }
+    const w = writers()
+    await saveWorkday(anchor, day, draft, [], [], [], w)
+    expect(committed(w).expected_version).toBe(7)
   })
 
   it('writes nothing when the draft has not changed', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], [], w)
-    expect(order).toEqual([])
     expect(w.onCommit).not.toHaveBeenCalled()
   })
 
-  it('does not touch the shift row when only the item changed, unless forced', async () => {
-    const order: string[] = []
+  it('commits an item-only change even with nothing operational typed, and touches nothing on the shift', async () => {
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), title: 'Renamed' }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, [], [], [], w)
-    expect(order).toEqual(['item'])
-    expect(w.onCommit).not.toHaveBeenCalled()
+    const payload = committed(w)
+    expect(payload.item_patch).toEqual({ title: 'Renamed' })
+    expect(payload.shift_patch).toEqual({})
+    expect(payload.force_shift_touch).toBe(false)
   })
 
   it('forces an empty upsert on the shift row when asked, even with nothing operational typed', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], [], w, { forceShiftTouch: true })
     const payload = committed(w)
     expect(payload.force_shift_touch).toBe(true)
     expect(payload.shift_patch).toEqual({})
+    expect(payload.item_patch).toEqual({})
   })
 
   it('does not force a second write when the shift already changed this round', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), tips: '5' }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, [], [], [], w, { forceShiftTouch: true })
     const payload = committed(w)
     expect(payload.shift_patch).toEqual({ tips: 5 })
   })
 
   it('removes a cleared earning rather than writing a fake zero over it', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift({ earnings: [{ id: 'e1', platform: 'uber_eats', platform_item_id: null, amount: 10 }] })
     const base = draftFrom(anchor, day, [], [])
     const draft = { ...base, earnings: { ...base.earnings, uber_eats: '' } }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, [], [], [], w)
     const payload = committed(w)
     expect(payload.earnings_remove).toEqual(['uber_eats'])
@@ -128,12 +129,11 @@ describe('saveWorkday — write order', () => {
   })
 
   it('drops a closed session marked for removal, and never writes a break for it', async () => {
-    const order: string[] = []
     const anchor = item()
     const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: '2026-09-05T10:00:00Z', break_minutes: 0 }
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(anchor, day, [], []), removedSessions: ['s1'] }
-    const w = writers(order)
+    const w = writers()
     const settled = await saveWorkday(anchor, day, draft, [], [], [], w)
     const payload = committed(w)
     expect(payload.sessions_remove).toEqual(['s1'])
@@ -142,23 +142,21 @@ describe('saveWorkday — write order', () => {
   })
 
   it('never physically deletes an open session, even from malformed Draft data', async () => {
-    const order: string[] = []
     const anchor = item()
     const session = { id: 's1', started_at: '2026-09-05T09:00:00Z', ended_at: null, break_minutes: 0 }
     const day = shift({ sessions: [session] })
     const draft = { ...draftFrom(anchor, day, [], []), removedSessions: ['s1'] }
-    const w = writers(order)
+    const w = writers()
     const settled = await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(w.onCommit).not.toHaveBeenCalled()
     expect(settled.shift.sessions).toEqual([session])
   })
 
   it('settles a result whose fields already reflect what was just written', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), tips: '5', title: 'Renamed' }
-    const settled = await saveWorkday(anchor, day, draft, [], [], [], writers(order))
+    const settled = await saveWorkday(anchor, day, draft, [], [], [], writers())
     expect(settled.item.title).toBe('Renamed')
     expect(settled.shift.tips).toBe(5)
   })
@@ -177,7 +175,7 @@ describe('saveWorkday — write order', () => {
       title: 'Tuesday shift',
       due: '2026-09-08',
     }
-    const settled = await saveWorkday(anchor, day, draft, [], [], [], writers([]))
+    const settled = await saveWorkday(anchor, day, draft, [], [], [], writers())
     const reopened = draftFrom(settled.item, settled.shift, [], [])
     expect(reopened.odo_end).toBe('160')
     expect(reopened.tips).toBe('12.50')
@@ -189,11 +187,10 @@ describe('saveWorkday — write order', () => {
 
 describe('saveWorkday — the Vehicle link, part of the same commit as everything else', () => {
   it('links the newly chosen Vehicle, in the same commit as the rest', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), vehicle_item_id: 'v1' }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, [], [], [], w)
     const payload = committed(w)
     expect(payload.vehicle_link_to).toBe('v1')
@@ -201,13 +198,12 @@ describe('saveWorkday — the Vehicle link, part of the same commit as everythin
   })
 
   it('replaces an existing Vehicle link with the newly chosen one', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1'), vehicle('v2')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: 'v2' }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, links, entities, [], w)
     const payload = committed(w)
     expect(payload.vehicle_unlink_ids).toEqual(['l1'])
@@ -219,26 +215,24 @@ describe('saveWorkday — the Vehicle link, part of the same commit as everythin
     // full resync — a draft reseeded from it right after a successful save
     // would flash back to the old Vehicle. `saveWorkday` hands back what the
     // link now is, the same way it already does for the item and the shift.
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1'), vehicle('v2')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: 'v2' }
-    const w = writers(order)
+    const w = writers()
     const settled = await saveWorkday(anchor, day, draft, links, entities, [], w)
     expect(settled.links.some((l) => l.id === 'l1')).toBe(false)
     expect(settled.links.some((l) => l.to_id === 'v2' && l.kind === 'uses' && l.from_id === 'i1')).toBe(true)
   })
 
   it('clears an existing Vehicle link when the draft is cleared back to none', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1')]
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: '' }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, links, entities, [], w)
     const payload = committed(w)
     expect(payload.vehicle_unlink_ids).toEqual(['l1'])
@@ -246,19 +240,17 @@ describe('saveWorkday — the Vehicle link, part of the same commit as everythin
   })
 
   it('writes nothing about the Vehicle when the draft still matches what is linked', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const links = [uses('l1', 'i1', 'v1')]
     const entities = [vehicle('v1')]
     const draft = draftFrom(anchor, day, links, entities)
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, links, entities, [], w)
     expect(w.onCommit).not.toHaveBeenCalled()
   })
 
   it('never resolves an ambiguous, untouched Vehicle state as a side effect of an unrelated Save draft', async () => {
-    const order: string[] = []
     const anchor = item()
     const day = shift()
     const links = [uses('l1', 'i1', 'v1'), uses('l2', 'i1', 'v2')]
@@ -266,8 +258,10 @@ describe('saveWorkday — the Vehicle link, part of the same commit as everythin
     // The draft never touched the Vehicle field — it seeds blank because the
     // persisted state is ambiguous — but did change the title.
     const draft = { ...draftFrom(anchor, day, links, entities), title: 'Renamed' }
-    const w = writers(order)
+    const w = writers()
     await saveWorkday(anchor, day, draft, links, entities, [], w)
-    expect(w.onCommit).not.toHaveBeenCalled()
+    const payload = committed(w)
+    expect(payload.vehicle_unlink_ids).toEqual([])
+    expect(payload.vehicle_link_to).toBeNull()
   })
 })

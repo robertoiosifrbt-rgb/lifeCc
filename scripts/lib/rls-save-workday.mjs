@@ -11,6 +11,8 @@ import { A, B, CONSTRAINT, DENIED } from './rls-context.mjs'
 
 /** Refusal: a composite key with nothing to point at. */
 const FOREIGN_KEY = '23503'
+/** Refusal: the item_patch's expected_version no longer matches. */
+const VERSION_CONFLICT = '40001'
 
 async function shiftOwnedBy(t, owner) {
   const { rows } = await t.q(
@@ -35,6 +37,8 @@ async function vehicleOwnedBy(t, owner) {
 }
 
 const EMPTY_PAYLOAD = {
+  item_patch: {},
+  expected_version: 1,
   force_shift_touch: false,
   vehicle_unlink_ids: [],
   vehicle_link_to: null,
@@ -199,6 +203,67 @@ export const CASES = [
 
       const untouched = await t.q('select amount from public.expenses where item_id = $1', [othersExpenseId])
       t.require(Number(untouched.rows[0].amount) === 5, "the other Workday's Expense was rewritten")
+    },
+  },
+  {
+    group: 'writing',
+    // The D1 audit's own atomicity gap: title/due/area_id used to be a
+    // separate, version-checked call ahead of this one. Proven here as one
+    // commit, alongside a shift field, rather than as two writes that could
+    // land, or fail, apart.
+    name: "save_workday writes the item's own title/due/area_id in the same commit as the shift row",
+    run: async (t) => {
+      const shiftId = await shiftOwnedBy(t, A)
+      const before = await t.q('select version from public.items where id = $1', [shiftId])
+      const payload = {
+        ...EMPTY_PAYLOAD,
+        item_id: shiftId,
+        item_patch: { title: 'Renamed workday', due: '2026-09-06' },
+        expected_version: before.rows[0].version,
+        shift_patch: { tips: 8 },
+      }
+      await t.asA(() => t.q('select public.save_workday($1::jsonb)', [JSON.stringify(payload)]))
+
+      const after = await t.q('select title, due, version from public.items where id = $1', [shiftId])
+      t.require(after.rows[0].title === 'Renamed workday', 'the title did not land')
+      t.require(
+        new Date(after.rows[0].due).toISOString().slice(0, 10) === '2026-09-06',
+        'the date did not land',
+      )
+      // Strictly ahead, not exactly +1: writing the shift row too touches the
+      // anchor a second time, `touch_anchor()`, the same as it already does
+      // for two separate calls — that part of the version count is not new.
+      t.require(after.rows[0].version > before.rows[0].version, 'the version did not move at all')
+
+      const shift = await t.q('select tips from public.shifts where item_id = $1', [shiftId])
+      t.require(Number(shift.rows[0]?.tips) === 8, 'the shift patch did not land alongside it')
+    },
+  },
+  {
+    group: 'negative',
+    // A stale expected_version must abort the whole transaction — not just
+    // skip the item patch and quietly apply the rest, which would be the
+    // exact same "torn Workday" the atomicity fix exists to close, just
+    // moved one level down.
+    name: 'save_workday refuses a stale expected_version, and leaves the shift patch unwritten too',
+    run: async (t) => {
+      const shiftId = await shiftOwnedBy(t, A)
+      const current = await t.q('select version from public.items where id = $1', [shiftId])
+      const payload = {
+        ...EMPTY_PAYLOAD,
+        item_id: shiftId,
+        item_patch: { title: 'Should not land' },
+        expected_version: current.rows[0].version + 1, // never the real one
+        shift_patch: { tips: 8 },
+      }
+      await t.asA(() =>
+        t.denied(VERSION_CONFLICT, 'select public.save_workday($1::jsonb)', [JSON.stringify(payload)]),
+      )
+
+      const after = await t.q('select title from public.items where id = $1', [shiftId])
+      t.require(after.rows[0].title === 'Shift', 'the title changed despite the stale version')
+      const shift = await t.q('select tips from public.shifts where item_id = $1', [shiftId])
+      t.require(shift.rows.length === 0, 'the shift patch landed despite the refused item patch')
     },
   },
 ]

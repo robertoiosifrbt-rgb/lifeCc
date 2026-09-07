@@ -38,6 +38,13 @@ export function validateDraft(shift: Shift, draft: Draft): ValidationError[] {
   for (const platform of PLATFORMS) {
     fields.push([`earning:${platform}`, parseMoney(draft.earnings[platform])])
   }
+  // A configurable Platform's earning is exactly as real as a legacy one —
+  // an invalid amount here must not be the one kind of bad input that saves
+  // silently just because `platformEarningsPatchOf` skips what it cannot
+  // parse.
+  for (const [platform_item_id, typed] of Object.entries(draft.platformEarnings)) {
+    fields.push([`platform-earning:${platform_item_id}`, parseMoney(typed)])
+  }
   const removed = sessionsToRemoveOf(shift, draft)
   const remaining = shift.sessions.filter((session) => !removed.includes(session.id))
   for (const session of remaining) {
