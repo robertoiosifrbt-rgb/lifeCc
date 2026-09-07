@@ -62,7 +62,8 @@
 }
 
 .journal-save,
-.journal-cancel {
+.journal-cancel,
+.journal-delete {
   flex: 1;
   min-height: var(--tap);
   font: inherit;
@@ -80,8 +81,14 @@
   font-weight: 600;
 }
 
-.journal-save:disabled {
+.journal-save:disabled,
+.journal-delete:disabled {
   opacity: 0.5;
+}
+
+.journal-delete {
+  color: var(--danger);
+  border-color: var(--line-strong);
 }
 
 .journal-error {

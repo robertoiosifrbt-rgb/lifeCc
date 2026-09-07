@@ -281,7 +281,7 @@ export {
 } from './core'
 export type { JournalEntry, JournalPatch } from './journal-entry'
 export { findRequestedEntry, searchJournal, timelineOf } from './journal-entry'
-export { createJournalEntry, journalEntriesOf, saveJournalEntry } from './journal-entries'
+export { createJournalEntry, discardJournalEntry, journalEntriesOf, saveJournalEntry } from './journal-entries'
 export type {
   CashoutFeeType,
   NamedPlatform,

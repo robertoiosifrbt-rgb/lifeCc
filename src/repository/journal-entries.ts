@@ -9,7 +9,7 @@ import type { Item, Patch } from './item'
 import { journalStore } from './journal-store'
 import { supabaseJournal, supabaseJournalWriter, supabaseWriter } from './source'
 import { store } from './store'
-import { applyPatch } from './write'
+import { applyPatch, softDelete } from './write'
 
 const ITEMS = 'items'
 
@@ -83,31 +83,40 @@ export async function createJournalEntry(
 }
 
 /**
- * What is written, changed — title, body, or when it is about.
+ * What is written, changed — title, body, or when it is about — plus the
+ * anchor's own Area, the one field of an entry that lives on the anchor
+ * rather than on `journal_entries` itself.
  *
  * The anchor's own title is recomputed and only patched when it would
  * actually change: an edit that leaves the derived title the same must not
  * spend a version on it, the same way `applyPatch` never writes a field that
- * did not change.
+ * did not change. `area_id` joins that same single write rather than a
+ * second one — omit it (leave the parameter out) to leave the Area alone;
+ * `null` clears it.
  */
 export async function saveJournalEntry(
   owner: string,
   anchor: Item,
   entry: JournalEntry,
   patch: JournalPatch,
+  area_id?: string | null,
 ): Promise<Item> {
   await requireAccount(owner)
   const write = resolveJournalWrite(entry, patch)
   requireBody(write.body)
 
   const anchorTitle = anchorTitleFor(write.body, write.title)
+  const itemPatch: Patch = {}
+  if (anchorTitle !== anchor.title) itemPatch.title = anchorTitle
+  if (area_id !== undefined && area_id !== anchor.area_id) itemPatch.area_id = area_id
+
   const written =
-    anchorTitle === anchor.title
+    Object.keys(itemPatch).length === 0
       ? anchor
       : await applyPatch(
           supabaseWriter<Patch>(ITEMS, owner),
           anchor,
-          { title: anchorTitle },
+          itemPatch,
           localToday(new Date()),
         )
 
@@ -117,4 +126,13 @@ export async function saveJournalEntry(
   await store.upsert(owner, [written], null)
   await syncJournalEntries(owner)
   return written
+}
+
+/** An entry, taken back — the same soft delete every other anchor gets. */
+export async function discardJournalEntry(owner: string, anchor: Item, now: Date): Promise<Item> {
+  await requireAccount(owner)
+  const gone = await softDelete(supabaseWriter<Patch>(ITEMS, owner), anchor, now, localToday(now))
+  await store.upsert(owner, [gone], null)
+  await syncJournalEntries(owner)
+  return gone
 }

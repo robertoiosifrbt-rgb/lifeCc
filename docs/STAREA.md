@@ -130,8 +130,13 @@ entities/expenses.
 - timeline cronologic (cea mai recentă intrare jurnalizată prima, nu cea mai
   recent creată) și căutare în titlu + text;
 - o intrare poate exista fără nicio legătură; opțional poate primi o Arie (la
-  creare) și legături `about`/`pays` către orice alt item (Person/Company/
-  Vehicle/Property inclusiv), prin `links`-ul existent — fără mecanism nou;
+  creare, și acum editabilă și după salvare — un singur item patch, alături
+  de titlul recalculat, dacă amândouă s-au schimbat) și legături `about`/
+  `pays` către orice alt item (Person/Company/Vehicle/Property inclusiv),
+  prin `links`-ul existent — fără mecanism nou;
+- o intrare se poate șterge (soft-delete pe ancoră, la fel ca orice alt item)
+  — buton „Delete" pe ecranul de editare; entry-urile șterse dispar din
+  timeline, dar rămân în cache pentru sync, la fel ca peste tot în aplicație;
 - „Download everything" include acum textul jurnalului întreg (titlu, body,
   `journaled_at`), nu doar ancora — `exportFile`/`exportAll` citesc și
   `journal_entries`, alături de `items`, în același fișier.

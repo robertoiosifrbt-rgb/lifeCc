@@ -4,7 +4,7 @@
 // a handle that lists its actions in one file and implements them in another
 // ends up promising something the hook does not return.
 
-import { createJournalEntry, saveJournalEntry } from '../repository/items'
+import { createJournalEntry, discardJournalEntry, saveJournalEntry } from '../repository/items'
 import type { Item, JournalEntry, JournalPatch } from '../repository/items'
 
 export type JournalActions = {
@@ -14,7 +14,16 @@ export type JournalActions = {
     journaled_at: string
     area_id: string | null
   }) => Promise<void>
-  saveJournal: (item: Item, entry: JournalEntry, patch: JournalPatch) => Promise<void>
+  /** `area_id` left out leaves the entry's Area alone; passed, it replaces it
+   *  (including back to `null`) — the one field of an entry that lives on
+   *  its anchor, not on the entry itself. */
+  saveJournal: (
+    item: Item,
+    entry: JournalEntry,
+    patch: JournalPatch,
+    area_id?: string | null,
+  ) => Promise<void>
+  discardJournal: (item: Item) => Promise<void>
 }
 
 export function journalActions(
@@ -24,7 +33,9 @@ export function journalActions(
   return {
     addJournal: (what) => write(() => createJournalEntry(owner, what)),
 
-    saveJournal: (item, entry, patch) =>
-      write(() => saveJournalEntry(owner, item, entry, patch)),
+    saveJournal: (item, entry, patch, area_id) =>
+      write(() => saveJournalEntry(owner, item, entry, patch, area_id)),
+
+    discardJournal: (item) => write(() => discardJournalEntry(owner, item, new Date())),
   }
 }

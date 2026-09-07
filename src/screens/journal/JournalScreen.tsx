@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import type { Item, JournalEntry } from '../../repository/items'
-import { findRequestedEntry, pathOf, searchJournal, treeOf } from '../../repository/items'
+import { findRequestedEntry, searchJournal, treeOf } from '../../repository/items'
 import { useScreen } from '../../items/context'
 import { JoinedTo } from '../../things/JoinedTo'
 import {
@@ -93,26 +93,11 @@ export function JournalScreen() {
     }
   }
 
-  async function save() {
-    if (body.trim() === '') {
-      setError('Write something first.')
-      return
-    }
+  async function guarded(body: () => Promise<void>) {
     setBusy(true)
     setError(null)
     try {
-      const journaled_at = momentFromLocalInput(when)
-      const patchedTitle = titleOf(title)
-      if (editingItem === null || editingEntry === null) {
-        await data.addJournal({ title: patchedTitle, body, journaled_at, area_id: areaId })
-        startNew()
-      } else {
-        await data.saveJournal(editingItem, editingEntry, {
-          title: patchedTitle,
-          body,
-          journaled_at,
-        })
-      }
+      await body()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
@@ -120,7 +105,37 @@ export function JournalScreen() {
     }
   }
 
-  const results = searchJournal(data.journal, query)
+  function save() {
+    if (body.trim() === '') {
+      setError('Write something first.')
+      return
+    }
+    void guarded(async () => {
+      const journaled_at = momentFromLocalInput(when)
+      const patchedTitle = titleOf(title)
+      if (editingItem === null || editingEntry === null) {
+        await data.addJournal({ title: patchedTitle, body, journaled_at, area_id: areaId })
+        startNew()
+      } else {
+        await data.saveJournal(editingItem, editingEntry, { title: patchedTitle, body, journaled_at }, areaId)
+      }
+    })
+  }
+
+  function discard() {
+    if (editingItem === null) return
+    void guarded(async () => {
+      await data.discardJournal(editingItem)
+      startNew()
+    })
+  }
+
+  // Deleted anchors ride the cache like every other row, for sync — a screen
+  // decides what "gone" means for it. Here, off the timeline entirely.
+  const results = searchJournal(data.journal, query).filter((entry) => {
+    const item = data.items.find((i) => i.id === entry.item_id)
+    return item !== undefined && item.deleted_at === null
+  })
 
   return (
     <div className="journal">
@@ -163,37 +178,26 @@ export function JournalScreen() {
           />
         </label>
 
-        {editingId === null ? (
-          <label className="journal-field">
-            <span className="journal-label">Area (optional)</span>
-            <select
-              className="journal-input"
-              name="journal-area"
-              value={areaId ?? ''}
-              disabled={busy}
-              onChange={(event) =>
-                setAreaId(event.target.value === '' ? null : event.target.value)
-              }
-            >
-              <option value="">—</option>
-              {treeOf(data.areas).map(({ area, depth }) => (
-                <option key={area.id} value={area.id}>
-                  {' '.repeat(depth * 2)}
-                  {area.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          // Read-only once saved: changing it here as well as the title would
-          // need two version-checked writes on the same anchor in a row, and
-          // the second would refuse itself against the version the first just
-          // moved past. There is no way to change an entry's area after it
-          // is written yet — only at creation, above.
-          <p className="journal-area-note">
-            Area: {areaId === null ? '—' : pathOf(data.areas, areaId)}
-          </p>
-        )}
+        <label className="journal-field">
+          <span className="journal-label">Area (optional)</span>
+          <select
+            className="journal-input"
+            name="journal-area"
+            value={areaId ?? ''}
+            disabled={busy}
+            onChange={(event) =>
+              setAreaId(event.target.value === '' ? null : event.target.value)
+            }
+          >
+            <option value="">—</option>
+            {treeOf(data.areas).map(({ area, depth }) => (
+              <option key={area.id} value={area.id}>
+                {' '.repeat(depth * 2)}
+                {area.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="journal-buttons">
           <button
@@ -201,10 +205,21 @@ export function JournalScreen() {
             name="save-journal"
             className="journal-save"
             disabled={busy || body.trim() === ''}
-            onClick={() => void save()}
+            onClick={save}
           >
             {editingId === null ? 'Save' : 'Save changes'}
           </button>
+          {editingId !== null && (
+            <button
+              type="button"
+              name="delete-journal"
+              className="journal-delete"
+              disabled={busy}
+              onClick={discard}
+            >
+              Delete
+            </button>
+          )}
           {editingId !== null && (
             <button
               type="button"
