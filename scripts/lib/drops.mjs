@@ -18,14 +18,38 @@
  * pică, și mesajul spune ce spune: nu rula SQL-ul înainte de a livra codul.
  */
 
+/**
+ * Every column name the same migration (re)introduces — as a fresh column
+ * on some table, dropped or not.
+ *
+ * A name dropped from one table and given right back, in the same file, to
+ * a table built to hold what that column meant — `platform_rules` taking
+ * `earning_cycle_kind` back from `platforms`, effective-dated this time —
+ * has moved, not vanished. Code still naming it is naming its new home; that
+ * the new home reads it correctly is typecheck's and the tests' job, not
+ * this one's. Table-blind on purpose, the same way `dropsIn` already is: a
+ * column moved to the wrong table by mistake still has a name this simple a
+ * scan cannot tell from the right one.
+ */
+function createdIn(sql) {
+  const created = new Set()
+  for (const m of sql.matchAll(
+    /^\s*(?:add\s+column\s+(?:if\s+not\s+exists\s+)?)?(\w+)\s+(?:uuid|text|boolean|integer|smallint|bigint|numeric|date|timestamptz|timestamp|jsonb)\b/gim,
+  )) {
+    created.add(m[1])
+  }
+  return created
+}
+
 /** What a migration takes away, as the name a client would still ask for. */
 export function dropsIn(sql) {
+  const recreated = createdIn(sql)
   const gone = []
   for (const m of sql.matchAll(/drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)/gi)) {
-    gone.push({ kind: 'table', name: m[1] })
+    if (!recreated.has(m[1])) gone.push({ kind: 'table', name: m[1] })
   }
   for (const m of sql.matchAll(/drop\s+column\s+(?:if\s+exists\s+)?(\w+)/gi)) {
-    gone.push({ kind: 'column', name: m[1] })
+    if (!recreated.has(m[1])) gone.push({ kind: 'column', name: m[1] })
   }
   return gone
 }
