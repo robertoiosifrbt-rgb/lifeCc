@@ -185,7 +185,7 @@ construi încă modulele viitoare.
 
 ### Criterii suplimentare
 
-- `PARTIAL` — Home Quick Actions sunt configurabile de utilizator: registru
+- `DONE` — Home Quick Actions sunt configurabile de utilizator: registru
   finit și sigur în cod (`journal.new`, `money.expense`, `delivery.work`); ce
   apare pe Home, ordinea și contextul (Arie, pentru delivery.work) sunt date
   ale utilizatorului, nu butoane hardcodate; zero configurate → fără acțiuni
@@ -194,14 +194,14 @@ construi încă modulele viitoare.
   fără potrivire după numele ariei, cu invariante de bază (o singură tură
   vie pe zi/Arie, o singură sesiune deschisă) și recuperare sigură când
   extensia shift-ului lipsește. Implementarea și migrațiile există complet
-  în repo, cu RLS scrise pentru ele. `20260906050000_quick_actions` este
-  acum confirmată aplicată pe baza live (vezi `docs/MIGRATII.md`), deci
-  tabelul `quick_actions` există în producție — dar criteriul rămâne
-  `PARTIAL`, nu `DONE`: `20260906060000_shift_invariants` nu este aplicată,
-  iar fără ea baza nu garantează încă cele două invariante de mai sus.
-  Blocajul rămâne cel cunoscut din `docs/STAREA.md` — cincisprezece
-  `shift_sessions` deschise simultan pe o singură tură din live, neatinse,
-  în așteptarea deciziei proprietarului.
+  în repo, cu RLS scrise pentru ele. Atât `20260906050000_quick_actions` cât
+  și `20260906060000_shift_invariants` sunt acum confirmate aplicate pe baza
+  live (verificat direct, 7 sep 2026 — vezi `docs/STAREA.md`/`docs/MIGRATII.md`):
+  tabelul `quick_actions` există în producție, iar cele două invariante sunt
+  acum garantate la nivel de bază, nu doar de codul aplicației. Rămâne un
+  drift CLI cunoscut pe `0600` (rulată manual, nu apare în
+  `supabase_migrations.schema_migrations`) — nu blochează criteriul, doar un
+  viitor `db push`.
 
 ---
 
@@ -209,11 +209,11 @@ construi încă modulele viitoare.
 
 Criterii urmărite: **51**
 
-Puncte curente: **13.5 / 51**
+Puncte curente: **14.0 / 51**
 
-**Progres mecanic: 26%**
+**Progres mecanic: 27%**
 
-**Rămas mecanic: 74%**
+**Rămas mecanic: 73%**
 
 Acest procent nu este estimare de timp. Fundația tehnică deja existentă poate
 face unele criterii viitoare mult mai rapide decât sugerează numărul brut.

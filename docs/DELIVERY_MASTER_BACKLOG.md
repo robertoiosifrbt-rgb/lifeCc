@@ -672,21 +672,15 @@ File:
 
 Status:
 
-**NOT LIVE**
-
-Production has previously been observed with **15 `shift_sessions` rows with `ended_at IS NULL` simultaneously on the same shift**.
-
-Therefore 0600 is blocked until the owner separately authorizes a safe data decision.
-
-Do not:
-
-- choose a "real" session
-- close sessions
-- delete sessions
-- repair production rows
-- apply 0600
-- manipulate migration ledger/history
-- renumber migrations simply to bypass 0600
+**LIVE** — confirmed by direct read against production (7 Sep 2026): both
+unique indexes (`items_one_shift_per_day_area`, `shift_sessions_one_open_per_shift`)
+exist on `public`. A `create unique index` cannot succeed over conflicting
+existing rows, so the previously-observed 15 simultaneous open
+`shift_sessions` on one shift must have already been reduced before this
+index was created — the owner decided and ran that data repair separately,
+outside any session. See `docs/MIGRATII.md` for the resulting CLI drift
+(same shape as 0700/D1 below: not in `supabase_migrations.schema_migrations`,
+not idempotent, a future `db push` will try to reapply it and fail).
 
 ## 0700
 
@@ -1366,6 +1360,29 @@ At creation of this backlog (2026-09-06):
 - migration `0600` remains **NOT LIVE**, untouched, for the same reason (15 ambiguous open sessions).
 - the ChatGPT full-cumulative D1 audit described in Section 8 has **not** happened yet — D1 stays IN PROGRESS, not DONE, until it does.
 - still no push: `origin/main` has not received today's two commits (migration fix + doc updates) — that still requires the owner's literal `push`.
+
+**Update (2026-09-07):**
+
+- migration `0600` (`shift_invariants`) is now confirmed **LIVE** — both
+  unique indexes exist on production, verified directly by the owner. The
+  15 ambiguous open-session rows were necessarily resolved before that index
+  could be created; the owner ran that data repair separately, outside any
+  session. Same manual-run CLI drift as `0700`/D1 above, documented in
+  `docs/MIGRATII.md`.
+- a second D1 audit (after the six migrations from Section 8's first audit)
+  found four more real issues, three fixed this session: Completed Workday
+  immutability now also covers a linked road-cost Expense (trigger on
+  `expenses`, plus the `links` guard widened to check both link ends);
+  `save_workday()` now validates every id in its payload against the
+  Workday actually being saved, not just against `owner`; `platform_rules`
+  gained `payout_destination_reference`. Left open, by the owner's own
+  choice: Save draft/Complete Workday's item patch (title/date/Area) still
+  lands outside the atomic `save_workday` RPC — see `docs/STAREA.md`.
+- two new migrations, not yet live:
+  `20260907070000_completed_expense_guard_and_scoped_save`,
+  `20260907080000_platform_rules_payout_destination`.
+- committed on `main`, not pushed — still requires the owner's literal
+  `push`.
 
 ---
 

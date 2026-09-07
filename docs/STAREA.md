@@ -234,23 +234,20 @@ Vercel production rulează deja commit-ul
 Nu mai există un deploy de frontend care așteaptă `shift_invariants` — codul
 e deja livrat; ce lipsește este strict invarianta de bază de mai jos.
 
-**`20260906060000_shift_invariants` rămâne neaplicată.** Nu poate fi aplicată
-azi fără o decizie separată: un read-only check pe baza live a găsit o tură
-(owner+zi+arie, data 2026-09-05) cu **cincisprezece** `shift_sessions` cu
-`ended_at IS NULL` simultan — indexul unic
-`shift_sessions_one_open_per_shift` ar refuza exact acest caz. Cele
-cincisprezece rânduri rămân neatinse; alegerea sesiunii „reale" dintre ele
-este o decizie a proprietarului, nu ceva de decis sau executat automat aici.
+**`20260906060000_shift_invariants` este acum aplicată live.** Confirmat
+direct, prin citire pe live (7 sep 2026): ambele indexuri
+(`items_one_shift_per_day_area`, `shift_sessions_one_open_per_shift`) există
+pe `public`. Un `create unique index` nu poate reuși peste date deja
+conflictuale — faptul că `shift_sessions_one_open_per_shift` există dovedește
+că cele cincisprezece rânduri `shift_sessions` cu `ended_at IS NULL` simultan
+(găsite anterior pe aceeași tură, owner+zi+arie, 2026-09-05) au fost deja
+reduse la cel mult una înainte ca indexul să fie creat — proprietarul a decis
+și a rulat reparația de date separat, în afara acestei sesiuni; detaliile
+exacte ale acelei reparații nu sunt cunoscute aici.
 
-Ordinea corectă rămasă, doar pe partea de bază de date: proprietarul decide
-cum se repară cele cincisprezece sesiuni deschise → aprobare explicită pentru
-reparația de date → reparația chiar rulează → `20260906060000_shift_invariants`
-rulează pe live → `docs/MIGRATII.md`/`docs/PROGRESS.md`/acest document se
-actualizează din nou cu starea live reală. Fără a doua migrație, baza nu
-garantează încă cele două invariante (o singură tură vie pe zi/Arie, o
-singură sesiune deschisă) — criteriul corespunzător din `docs/PROGRESS.md`
-rămâne `PARTIAL`, nu `DONE`, exact din acest motiv, chiar dacă frontend-ul
-este deja livrat.
+Cu ambele invariante acum garantate de bază (o singură tură vie pe zi/Arie, o
+singură sesiune deschisă), criteriul corespunzător din `docs/PROGRESS.md`
+poate trece din `PARTIAL` în `DONE` — actualizat acolo.
 
 ### Vehicle
 
@@ -472,17 +469,15 @@ ordinea normală a fișierelor, va încerca s-o reaplice și va eșua. Asta treb
 rezolvat (`supabase migration repair` sau fișier idempotent) înainte de orice
 `db push` viitor — nu s-a făcut aici.
 
-**`shift_invariants` (0600) rămâne neaplicată live**, indiferent de asta.
-Codul Workday din acest task poate fi logic independent de invariantele din
-`20260906060000_shift_invariants` — UI-ul tratează fail-safe orice tură cu
-sesiuni deschise ambigue, fără să pornească vreodată o sesiune nouă peste o
-stare neclară. Dar ordinea standard de migrații pune `0600` înaintea lui
-`0700`, iar un `db push` viitor prin CLI tot va încerca `0600` întâi (blocată
-de incidentul live cu 15 rânduri `shift_sessions` simultan deschise, vezi mai
-sus) — și, chiar dacă `0600` s-ar rezolva, va eșua apoi pe `0700` din motivul
-de mai sus. Repararea celor 15 sesiuni, aplicarea lui `0600` și rezolvarea
-drift-ului CLI pe `0700` rămân decizii separate, explicite, ale proprietarului
-— niciuna dintre ele nu s-a făcut aici.
+**`shift_invariants` (0600) este acum aplicată live**, confirmat direct (7 sep
+2026, vezi mai sus) — cele cincisprezece rânduri `shift_sessions` simultan
+deschise au fost reduse înainte ca indexul unic să poată fi creat. Rămâne
+totuși același drift CLI ca la `0700`: rulată manual, deci nu apare în
+`supabase_migrations.schema_migrations`, iar fișierul n-are `if not exists` pe
+cele două `create unique index` — un `db push` viitor prin CLI, în ordinea
+normală, va încerca s-o reaplice și va eșua exact ca la `0700`. Rezolvarea
+acelui drift CLI (pentru `0600` și `0700` deopotrivă) rămâne o decizie separată
+a proprietarului — nu s-a făcut aici.
 
 ### Migrație nouă (D1): fundația de date pentru Delivery
 
@@ -533,9 +528,9 @@ Verificat comportamental pe același Postgres local efemer (nu Supabase):
 scenarii pentru fiecare trigger de imutabilitate și pentru `CHECK`-ul
 exact-unul-dintre-ele — toate au trecut, înainte de reparația de mai sus.
 **Este acum aplicată live** (vezi drift-ul din `docs/MIGRATII.md` — rulată
-manual, nu prin CLI). `0600` (`shift_invariants`) rămâne separat, neaplicată
-live — blocată de incidentul cu 15 rânduri `shift_sessions` simultan
-deschise, nu de nimic din migrația asta.
+manual, nu prin CLI). `0600` (`shift_invariants`) este, separat, tot aplicată
+live acum (vezi mai sus) — incidentul cu cele 15 rânduri `shift_sessions`
+simultan deschise a fost rezolvat înaintea ei, nu de nimic din migrația asta.
 
 Ce rămâne neschimbat de această rundă: D2 (payout/cash-out/settlement) și D3
 (experiența finală Delivery — Dashboard/Shifts/Platforms/Earnings/Expenses/

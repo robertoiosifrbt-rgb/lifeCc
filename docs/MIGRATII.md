@@ -41,6 +41,7 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260905200000_waiting` | `items.waiting_since` + update grant | 6 sep 2026 |
 | `20260906000000_journal` | `journal_entries` + `items.kind='journal'` | 6 sep 2026 |
 | `20260906050000_quick_actions` | tabelul `quick_actions` | 6 sep 2026 |
+| `20260906060000_shift_invariants` | cele două indexuri unice — o singură tură vie pe zi/Arie, o singură sesiune deschisă | dată de rulare necunoscută, confirmată aplicată live prin verificare directă 7 sep 2026 (manual, vezi drift) |
 | `20260906070000_pin_while_draft` | `vehicle_fuel_rates` + `pin_shift_rates()` re-derivă rata de combustibil după Vehicul | 6 sep 2026 (manual, vezi drift) |
 | `20260907000000_delivery_data_foundation` | `vehicle_cost_rates`, `platforms`, imutabilitate Completed, `shift_earnings.platform_item_id` | 6 sep 2026 (manual, vezi drift) |
 | `20260907010000_workday_vehicle_uses_link` | `links_kind` + `uses`; `pin_shift_rates()` rezolvă Vehiculul doar prin `uses` | 7 sep 2026 (manual, vezi drift) |
@@ -65,8 +66,13 @@ repo cu numele `quick_actions`. Diferența de timestamp vine din ora la care
 fișierul a fost efectiv rulat pe live față de ora din numele lui în repo —
 nu este drift de schemă și nu schimbă ce face migrația.
 
-`20260906060000_shift_invariants` **nu** este aplicată live și nu apare în
-tabelul de mai sus. Vezi `docs/STAREA.md` pentru motivul blocajului.
+`20260906060000_shift_invariants` **este acum aplicată live** — confirmat
+direct (7 sep 2026): ambele indexuri unice (`items_one_shift_per_day_area`,
+`shift_sessions_one_open_per_shift`) există pe `public`. Existența lor
+dovedește că cele cincisprezece rânduri `shift_sessions` cu `ended_at IS NULL`
+simultan pe aceeași tură (blocajul cunoscut, vezi `docs/STAREA.md`) au fost
+deja reduse înainte ca indexul să fi putut fi creat — reparația de date a
+fost decisă și rulată de proprietar, în afara acestei sesiuni.
 
 `20260906070000_pin_while_draft` este acum în tabelul de mai sus, aplicată
 manual pe live (vezi drift mai jos pentru cum anume). Rescrie
@@ -107,13 +113,11 @@ să repete predicatul acolo, iar `.upsert(..., { onConflict: 'item_id,platform'
 separă un rând legacy (`platform` setat) de unul cu `platform_item_id`
 (reciproc), fără predicat.
 
-**`0600` (`shift_invariants`) rămâne neaplicată live**, separat de toate
-astea. Codul Workday poate fi logic independent de invariantele din
-`20260906060000_shift_invariants`, dar fișierul ei tot n-a fost rulat —
-blocată de incidentul live cunoscut cu 15 rânduri `shift_sessions` simultan
-deschise (vezi `docs/STAREA.md`). Repararea celor 15 sesiuni și aplicarea lui
-`0600` rămân decizii separate, explicite, ale proprietarului — nu s-a făcut
-nimic din astea aici.
+**`0600` (`shift_invariants`) este acum aplicată live**, separat de toate
+astea — vezi mai sus. Incidentul cu 15 rânduri `shift_sessions` simultan
+deschise (`docs/STAREA.md`) a fost rezolvat de proprietar înainte ca indexul
+să poată fi creat; nimic din reparația de date sau rularea lui `0600` nu s-a
+făcut în această sesiune.
 
 `20260907010000_workday_vehicle_uses_link`, `20260907020000_road_cost_expenses`,
 `20260907030000_platform_rules`, `20260907040000_platform_item_kind`,
@@ -180,6 +184,22 @@ folosite de codul curent.
 
 ## Drift cunoscut
 
+### `20260906060000_shift_invariants` — rulată manual, nu prin CLI
+
+Confirmată aplicată live prin verificare directă (7 sep 2026, vezi mai sus),
+nu prin `supabase db push`/CLI. Același drift ca celelalte migrații manuale
+de mai jos:
+
+- **nu apare** în `supabase_migrations.schema_migrations` — din perspectiva
+  CLI-ului, migrația este încă „neaplicată”;
+- fișierul n-are `if not exists` pe niciunul din cele două `create unique
+  index` — un `db push` viitor, în ordinea normală a fișierelor, va încerca
+  s-o reaplice și va eșua (`relation "items_one_shift_per_day_area" already
+  exists` / echivalent pe celălalt index).
+
+Aceeași remediere ca mai jos rămâne necesară înainte de orice `db push`
+viitor. Nu s-a făcut aici.
+
 ### `20260906070000_pin_while_draft` — rulată manual, nu prin CLI
 
 Migrația a fost rulată direct din SQL Editor Supabase pe proiectul de
@@ -194,10 +214,10 @@ confirmate, nu ipotetice:
   reaplice și va eșua (`relation "vehicle_fuel_rates" already exists` /
   eroare echivalentă pe trigger);
 - ordinea standard de migrații (vezi paragraful de mai jos) pune
-  `20260906060000_shift_invariants` înaintea acesteia; acel fișier tot **nu**
-  este aplicat live, deci un `db push` viitor va încerca întâi `0600`, apoi va
-  eșua pe `0700` din motivul de mai sus, indiferent dacă `0600` reușește sau
-  nu.
+  `20260906060000_shift_invariants` înaintea acesteia; acel fișier este acum
+  aplicat live, dar cu același drift CLI (vezi subsecțiunea lui, mai sus) —
+  un `db push` viitor tot va eșua întâi pe `0600` (aceleași indexuri deja
+  existente), apoi, dacă acela s-ar rezolva, pe aceasta.
 
 Înainte de orice `supabase db push` viitor, cineva trebuie fie să marcheze
 această migrație ca aplicată în istoricul CLI (`supabase migration repair`
@@ -215,13 +235,12 @@ Același drift ca mai sus, pentru aceleași motive:
   `shift_earnings`, funcțiile și trigger-ele de imutabilitate Completed) — un
   `db push` viitor, în ordinea normală a fișierelor, va încerca s-o reaplice
   și va eșua;
-- ordinea standard de migrații pune `0600` (`shift_invariants`, tot
-  neaplicată live) înaintea acesteia — un `db push` viitor va eșua întâi pe
-  `0600` (dacă rămâne blocată) sau, dacă `0600` s-ar rezolva vreodată, imediat
-  după, pe aceasta.
+- ordinea standard de migrații pune `0600` (`shift_invariants`, aplicată live
+  acum, dar cu același drift CLI) înaintea acesteia — un `db push` viitor tot
+  va eșua întâi pe `0600`, apoi pe aceasta.
 
 Aceeași remediere ca mai sus rămâne necesară înainte de orice `db push`
-viitor: `supabase migration repair` (sau echivalent) pe ambele migrații, sau
+viitor: `supabase migration repair` (sau echivalent) pe toate trei, sau
 fișiere idempotente. Nu s-a făcut aici.
 
 ### `20260907010000` - `20260907060000` — rulate manual, nu prin CLI
@@ -237,13 +256,14 @@ rulate pe 7 sep 2026:
   require_item_kind()`/`create trigger ..._platform_kind` fără `or replace`)
   — un `db push` viitor, în ordinea normală a fișierelor, va încerca să le
   reaplice și va eșua pe cel puțin una dintre ele;
-- ordinea standard de migrații pune `0600` (`shift_invariants`, tot
-  neaplicată live) și cele două de mai sus înaintea tuturor — un `db push`
-  viitor eșuează mai întâi acolo, indiferent dacă se ajunge sau nu la acestea.
+- ordinea standard de migrații pune `0600` (`shift_invariants`, aplicată live
+  acum, cu același drift CLI) și cele două de mai sus înaintea tuturor — un
+  `db push` viitor eșuează mai întâi acolo, indiferent dacă se ajunge sau nu
+  la acestea.
 
 Aceeași remediere ca mai sus rămâne necesară înainte de orice `db push`
-viitor, pe toate cele opt migrații rulate manual până acum (cele două de mai
-sus, plus aceste șase). Nu s-a făcut aici.
+viitor, pe toate cele nouă migrații rulate manual până acum (`0600`, cele
+două de mai sus, plus aceste șase). Nu s-a făcut aici.
 
 ### `reserves`
 
