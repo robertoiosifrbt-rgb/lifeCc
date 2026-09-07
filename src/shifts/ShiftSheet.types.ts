@@ -6,13 +6,10 @@ import type {
   Expense,
   Item,
   Link,
-  LinkKind,
   Patch,
-  Platform,
   PlatformRecord,
-  RoadCostField,
+  SaveWorkdayPayload,
   Shift,
-  ShiftPatch,
   TaxYearRow,
   VehicleCostRate,
 } from '../repository/items'
@@ -32,15 +29,10 @@ export type Props = {
   today: string // Picks the Vehicle cost rate actually in force right now.
   onClockOn: () => Promise<void>
   onClockOff: (sessionId: string) => Promise<void>
-  onDropSession: (sessionId: string) => Promise<void>
-  onSaveShiftParts: (patch: ShiftPatch) => Promise<void>
-  onSetPaid: (platform: Platform, amount: number) => Promise<void>
-  /** Taking a platform's earning back — never a fake zero over it. */
-  onRemoveEarning: (platform: Platform) => Promise<void>
-  onSetPlatformPaid: (platform_item_id: string, amount: number) => Promise<void>
-  onRemovePlatformEarning: (platform_item_id: string) => Promise<void>
-  onSetBreak: (sessionId: string, minutes: number) => Promise<void>
   onUpdateItem: (patch: Patch) => Promise<void>
+  /** Everything else a Save draft/Complete Workday changed, in one
+   *  transaction — see `SaveWorkdayPayload`. */
+  onCommitWorkday: (payload: SaveWorkdayPayload) => Promise<void>
   onDelete: () => Promise<void>
   /** A new dated row for the Vehicle's own cost — never the Area's. */
   onSaveVehicleCost: (
@@ -48,14 +40,5 @@ export type Props = {
     effective_from: string,
     vehicle_per_km: number,
   ) => Promise<void>
-  onLink: (to_id: string, kind: LinkKind) => Promise<void>
-  onUnlink: (id: string) => Promise<void>
-  onSetRoadCost: (
-    field: RoadCostField,
-    amount: number,
-    existingExpenseItemId: string | null,
-    day: string,
-  ) => Promise<void>
-  onRemoveRoadCost: (expenseItem: Item) => Promise<void>
   onClose: () => void
 }

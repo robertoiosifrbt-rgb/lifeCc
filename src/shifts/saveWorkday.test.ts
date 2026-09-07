@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Entity } from '../repository/entity'
 import type { Item } from '../repository/item'
 import type { Link } from '../repository/link'
+import type { SaveWorkdayPayload } from '../repository/save-workday'
 import type { Shift } from '../repository/shift'
 import { draftFrom } from './draft'
 import { isDirty } from './draftPatches'
@@ -45,61 +46,29 @@ function writers(order: string[]): WorkdayWriters {
       order.push('item')
       return Promise.resolve()
     }),
-    onSaveShiftParts: vi.fn(() => {
-      order.push('shift')
-      return Promise.resolve()
-    }),
-    onSetPaid: vi.fn(() => {
-      order.push('earning')
-      return Promise.resolve()
-    }),
-    onRemoveEarning: vi.fn(() => {
-      order.push('remove-earning')
-      return Promise.resolve()
-    }),
-    onSetPlatformPaid: vi.fn(() => {
-      order.push('platform-earning')
-      return Promise.resolve()
-    }),
-    onRemovePlatformEarning: vi.fn(() => {
-      order.push('remove-platform-earning')
-      return Promise.resolve()
-    }),
-    onSetBreak: vi.fn(() => {
-      order.push('break')
-      return Promise.resolve()
-    }),
-    onDropSession: vi.fn(() => {
-      order.push('drop-session')
-      return Promise.resolve()
-    }),
-    onLink: vi.fn(() => {
-      order.push('link')
-      return Promise.resolve()
-    }),
-    onUnlink: vi.fn(() => {
-      order.push('unlink')
-      return Promise.resolve()
-    }),
-    onSetRoadCost: vi.fn(() => {
-      order.push('set-road-cost')
-      return Promise.resolve()
-    }),
-    onRemoveRoadCost: vi.fn(() => {
-      order.push('remove-road-cost')
+    onCommit: vi.fn(() => {
+      order.push('commit')
       return Promise.resolve()
     }),
   }
 }
 
+/** The one payload `onCommit` was called with, or a test failure if it was
+ *  called zero or more than once — every case here expects exactly one. */
+function committed(w: WorkdayWriters): SaveWorkdayPayload {
+  const calls = (w.onCommit as ReturnType<typeof vi.fn>).mock.calls
+  expect(calls).toHaveLength(1)
+  return calls[0]?.[0] as SaveWorkdayPayload
+}
+
 describe('saveWorkday — write order', () => {
-  it('writes the item before the shift, so a changed Area lands before the pin trigger reads it', async () => {
+  it('writes the item before the commit, so a changed Area lands before the pin trigger reads it', async () => {
     const order: string[] = []
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), area_id: 'area-2', tips: '5' }
     await saveWorkday(anchor, day, draft, [], [], [], writers(order))
-    expect(order.indexOf('item')).toBeLessThan(order.indexOf('shift'))
+    expect(order.indexOf('item')).toBeLessThan(order.indexOf('commit'))
   })
 
   it('writes nothing when the draft has not changed', async () => {
@@ -109,7 +78,7 @@ describe('saveWorkday — write order', () => {
     const w = writers(order)
     await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], [], w)
     expect(order).toEqual([])
-    expect(w.onSaveShiftParts).not.toHaveBeenCalled()
+    expect(w.onCommit).not.toHaveBeenCalled()
   })
 
   it('does not touch the shift row when only the item changed, unless forced', async () => {
@@ -120,7 +89,7 @@ describe('saveWorkday — write order', () => {
     const w = writers(order)
     await saveWorkday(anchor, day, draft, [], [], [], w)
     expect(order).toEqual(['item'])
-    expect(w.onSaveShiftParts).not.toHaveBeenCalled()
+    expect(w.onCommit).not.toHaveBeenCalled()
   })
 
   it('forces an empty upsert on the shift row when asked, even with nothing operational typed', async () => {
@@ -129,7 +98,9 @@ describe('saveWorkday — write order', () => {
     const day = shift()
     const w = writers(order)
     await saveWorkday(anchor, day, draftFrom(anchor, day, [], []), [], [], [], w, { forceShiftTouch: true })
-    expect(w.onSaveShiftParts).toHaveBeenCalledExactlyOnceWith({})
+    const payload = committed(w)
+    expect(payload.force_shift_touch).toBe(true)
+    expect(payload.shift_patch).toEqual({})
   })
 
   it('does not force a second write when the shift already changed this round', async () => {
@@ -139,8 +110,8 @@ describe('saveWorkday — write order', () => {
     const draft = { ...draftFrom(anchor, day, [], []), tips: '5' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, [], [], [], w, { forceShiftTouch: true })
-    expect(w.onSaveShiftParts).toHaveBeenCalledTimes(1)
-    expect(w.onSaveShiftParts).toHaveBeenCalledWith({ tips: 5 })
+    const payload = committed(w)
+    expect(payload.shift_patch).toEqual({ tips: 5 })
   })
 
   it('removes a cleared earning rather than writing a fake zero over it', async () => {
@@ -151,8 +122,9 @@ describe('saveWorkday — write order', () => {
     const draft = { ...base, earnings: { ...base.earnings, uber_eats: '' } }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, [], [], [], w)
-    expect(w.onRemoveEarning).toHaveBeenCalledExactlyOnceWith('uber_eats')
-    expect(w.onSetPaid).not.toHaveBeenCalled()
+    const payload = committed(w)
+    expect(payload.earnings_remove).toEqual(['uber_eats'])
+    expect(payload.earnings_set).toEqual([])
   })
 
   it('drops a closed session marked for removal, and never writes a break for it', async () => {
@@ -163,8 +135,9 @@ describe('saveWorkday — write order', () => {
     const draft = { ...draftFrom(anchor, day, [], []), removedSessions: ['s1'] }
     const w = writers(order)
     const settled = await saveWorkday(anchor, day, draft, [], [], [], w)
-    expect(w.onDropSession).toHaveBeenCalledExactlyOnceWith('s1')
-    expect(w.onSetBreak).not.toHaveBeenCalled()
+    const payload = committed(w)
+    expect(payload.sessions_remove).toEqual(['s1'])
+    expect(payload.breaks_set).toEqual([])
     expect(settled.shift.sessions).toEqual([])
   })
 
@@ -176,7 +149,7 @@ describe('saveWorkday — write order', () => {
     const draft = { ...draftFrom(anchor, day, [], []), removedSessions: ['s1'] }
     const w = writers(order)
     const settled = await saveWorkday(anchor, day, draft, [], [], [], w)
-    expect(w.onDropSession).not.toHaveBeenCalled()
+    expect(w.onCommit).not.toHaveBeenCalled()
     expect(settled.shift.sessions).toEqual([session])
   })
 
@@ -214,17 +187,17 @@ describe('saveWorkday — write order', () => {
   })
 })
 
-describe('saveWorkday — the Vehicle link, deferred like every other field', () => {
-  it('links the newly chosen Vehicle, before the shift row itself, when the draft names one', async () => {
+describe('saveWorkday — the Vehicle link, part of the same commit as everything else', () => {
+  it('links the newly chosen Vehicle, in the same commit as the rest', async () => {
     const order: string[] = []
     const anchor = item()
     const day = shift()
     const draft = { ...draftFrom(anchor, day, [], []), vehicle_item_id: 'v1' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, [], [], [], w)
-    expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v1', 'uses')
-    expect(w.onUnlink).not.toHaveBeenCalled()
-    expect(order.indexOf('link')).toBeLessThan(order.length)
+    const payload = committed(w)
+    expect(payload.vehicle_link_to).toBe('v1')
+    expect(payload.vehicle_unlink_ids).toEqual([])
   })
 
   it('replaces an existing Vehicle link with the newly chosen one', async () => {
@@ -236,8 +209,9 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: 'v2' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, links, entities, [], w)
-    expect(w.onUnlink).toHaveBeenCalledExactlyOnceWith('l1')
-    expect(w.onLink).toHaveBeenCalledExactlyOnceWith('v2', 'uses')
+    const payload = committed(w)
+    expect(payload.vehicle_unlink_ids).toEqual(['l1'])
+    expect(payload.vehicle_link_to).toBe('v2')
   })
 
   it('clears an existing Vehicle link when the draft is cleared back to none', async () => {
@@ -249,8 +223,9 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: '' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, links, entities, [], w)
-    expect(w.onUnlink).toHaveBeenCalledExactlyOnceWith('l1')
-    expect(w.onLink).not.toHaveBeenCalled()
+    const payload = committed(w)
+    expect(payload.vehicle_unlink_ids).toEqual(['l1'])
+    expect(payload.vehicle_link_to).toBeNull()
   })
 
   it('writes nothing about the Vehicle when the draft still matches what is linked', async () => {
@@ -262,8 +237,7 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const draft = draftFrom(anchor, day, links, entities)
     const w = writers(order)
     await saveWorkday(anchor, day, draft, links, entities, [], w)
-    expect(w.onLink).not.toHaveBeenCalled()
-    expect(w.onUnlink).not.toHaveBeenCalled()
+    expect(w.onCommit).not.toHaveBeenCalled()
   })
 
   it('never resolves an ambiguous, untouched Vehicle state as a side effect of an unrelated Save draft', async () => {
@@ -277,7 +251,6 @@ describe('saveWorkday — the Vehicle link, deferred like every other field', ()
     const draft = { ...draftFrom(anchor, day, links, entities), title: 'Renamed' }
     const w = writers(order)
     await saveWorkday(anchor, day, draft, links, entities, [], w)
-    expect(w.onLink).not.toHaveBeenCalled()
-    expect(w.onUnlink).not.toHaveBeenCalled()
+    expect(w.onCommit).not.toHaveBeenCalled()
   })
 })

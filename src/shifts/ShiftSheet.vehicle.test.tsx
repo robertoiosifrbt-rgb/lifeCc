@@ -45,20 +45,10 @@ function baseProps(overrides: Partial<Parameters<typeof ShiftSheet>[0]> = {}) {
     today: '2026-09-05',
     onClockOn: () => Promise.resolve(),
     onClockOff: () => Promise.resolve(),
-    onDropSession: () => Promise.resolve(),
-    onSaveShiftParts: () => Promise.resolve(),
-    onSetPaid: () => Promise.resolve(),
-    onRemoveEarning: () => Promise.resolve(),
-    onSetPlatformPaid: () => Promise.resolve(),
-    onRemovePlatformEarning: () => Promise.resolve(),
-    onSetBreak: () => Promise.resolve(),
     onUpdateItem: () => Promise.resolve(),
+    onCommitWorkday: () => Promise.resolve(),
     onDelete: () => Promise.resolve(),
     onSaveVehicleCost: () => Promise.resolve(),
-    onLink: () => Promise.resolve(),
-    onUnlink: () => Promise.resolve(),
-    onSetRoadCost: () => Promise.resolve(),
-    onRemoveRoadCost: () => Promise.resolve(),
     onClose: () => {},
     ...overrides,
   }
@@ -174,10 +164,9 @@ describe('ShiftSheet — the Vehicle used gates Complete Workday', () => {
 
 describe('ShiftSheet — the Vehicle used is deferred to Save draft, like every other field', () => {
   it('Save draft links the Vehicle chosen in the header', async () => {
-    const onLink = vi.fn(() => Promise.resolve())
-    const onUnlink = vi.fn(() => Promise.resolve())
+    const onCommitWorkday = vi.fn(() => Promise.resolve())
     mounted = renderSheet(
-      baseProps({ onLink, onUnlink, things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
+      baseProps({ onCommitWorkday, things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
     )
     act(() => {
       const select = mounted?.container.querySelector<HTMLSelectElement>('select[name="vehicle"]')
@@ -191,20 +180,22 @@ describe('ShiftSheet — the Vehicle used is deferred to Save draft, like every 
         select.dispatchEvent(new Event('change', { bubbles: true }))
       }
     })
-    expect(onLink).not.toHaveBeenCalled()
+    expect(onCommitWorkday).not.toHaveBeenCalled()
     await act(async () => {
       mounted?.container.querySelector<HTMLButtonElement>('button[name="save-draft"]')?.click()
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(onLink).toHaveBeenCalledExactlyOnceWith('v1', 'uses')
+    expect(onCommitWorkday).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ vehicle_link_to: 'v1', vehicle_unlink_ids: [] }),
+    )
   })
 
   it('Discard writes nothing — picking a Vehicle and discarding never links it', () => {
-    const onLink = vi.fn(() => Promise.resolve())
+    const onCommitWorkday = vi.fn(() => Promise.resolve())
     const onClose = vi.fn()
     mounted = renderSheet(
-      baseProps({ onLink, onClose, things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
+      baseProps({ onCommitWorkday, onClose, things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
     )
     act(() => {
       const select = mounted?.container.querySelector<HTMLSelectElement>('select[name="vehicle"]')
@@ -232,7 +223,7 @@ describe('ShiftSheet — the Vehicle used is deferred to Save draft, like every 
         .find((button) => button.textContent === 'Discard changes')
       discard?.click()
     })
-    expect(onLink).not.toHaveBeenCalled()
+    expect(onCommitWorkday).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledOnce()
   })
 })

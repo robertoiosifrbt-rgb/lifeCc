@@ -15,28 +15,18 @@ import {
   endSession as endShiftSession,
   NotCached,
   recordExpense,
-  removeEarning as removeShiftEarning,
   removeExpense,
-  removePlatformEarning as removeShiftPlatformEarning,
-  removeSession as removeShiftSession,
-  ROAD_COST_FIELDS,
   runStartDeliveryWork,
-  setSessionBreak,
   saveRunningCosts,
-  saveShift,
-  setRoadCost as setShiftRoadCost,
   saveTaxYear,
   saveVehicleCostRate,
-  setEarning,
-  setPlatformEarning as setShiftPlatformEarning,
+  saveWorkdayAtomic,
   startSessionSafely,
 } from '../repository/items'
 import type {
   Category,
   Item,
-  Platform,
-  RoadCostField,
-  ShiftPatch,
+  SaveWorkdayPayload,
   TaxYearPatch,
 } from '../repository/items'
 
@@ -73,31 +63,12 @@ export type MoneyActions = {
    * to say where it landed.
    */
   startDeliveryWork: (day: string, area_id: string) => Promise<Item>
-  saveShiftParts: (item_id: string, patch: ShiftPatch) => Promise<void>
   clockOn: (item_id: string) => Promise<void>
   clockOff: (sessionId: string) => Promise<void>
-  dropSession: (sessionId: string) => Promise<void>
-  setBreak: (sessionId: string, minutes: number) => Promise<void>
-  setPaid: (item_id: string, platform: Platform, amount: number) => Promise<void>
-  /** Taking a platform's earning back — not writing a fake zero over it. */
-  removeEarning: (item_id: string, platform: Platform) => Promise<void>
-  /** The same two writes, keyed by a configurable Platform's own item
-   *  instead of the legacy hardcoded name. */
-  setPlatformPaid: (item_id: string, platform_item_id: string, amount: number) => Promise<void>
-  removePlatformEarning: (item_id: string, platform_item_id: string) => Promise<void>
-  /** A road-cost field's amount, as a real linked Expense — never a number
-   *  on the shift row. Updates the Expense already backing it when one is
-   *  named, otherwise creates and links a fresh one. */
-  setRoadCost: (
-    shiftItemId: string,
-    field: RoadCostField,
-    amount: number,
-    existingExpenseItemId: string | null,
-    day: string,
-  ) => Promise<void>
-  /** A road-cost Expense taken back outright — the same `unspend` used for
-   *  any other Expense, since this is that same shared object. */
-  removeRoadCost: (item: Item) => Promise<void>
+  /** Everything Save draft/Complete Workday changed beyond the item's own
+   *  patch — its numbers, earnings, sessions, Vehicle link and road-cost
+   *  Expenses — as one Postgres transaction. See `SaveWorkdayPayload`. */
+  commitWorkday: (payload: SaveWorkdayPayload) => Promise<void>
 }
 
 export function moneyActions(owner: string, write: Write): MoneyActions {
@@ -151,27 +122,12 @@ export function moneyActions(owner: string, write: Write): MoneyActions {
     })
   },
 
-  saveShiftParts: (item_id, patch) => write(() => saveShift(owner, item_id, patch)),
   // Recoverable: a shift item can exist with no `shifts` row yet, especially
   // after a previous partial write, and starting a session straight onto
   // that would leave it invisible in the cache. Same path startDeliveryWork
   // uses, so the Start button inside the sheet recovers exactly the same way.
   clockOn: (item_id) => write(() => startSessionSafely(owner, item_id, new Date())),
   clockOff: (sessionId) => write(() => endShiftSession(owner, sessionId, new Date())),
-  dropSession: (sessionId) => write(() => removeShiftSession(owner, sessionId)),
-  setBreak: (sessionId, minutes) => write(() => setSessionBreak(owner, sessionId, minutes)),
-  setPaid: (item_id, platform, amount) =>
-    write(() => setEarning(owner, item_id, platform, amount)),
-  removeEarning: (item_id, platform) =>
-    write(() => removeShiftEarning(owner, item_id, platform)),
-  setPlatformPaid: (item_id, platform_item_id, amount) =>
-    write(() => setShiftPlatformEarning(owner, item_id, platform_item_id, amount)),
-  removePlatformEarning: (item_id, platform_item_id) =>
-    write(() => removeShiftPlatformEarning(owner, item_id, platform_item_id)),
-  setRoadCost: (shiftItemId, field, amount, existingExpenseItemId, day) =>
-    write(() =>
-      setShiftRoadCost(owner, shiftItemId, ROAD_COST_FIELDS[field], amount, existingExpenseItemId, day),
-    ),
-  removeRoadCost: (item) => write(() => removeExpense(owner, item, new Date())),
+  commitWorkday: (payload) => write(() => saveWorkdayAtomic(owner, payload)),
   }
 }

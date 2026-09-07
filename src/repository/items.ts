@@ -293,3 +293,5 @@ export type {
 export { CASHOUT_FEE_TYPES, currentPlatformRuleOf, namedPlatformsFor, orderedPlatformsOf } from './platform-record'
 export { platformRulesOf, platformsOf, recordPlatform, removePlatform } from './platforms'
 export { savePlatform, savePlatformRule } from './platforms'
+export type { SaveWorkdayPayload } from './save-workday'
+export { saveWorkdayAtomic } from './save-workday'

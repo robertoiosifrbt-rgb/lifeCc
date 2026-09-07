@@ -153,6 +153,15 @@ momentul scrierii, nu ziua turei. O tură scrisă/editată mult după ziua
 lucrată primea rata curentă azi, nu rata în vigoare atunci. Rescrie
 comparația să folosească `items.due` al turei. Fără date live de migrat.
 
+`20260907060000_save_workday_rpc` **nu** este aplicată live și nu apare în
+tabelul de mai sus. A șasea reparație de audit D1: Save draft/Complete
+Workday scriau prin până la nouă cereri separate, secvențial — o cădere la
+mijloc lăsa scrise doar primele. Adaugă `save_workday(payload jsonb)`, o
+funcție Postgres apelată o singură dată prin RPC; o invocare de funcție e o
+singură tranzacție, deci totul reușește împreună sau nimic. Nu duplică nicio
+regulă existentă (`security invoker` rulează sub aceleași RLS/grant/trigger
+ca orice cerere directă). Fără date live de migrat.
+
 ## Schimbări manuale declarate
 
 ### 5 septembrie 2026 — cron vechi eliminat

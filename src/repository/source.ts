@@ -139,6 +139,15 @@ export async function supabaseShiftParts(): Promise<{
   }
 }
 
+/**
+ * Save draft/Complete Workday's whole write, in one Postgres transaction —
+ * see `20260907060000_save_workday_rpc` for what the function itself does.
+ */
+export async function supabaseSaveWorkday(payload: unknown): Promise<void> {
+  const response = await supabase().rpc('save_workday', { payload })
+  if (response.error !== null) fail('Saving the Workday', response.error)
+}
+
 /** The writes for a shift's parts. Three tables, one owner condition each. */
 export function supabaseShiftWriter(owner: string) {
   const on = (table: string) => supabase().from(table)

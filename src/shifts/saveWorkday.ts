@@ -9,13 +9,12 @@ import type {
   Expense,
   Item,
   Link,
-  LinkKind,
   Patch,
-  Platform,
   RoadCostField,
+  SaveWorkdayPayload,
   Shift,
-  ShiftPatch,
 } from '../repository/items'
+import { CATEGORY_NAMES, ROAD_COST_FIELDS } from '../repository/items'
 import type { Draft } from './draft'
 import {
   breaksPatchOf,
@@ -33,26 +32,9 @@ import {
 
 export type WorkdayWriters = {
   onUpdateItem: (patch: Patch) => Promise<void>
-  onSaveShiftParts: (patch: ShiftPatch) => Promise<void>
-  onSetPaid: (platform: Platform, amount: number) => Promise<void>
-  onRemoveEarning: (platform: Platform) => Promise<void>
-  /** The same two writes as `onSetPaid`/`onRemoveEarning`, keyed by a
-   *  configurable Platform's own item id instead of the legacy enum. */
-  onSetPlatformPaid: (platform_item_id: string, amount: number) => Promise<void>
-  onRemovePlatformEarning: (platform_item_id: string) => Promise<void>
-  onSetBreak: (sessionId: string, minutes: number) => Promise<void>
-  onDropSession: (sessionId: string) => Promise<void>
-  onLink: (to_id: string, kind: LinkKind) => Promise<void>
-  onUnlink: (id: string) => Promise<void>
-  /** A road-cost field's typed amount — updates the Expense already backing
-   *  it when `existingExpenseItemId` names one, otherwise creates a fresh
-   *  one and links it to the Workday. */
-  onSetRoadCost: (
-    field: RoadCostField,
-    amount: number,
-    existingExpenseItemId: string | null,
-  ) => Promise<void>
-  onRemoveRoadCost: (expenseItemId: string) => Promise<void>
+  /** Everything else the sheet changed, in one transaction — see
+   *  `SaveWorkdayPayload`/`save_workday` for what each field becomes. */
+  onCommit: (payload: SaveWorkdayPayload) => Promise<void>
 }
 
 /**
@@ -60,21 +42,21 @@ export type WorkdayWriters = {
  * that reflect exactly what was just written — so the caller can settle a
  * fresh draft on the result without waiting for the next full sync.
  *
- * The item is written first, always — even when nothing about it changed.
- * The Vehicle link, in turn, is written before the `shifts` row itself: a
- * Draft's cost basis (fuel and vehicle wear alike) is re-derived at the
- * moment that row is written, and the database's pin trigger resolves "the"
- * Vehicle by joining `links` for this shift's item — never by its Area, which
- * the trigger no longer reads at all. A changed Vehicle link has to have
- * already landed before that write, or the pin still resolves against the
- * old one.
+ * The item's own patch is written first, on its own version-checked call —
+ * a different concern (a concurrent edit to the anchor) from everything
+ * below it, which lands as a single `onCommit`, one Postgres transaction:
+ * a Draft's cost basis (fuel and vehicle wear alike) is re-derived the
+ * moment the `shifts` row is written, by a database trigger that resolves
+ * "the" Vehicle by joining `links` — so a changed Vehicle link has to be
+ * part of the same write as the shift row, never a separate one that could
+ * land, or fail, on its own.
  *
  * `forceShiftTouch` is for Complete Workday alone: a shift with nothing
  * operational typed this round would otherwise never issue a write to
  * `shifts` at all, and a row never written is a row the pin trigger never
  * runs on — a Workday could complete with its cost basis still unpinned for
- * no reason but that no other field happened to change first. An upsert with
- * no patched columns still runs that trigger.
+ * no reason but that no other field happened to change first. A commit with
+ * an empty shift patch still runs that trigger, once `forceShiftTouch` says so.
  */
 export async function saveWorkday(
   item: Item,
@@ -102,34 +84,44 @@ export async function saveWorkday(
 
   if (Object.keys(itemPatch).length > 0) await writers.onUpdateItem(itemPatch)
 
-  // Before the shift row itself: the pin trigger resolves "the" Vehicle by
-  // joining `links` at the moment that row is written, the same reason a
-  // changed Area already has to land on the anchor first.
-  if (vehiclePatch !== null) {
-    for (const linkId of vehiclePatch.toUnlink) await writers.onUnlink(linkId)
-    if (vehiclePatch.toLinkVehicleId !== null) await writers.onLink(vehiclePatch.toLinkVehicleId, 'uses')
-  }
+  const forceShiftTouch = opts.forceShiftTouch === true
+  const hasCommit =
+    vehiclePatch !== null ||
+    Object.keys(shiftPatch).length > 0 ||
+    earningsPatch.length > 0 ||
+    earningsRemoved.length > 0 ||
+    platformEarningsPatch.length > 0 ||
+    platformEarningsRemoved.length > 0 ||
+    breaksPatch.length > 0 ||
+    sessionsRemoved.length > 0 ||
+    roadCostPatch.length > 0 ||
+    roadCostsRemoved.length > 0 ||
+    forceShiftTouch
 
-  if (Object.keys(shiftPatch).length > 0) {
-    await writers.onSaveShiftParts(shiftPatch)
-  } else if (opts.forceShiftTouch === true) {
-    await writers.onSaveShiftParts({})
+  if (hasCommit) {
+    const day = draft.due !== '' ? draft.due : item.due ?? ''
+    await writers.onCommit({
+      item_id: item.id,
+      force_shift_touch: forceShiftTouch,
+      vehicle_unlink_ids: vehiclePatch?.toUnlink ?? [],
+      vehicle_link_to: vehiclePatch?.toLinkVehicleId ?? null,
+      shift_patch: shiftPatch,
+      earnings_set: earningsPatch,
+      earnings_remove: earningsRemoved,
+      platform_earnings_set: platformEarningsPatch,
+      platform_earnings_remove: platformEarningsRemoved,
+      breaks_set: breaksPatch.map(({ sessionId, minutes }) => ({ session_id: sessionId, minutes })),
+      sessions_remove: sessionsRemoved,
+      road_cost_set: roadCostPatch.map(({ field, amount, existingExpenseItemId }) => ({
+        category: ROAD_COST_FIELDS[field],
+        title: CATEGORY_NAMES[ROAD_COST_FIELDS[field]],
+        day,
+        amount,
+        existing_expense_item_id: existingExpenseItemId,
+      })),
+      road_cost_remove: roadCostsRemoved.map(({ expenseItemId }) => ({ expense_item_id: expenseItemId })),
+    })
   }
-
-  for (const { platform, amount } of earningsPatch) await writers.onSetPaid(platform, amount)
-  for (const platform of earningsRemoved) await writers.onRemoveEarning(platform)
-  for (const { platform_item_id, amount } of platformEarningsPatch) {
-    await writers.onSetPlatformPaid(platform_item_id, amount)
-  }
-  for (const platform_item_id of platformEarningsRemoved) {
-    await writers.onRemovePlatformEarning(platform_item_id)
-  }
-  for (const { sessionId, minutes } of breaksPatch) await writers.onSetBreak(sessionId, minutes)
-  for (const sessionId of sessionsRemoved) await writers.onDropSession(sessionId)
-  for (const { field, amount, existingExpenseItemId } of roadCostPatch) {
-    await writers.onSetRoadCost(field, amount, existingExpenseItemId)
-  }
-  for (const { expenseItemId } of roadCostsRemoved) await writers.onRemoveRoadCost(expenseItemId)
 
   const nextItem: Item = { ...item, ...itemPatch }
   const roadCostPatchByField: Partial<Record<RoadCostField, number | null>> = {}

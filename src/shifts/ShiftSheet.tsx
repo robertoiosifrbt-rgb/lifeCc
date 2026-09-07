@@ -66,7 +66,7 @@ export function ShiftSheet(props: Props) {
     setDraft((current) => ({ ...current, [key]: value }))
   }
 
-  const writers = workdayWritersFrom(props, item, draft)
+  const writers = workdayWritersFrom(props)
 
   function onSaveDraft() {
     void guarded(async () => {

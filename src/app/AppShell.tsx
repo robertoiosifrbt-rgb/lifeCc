@@ -129,28 +129,12 @@ export function AppShell({ session }: Props) {
           today={today}
           onClockOn={() => data.clockOn(openItem.id)}
           onClockOff={(sessionId) => data.clockOff(sessionId)}
-          onDropSession={(sessionId) => data.dropSession(sessionId)}
-          onSaveShiftParts={(patch) => data.saveShiftParts(openItem.id, patch)}
-          onSetPaid={(platform, amount) => data.setPaid(openItem.id, platform, amount)}
-          onRemoveEarning={(platform) => data.removeEarning(openItem.id, platform)}
-          onSetPlatformPaid={(platform_item_id, amount) =>
-            data.setPlatformPaid(openItem.id, platform_item_id, amount)
-          }
-          onRemovePlatformEarning={(platform_item_id) =>
-            data.removePlatformEarning(openItem.id, platform_item_id)
-          }
-          onSetBreak={(sessionId, minutes) => data.setBreak(sessionId, minutes)}
           onUpdateItem={(patch) => data.update(openItem, patch)}
+          onCommitWorkday={(payload) => data.commitWorkday(payload)}
           onDelete={() => data.discard(openItem)}
           onSaveVehicleCost={(vehicle_item_id, effective_from, vehicle_per_km) =>
             data.saveVehicleCost(vehicle_item_id, effective_from, vehicle_per_km)
           }
-          onLink={(to_id, kind) => data.link(openItem.id, to_id, kind)}
-          onUnlink={(id) => data.unlink(id)}
-          onSetRoadCost={(field, amount, existingExpenseItemId, day) =>
-            data.setRoadCost(openItem.id, field, amount, existingExpenseItemId, day)
-          }
-          onRemoveRoadCost={(expenseItem) => data.removeRoadCost(expenseItem)}
           onClose={closeItem}
         />
       )}

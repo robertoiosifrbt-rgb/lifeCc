@@ -18,6 +18,7 @@ import { CASES as SHIFT_CASES } from './lib/rls-shifts.mjs'
 import { CASES as SHIFT_INVARIANT_CASES } from './lib/rls-shift-invariants.mjs'
 import { CASES as LINK_CASES } from './lib/rls-links.mjs'
 import { CASES as UPSERT_CASES } from './lib/rls-upsert.mjs'
+import { CASES as SAVE_WORKDAY_CASES } from './lib/rls-save-workday.mjs'
 import { A, B, contextFor } from './lib/rls-context.mjs'
 
 // One list, so a group is complete across both tables rather than per file.
@@ -30,6 +31,7 @@ const CASES = [
   ...SHIFT_RATE_CASES,
   ...EXPENSE_CASES,
   ...UPSERT_CASES,
+  ...SAVE_WORKDAY_CASES,
   ...LINK_CASES,
   ...JOURNAL_CASES,
   ...QUICK_ACTION_CASES,

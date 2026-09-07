@@ -611,11 +611,42 @@ găsit blocaje reale, în afara celor de mai sus:
   printr-un nou modul, `repository/export-data.ts` (`readExportData`), ca să
   nu care `items.ts` însuși toate importurile tabelelor. Nicio migrație: pur
   TypeScript, fără schimbare de schemă.
+- **Save draft/Complete Workday scriau secvențial, niciodată atomic** —
+  până la nouă cereri de rețea separate (item, legătura de Vehicul, tura,
+  câștiguri legacy și configurabile, pauze, ștergeri de sesiune, costuri de
+  drum) pentru un singur Save; o cădere la mijloc lăsa prima jumătate scrisă
+  și restul nescris — nici salvat, nici nesalvat. Reparat cu o funcție nouă
+  Postgres, `save_workday(payload jsonb)`, apelată o singură dată prin RPC
+  (`supabase.rpc('save_workday', { payload })`): o singură invocare de
+  funcție e o singură tranzacție, deci fiecare instrucțiune din ea reușește
+  împreună cu toate celelalte sau niciuna. `security invoker` (implicit,
+  numit explicit în fișier): rulează ca rolul `authenticated` chemat, cu
+  `auth.uid()` din cerere, exact ca azi — toate RLS/grant/trigger-ele
+  existente (`pin_shift_rates`, `reject_write_to_completed_shift`, garda de
+  `kind` pe `platform_item_id`) se aplică neschimbate, nimic nu e duplicat.
+  Patch-ul propriu al item-ului (titlu/dată/Arie) **nu** intră în această
+  funcție — rămâne pe propriul apel version-checked (`applyPatch`), o grijă
+  diferită (o editare concurentă pe ancoră) de „a ajuns tura ca o singură
+  bucată”. Client: `WorkdayWriters` are acum doar `onUpdateItem` +
+  `onCommit`; `ShiftSheet`/`AppShell` au un singur prop nou,
+  `onCommitWorkday`, în locul celor nouă separate; funcțiile repository
+  individuale rămase fără apelant (`saveShift`, `setEarning`,
+  `removeEarning`, `setPlatformEarning`, `removePlatformEarning`,
+  `setSessionBreak`, `removeSession`, `setRoadCost`) nu au fost șterse —
+  rămân primitive testate separat, doar nemaifolosite de acest flux.
+  Migrație nouă: `20260907060000_save_workday_rpc` (neaplicată live).
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
-sandbox): toate migrațiile aplicate în ordine, `check:rls` — 93/93 cazuri;
-typecheck, lint, build, structure, reachable, drops, 653 teste unitare —
-toate verzi.
+sandbox): toate migrațiile aplicate în ordine, `check:rls` — 96/96 cazuri
+(incluzând un caz nou care demonstrează direct atomicitatea: un payload cu o
+parte refuzată nu lasă nimic scris); typecheck, lint, build, structure,
+reachable, 653 teste unitare — toate verzi. `check:drops` semnalează 7
+coloane vechi ale lui `platforms` (drop-ate de `20260907030000_platform_rules`,
+blocajul anterior) ca „încă numite” în `platform-record.ts` — fals pozitiv
+preexistent, verificatorul nu leagă numele de coloană de tabelul lui: acele
+nume sunt cele ale tabelului nou `platform_rules`, nu ale coloanelor șterse
+din `platforms`. Nu a fost atins acum; semnalat aici ca să nu fie confundat
+cu o regresie a acestui task.
 
 ### Command Centre — partea existentă
 
