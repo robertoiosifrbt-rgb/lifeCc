@@ -214,6 +214,23 @@ describe('saveWorkday — the Vehicle link, part of the same commit as everythin
     expect(payload.vehicle_link_to).toBe('v2')
   })
 
+  it('returns the Vehicle link as it will be after the save, not the stale links it was given', async () => {
+    // The caller's own `links` prop will not show this change until the next
+    // full resync — a draft reseeded from it right after a successful save
+    // would flash back to the old Vehicle. `saveWorkday` hands back what the
+    // link now is, the same way it already does for the item and the shift.
+    const order: string[] = []
+    const anchor = item()
+    const day = shift()
+    const links = [uses('l1', 'i1', 'v1')]
+    const entities = [vehicle('v1'), vehicle('v2')]
+    const draft = { ...draftFrom(anchor, day, links, entities), vehicle_item_id: 'v2' }
+    const w = writers(order)
+    const settled = await saveWorkday(anchor, day, draft, links, entities, [], w)
+    expect(settled.links.some((l) => l.id === 'l1')).toBe(false)
+    expect(settled.links.some((l) => l.to_id === 'v2' && l.kind === 'uses' && l.from_id === 'i1')).toBe(true)
+  })
+
   it('clears an existing Vehicle link when the draft is cleared back to none', async () => {
     const order: string[] = []
     const anchor = item()

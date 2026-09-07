@@ -635,12 +635,21 @@ găsit blocaje reale, în afara celor de mai sus:
   `setSessionBreak`, `removeSession`, `setRoadCost`) nu au fost șterse —
   rămân primitive testate separat, doar nemaifolosite de acest flux.
   Migrație nouă: `20260907060000_save_workday_rpc` (neaplicată live).
+- **Reseed-ul draft-ului după Save citea `links`-ul dinainte de salvare, nu
+  cel de după** — `ShiftSheet`'s `onSaveDraft` reconstruia draft-ul din
+  rezultat cu `props.links`, care nu reflectă încă salvarea (resincronizarea
+  e asincronă, componenta-părinte nu s-a re-randat încă); dacă tocmai s-a
+  schimbat Vehiculul, selectorul revenea vizual la vechiul Vehicul (sau la
+  „niciunul") imediat după un Save reușit. Reparat: `saveWorkday` întoarce
+  acum și `links`-ul cum va fi după salvare (aceeași idee ca la `item`/
+  `shift` deja întoarse), calculat local din `vehiclePatch`; reseed-ul
+  folosește acest rezultat, nu prop-ul vechi. Nicio migrație: pur TypeScript.
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
 sandbox): toate migrațiile aplicate în ordine, `check:rls` — 96/96 cazuri
 (incluzând un caz nou care demonstrează direct atomicitatea: un payload cu o
 parte refuzată nu lasă nimic scris); typecheck, lint, build, structure,
-reachable, 653 teste unitare — toate verzi. `check:drops` semnalează 7
+reachable, 655 teste unitare — toate verzi. `check:drops` semnalează 7
 coloane vechi ale lui `platforms` (drop-ate de `20260907030000_platform_rules`,
 blocajul anterior) ca „încă numite” în `platform-record.ts` — fals pozitiv
 preexistent, verificatorul nu leagă numele de coloană de tabelul lui: acele

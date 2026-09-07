@@ -57,6 +57,13 @@ export type WorkdayWriters = {
  * runs on — a Workday could complete with its cost basis still unpinned for
  * no reason but that no other field happened to change first. A commit with
  * an empty shift patch still runs that trigger, once `forceShiftTouch` says so.
+ *
+ * The returned `links` reflect the same Vehicle change, for the same reason:
+ * the caller's own `links` prop is whatever arrived before this save ran, and
+ * will not show the new link until the next full resync — reseeding a draft
+ * from that stale array right after a successful save would flash the
+ * Vehicle picker back to what it used to point at. Every other field the
+ * sheet can save has nowhere else to read from and needed no such fix.
  */
 export async function saveWorkday(
   item: Item,
@@ -67,7 +74,7 @@ export async function saveWorkday(
   expenses: readonly Expense[],
   writers: WorkdayWriters,
   opts: { forceShiftTouch?: boolean } = {},
-): Promise<{ item: Item; shift: Shift }> {
+): Promise<{ item: Item; shift: Shift; links: Link[] }> {
   const itemPatch = itemPatchOf(item, draft)
   const vehiclePatch = vehicleLinkPatchOf(links, entities, item.id, draft)
   const shiftPatch = shiftPatchOf(shift, draft)
@@ -150,5 +157,23 @@ export async function saveWorkday(
         return changed === undefined ? session : { ...session, break_minutes: changed.minutes }
       }),
   }
-  return { item: nextItem, shift: nextShift }
+  const nextLinks: Link[] =
+    vehiclePatch === null
+      ? [...links]
+      : [
+          ...links.filter((link) => !vehiclePatch.toUnlink.includes(link.id)),
+          ...(vehiclePatch.toLinkVehicleId === null
+            ? []
+            : [
+                {
+                  id: '',
+                  owner: item.owner,
+                  from_id: item.id,
+                  to_id: vehiclePatch.toLinkVehicleId,
+                  kind: 'uses' as const,
+                  created_at: new Date().toISOString(),
+                },
+              ]),
+        ]
+  return { item: nextItem, shift: nextShift, links: nextLinks }
 }

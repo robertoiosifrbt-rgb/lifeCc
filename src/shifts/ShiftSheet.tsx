@@ -71,7 +71,7 @@ export function ShiftSheet(props: Props) {
   function onSaveDraft() {
     void guarded(async () => {
       const settled = await saveWorkday(item, shift, draft, props.links, props.things, props.expenses, writers)
-      setDraft(draftFrom(settled.item, settled.shift, props.links, props.things))
+      setDraft(draftFrom(settled.item, settled.shift, settled.links, props.things))
     })
   }
 

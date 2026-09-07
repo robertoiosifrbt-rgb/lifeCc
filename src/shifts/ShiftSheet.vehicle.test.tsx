@@ -72,6 +72,18 @@ function renderSheet(props: ReturnType<typeof baseProps>) {
   )
 }
 
+/** Picks a Vehicle in the header's own select — a plain `select.value = ...`
+ *  does not make React's onChange fire, so the value has to go through the
+ *  native setter itself for the dispatched event to be seen as a real change. */
+function chooseVehicle(container: HTMLElement, itemId: string) {
+  const select = container.querySelector<HTMLSelectElement>('select[name="vehicle"]')
+  if (select === null) return
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- rebound explicitly via .call below
+  const setValue = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set
+  setValue?.call(select, itemId)
+  select.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
 const vehicleEntity = {
   item_id: 'v1',
   owner: 'me',
@@ -168,18 +180,8 @@ describe('ShiftSheet — the Vehicle used is deferred to Save draft, like every 
     mounted = renderSheet(
       baseProps({ onCommitWorkday, things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
     )
-    act(() => {
-      const select = mounted?.container.querySelector<HTMLSelectElement>('select[name="vehicle"]')
-      if (select !== null && select !== undefined) {
-        // eslint-disable-next-line @typescript-eslint/unbound-method -- rebound explicitly via .call below
-        const setValue = Object.getOwnPropertyDescriptor(
-          window.HTMLSelectElement.prototype,
-          'value',
-        )?.set
-        setValue?.call(select, 'v1')
-        select.dispatchEvent(new Event('change', { bubbles: true }))
-      }
-    })
+    const container = mounted.container
+    act(() => chooseVehicle(container, 'v1'))
     expect(onCommitWorkday).not.toHaveBeenCalled()
     await act(async () => {
       mounted?.container.querySelector<HTMLButtonElement>('button[name="save-draft"]')?.click()
@@ -191,24 +193,33 @@ describe('ShiftSheet — the Vehicle used is deferred to Save draft, like every 
     )
   })
 
+  it('keeps showing the just-chosen Vehicle right after Save, though the links prop is still the pre-save one', async () => {
+    // saveWorkday's own return, not the (still stale) links prop: the parent
+    // has not re-rendered with the fresh sync yet, and reseeding the draft
+    // from what it passed in before Save ran would flash the picker back to
+    // "none" — the Vehicle the sheet opened with, not the one just saved.
+    const onCommitWorkday = vi.fn(() => Promise.resolve())
+    mounted = renderSheet(
+      baseProps({ onCommitWorkday, links: [], things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
+    )
+    const container = mounted.container
+    act(() => chooseVehicle(container, 'v1'))
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[name="save-draft"]')?.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(container.querySelector<HTMLSelectElement>('select[name="vehicle"]')?.value).toBe('v1')
+  })
+
   it('Discard writes nothing — picking a Vehicle and discarding never links it', () => {
     const onCommitWorkday = vi.fn(() => Promise.resolve())
     const onClose = vi.fn()
     mounted = renderSheet(
       baseProps({ onCommitWorkday, onClose, things: [vehicleEntity], items: [item(), item({ id: 'v1' })] }),
     )
-    act(() => {
-      const select = mounted?.container.querySelector<HTMLSelectElement>('select[name="vehicle"]')
-      if (select !== null && select !== undefined) {
-        // eslint-disable-next-line @typescript-eslint/unbound-method -- rebound explicitly via .call below
-        const setValue = Object.getOwnPropertyDescriptor(
-          window.HTMLSelectElement.prototype,
-          'value',
-        )?.set
-        setValue?.call(select, 'v1')
-        select.dispatchEvent(new Event('change', { bubbles: true }))
-      }
-    })
+    const container = mounted.container
+    act(() => chooseVehicle(container, 'v1'))
     // Closing while dirty (a Vehicle was picked but never saved) asks for
     // confirmation first, the same path any other unsaved field already
     // goes through — Escape is the sheet's own close trigger.
