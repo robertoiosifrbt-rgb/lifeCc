@@ -644,6 +644,20 @@ găsit blocaje reale, în afara celor de mai sus:
   acum și `links`-ul cum va fi după salvare (aceeași idee ca la `item`/
   `shift` deja întoarse), calculat local din `vehiclePatch`; reseed-ul
   folosește acest rezultat, nu prop-ul vechi. Nicio migrație: pur TypeScript.
+- **Antetele `0700`/D1 se contraziceau cu `docs/MIGRATII.md`** —
+  `20260906070000_pin_while_draft.sql` și
+  `20260907000000_delivery_data_foundation.sql` începeau cu „NOT APPLIED
+  LIVE... not declared applied in docs/MIGRATII.md until it is", deși
+  ledger-ul chiar declară ambele aplicate manual pe live (6 sep 2026 — vezi
+  „Drift cunoscut" din `MIGRATII.md`). Corectat: antetele spun acum „APPLIED
+  LIVE (manually...)" și trimit la secțiunea de drift din `MIGRATII.md`
+  pentru ce anume înseamnă asta (nu apar în
+  `supabase_migrations.schema_migrations`, niciun `if not exists`/`or
+  replace`, un `db push` viitor le va încerca din nou și va eșua). Restul
+  fișierelor din `2026090[67]*` verificate: niciunul altul nu are aceeași
+  contradicție — cele ulterioare (`0710` până la `0760`) spun corect „NOT
+  APPLIED LIVE" despre ele însele, și `0730` menționează deja corect
+  `platforms` ca „already live". Nicio schimbare de comportament: doar text.
 
 Verificat mecanic (Postgres local construit manual, fără Docker în acest
 sandbox): toate migrațiile aplicate în ordine, `check:rls` — 96/96 cazuri

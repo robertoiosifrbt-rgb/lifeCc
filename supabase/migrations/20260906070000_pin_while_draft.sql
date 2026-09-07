@@ -1,8 +1,11 @@
--- NOT APPLIED LIVE. Written for the Workday recovery task, not run against
--- production and not declared applied in docs/MIGRATII.md until it is.
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section for what
+-- that means: it does not appear in `supabase_migrations.schema_migrations`,
+-- and a future `db push` in normal file order will try to reapply it and
+-- fail unless that is fixed first). Written for the Workday recovery task.
 --
--- Rewritten in place (never applied, so there is nothing live to preserve):
--- the first version of this file only reworked when `pin_shift_rates()`
+-- Rewritten in place before that live run (nothing yet live to preserve at
+-- the time): the first version of this file only reworked when `pin_shift_rates()`
 -- re-derives its rates — Draft, every write; Completed, never — and left
 -- both rates keyed off `items.area_id`, the same as before it. A full-diff
 -- audit found that wrong for fuel: fuel is what a Vehicle burns, not what an

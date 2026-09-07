@@ -1,5 +1,9 @@
--- NOT APPLIED LIVE. D1 — Delivery Data Foundation. Local repo only, not run
--- against production, not declared applied in docs/MIGRATII.md until it is.
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section: it does not
+-- appear in `supabase_migrations.schema_migrations`, none of its new
+-- structures use `if not exists`/`or replace`, and a future `db push` in
+-- normal file order will try to reapply it and fail unless that is fixed
+-- first). D1 — Delivery Data Foundation.
 --
 -- Five things, all part of the same audit's findings on top of
 -- `20260906070000_pin_while_draft`:
