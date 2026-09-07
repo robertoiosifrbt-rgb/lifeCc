@@ -803,8 +803,9 @@ acest sandbox (fără server real de Supabase Auth).
 ### Audit D1 — a treia rundă (7 sep 2026, după runda de mai sus)
 
 Un al treilea audit cumulativ, pe HEAD-ul de după runda a doua, a găsit încă
-blocaje reale. Reparate, cu patru migrații noi — **niciuna aplicată încă pe
-live**, proprietarul nu le-a rulat:
+blocaje reale. Reparate, cu patru migrații noi — **toate patru confirmate
+aplicate live** (7 sep 2026, rulate de proprietar prin SQL Editor Supabase,
+ca un singur bloc concatenat; vezi `docs/MIGRATII.md` pentru drift):
 
 - **Item-urile de Platformă apăreau ca sarcini** — `isTaskable()`
   (`src/repository/filters.ts`) excludea `'entity'`/`'journal'`, dar nu și
@@ -886,8 +887,8 @@ Verificat mecanic: Postgres local reconstruit din toate migrațiile din repo,
 (lint/typecheck/672 teste unitare/build/structure/reachable/drops) —
 toate verzi.
 
-Cele patru migrații de mai sus rămân **NOT APPLIED LIVE** — proprietarul nu
-le-a rulat încă. Vezi `docs/MIGRATII.md` pentru ledger.
+Cele patru migrații de mai sus sunt **APPLIED LIVE**. Vezi `docs/MIGRATII.md`
+pentru ledger.
 
 ### Command Centre — partea existentă
 

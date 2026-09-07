@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE.
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit (round 3), finding #11: recording a new Platform was two separate
 -- requests — an insert into `items` (kind='platform'), then a second insert

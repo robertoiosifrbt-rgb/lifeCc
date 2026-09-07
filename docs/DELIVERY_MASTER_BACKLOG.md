@@ -1426,7 +1426,8 @@ At creation of this backlog (2026-09-06):
   migrations: `20260907110000_vehicle_fuel_rate_reactivation`,
   `20260907120000_road_cost_expense_day_tracks_workday`,
   `20260907130000_record_platform_rpc`, `20260907140000_save_workday_kind_guards`
-  — all **NOT LIVE**, not yet run by the owner.
+  — all four confirmed **APPLIED LIVE** (7 sep 2026, run by the owner via the
+  Supabase SQL Editor as one concatenated block).
 - also fixed, application code only (no migration): Money/Tax
   (`periodMoney`/`currentYearMoney`/`sliceOfYear`/`sliceFor`) no longer
   double-counts a road-cost category Expense already folded into a shift's
@@ -1445,9 +1446,9 @@ At creation of this backlog (2026-09-06):
   `scripts/lib/rls-save-workday-guards.mjs`); `npm run check`
   (lint/typecheck/672 unit tests/build/structure/reachable/drops) fully
   green.
-- still committed on `main` only where applicable, still no push authorized;
-  the four new migrations above remain unapplied on live pending the
-  owner's own decision.
+- still committed on `main` only, still no push authorized — the four
+  migrations above are live even though the commit that added the files is
+  not yet pushed.
 
 ---
 

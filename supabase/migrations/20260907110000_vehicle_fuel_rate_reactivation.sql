@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE (not declared applied in docs/MIGRATII.md until it is).
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit blocker: `clearVehicleFuelRate` soft-deletes a Vehicle's fuel
 -- rate the moment its full-tank chain becomes unknowable (`deleted_at` set).

@@ -54,24 +54,13 @@ Nu ține istoria dezvoltării și nu repetă conținutul SQL-ului. Fișierele di
 | `20260907080000_platform_rules_payout_destination` | `platform_rules.payout_destination_reference` | 7 sep 2026 (manual, vezi drift) |
 | `20260907090000_completed_item_anchor_guard` | trigger nou pe `items`, refuză title/due/area_id/state/kind pe un Workday Completed | 7 sep 2026 (manual, vezi drift) |
 | `20260907100000_atomic_item_patch` | `save_workday()`: item patch + `expected_version`, în aceeași tranzacție | 7 sep 2026 (manual, vezi drift) |
+| `20260907110000_vehicle_fuel_rate_reactivation` | grant lipsă (`insert (deleted_at)`) pe `vehicle_fuel_rates`, altfel reactivarea unei rate invalidate eșua tăcut | 7 sep 2026 (manual, vezi drift) |
+| `20260907120000_road_cost_expense_day_tracks_workday` | `save_workday()`: branch-ul de Expense existent pentru cost-de-drum actualizează acum `due` la fiecare scriere, nu doar la creare | 7 sep 2026 (manual, vezi drift) |
+| `20260907130000_record_platform_rpc` | funcția `record_platform(p_title text)` — inserează `items`+`platforms` într-o singură tranzacție | 7 sep 2026 (manual, vezi drift) |
+| `20260907140000_save_workday_kind_guards` | `save_workday()` verifică explicit `kind='shift'` pe `item_id` și că `vehicle_link_to` e un Vehicul real | 7 sep 2026 (manual, vezi drift) |
 
 Aceasta este evidența documentată, nu o verificare live făcută automat de
 fișierul acesta.
-
-## Scrise, neaplicate încă pe live (audit D1, a treia rundă)
-
-Patru fișiere noi, scrise în această rundă, niciunul rulat încă pe live —
-proprietarul nu le-a aplicat.
-
-| Migrație | Rol | Stare |
-|---|---|---|
-| `20260907110000_vehicle_fuel_rate_reactivation.sql` | grant lipsă (`insert (deleted_at)`) pe `vehicle_fuel_rates`, altfel reactivarea unei rate invalidate eșua tăcut | NOT APPLIED LIVE |
-| `20260907120000_road_cost_expense_day_tracks_workday.sql` | `save_workday()`: branch-ul de Expense existent pentru cost-de-drum actualizează acum `due` la fiecare scriere, nu doar la creare | NOT APPLIED LIVE |
-| `20260907130000_record_platform_rpc.sql` | funcția `record_platform(p_title text)` — inserează `items`+`platforms` într-o singură tranzacție | NOT APPLIED LIVE |
-| `20260907140000_save_workday_kind_guards.sql` | `save_workday()` verifică explicit `kind='shift'` pe `item_id` și că `vehicle_link_to` e un Vehicul real | NOT APPLIED LIVE |
-
-Detalii pentru fiecare, în `docs/STAREA.md`, secțiunea „Audit D1 — a treia
-rundă”.
 
 ### Notă despre versiunea din istoricul live pentru `quick_actions`
 
@@ -323,6 +312,25 @@ manuale de mai sus:
 
 Aceeași remediere rămâne necesară înainte de orice `db push` viitor, pe toate
 cele treisprezece migrații rulate manual până acum. Nu s-a făcut aici.
+
+### `20260907110000` - `20260907140000` (audit D1, a treia rundă) — rulate manual, nu prin CLI
+
+Confirmate aplicate live (7 sep 2026, rulate de proprietar prin SQL Editor
+Supabase, ca un singur bloc concatenat). Același drift ca toate migrațiile
+manuale de mai sus:
+
+- rulate din SQL Editor Supabase pe `tasks-calendar`, nu prin `supabase db
+  push`/CLI — **nu apar** în `supabase_migrations.schema_migrations`;
+- `20260907110000` e doar un `grant`, fără `if not exists`; `20260907120000`
+  și `20260907140000` sunt `create or replace function` peste `save_workday`
+  deja existentă (idempotente ca atare, ultima e versiunea finală a
+  funcției); `20260907130000` e `create function` fără `or replace`
+  (`record_platform` nu exista înainte);
+- ordinea standard de migrații pune toate cele cincisprezece de dinaintea
+  lor — un `db push` viitor eșuează întâi acolo.
+
+Aceeași remediere rămâne necesară înainte de orice `db push` viitor, pe toate
+cele șaptesprezece migrații rulate manual până acum. Nu s-a făcut aici.
 
 ### `reserves`
 

@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE.
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit (round 3), finding #14: `save_workday` never checked that
 -- `payload.item_id` actually names a `kind='shift'` item, nor that

@@ -1,4 +1,5 @@
--- NOT APPLIED LIVE.
+-- APPLIED LIVE (manually, via the Supabase SQL Editor, not through
+-- `supabase db push`/CLI — see docs/MIGRATII.md's drift section).
 --
 -- D1 audit (round 3), finding #7: `save_workday`'s `road_cost_set` handling
 -- only ever wrote a road-cost Expense's own `due` when creating a brand new
